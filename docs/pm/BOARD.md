@@ -501,3 +501,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 冷 gate 报告已复制到 `/tmp/meme_info_latest.json`，供默认路径启动。
 - 已知 tradeoff：publishable 需要 2×2 证据，`灭建国`（用户 ✅）、`蓝色大肥鱼`、`不小心惹了上帝` 暂被排除；若产品认为不可接受，需放宽 publishable 规则（不建议为凑数放水）。
 - 仍未部署：8000 未启动；模块报告刷新 worker 未建；先确认这两项再算 live。
+
+## 29. Live 启动（01:23）
+
+- 8000 已启动：`HOTMEME_DISABLE_SCHEDULER=1`，新梗榜读模块 publishable，经典/全部停在 cycle#24。
+- worker `tools/meme_info_worker.sh` 已启动：600s 一轮，写 `/tmp/meme_info_latest.json`，日志 `/tmp/meme_info_worker.log`。
+- 启动后 `/api/health` 200、`scheduler=false`、`/api/meme-info=ok`、`/api/top` 仍为旧数据；生产库 hash 未变。
+- 部署/回滚：`docs/pm/LIVE-DEPLOY.md`。
+- 待观察：worker 首轮完成后 report age<600、新榜 8 条稳定；1–2 小时后决定是否恢复旧采集或调整 publishable。
