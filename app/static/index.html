@@ -44,6 +44,10 @@
   .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .tab .cnt{color:#6c7590;font-size:11px;margin-left:5px;font-variant-numeric:tabular-nums}
   .tab[aria-selected="true"] .cnt{color:#9aa6c4}
+  .tab-badge{font-size:10px;line-height:1;padding:2px 6px;border-radius:999px;margin-left:6px;
+             border:1px solid #3a4a6b;color:#8fd9ff;background:#11202c;white-space:nowrap;
+             vertical-align:1px;font-weight:400;letter-spacing:0}
+  .tab[aria-selected="true"] .tab-badge{color:#d3ecff;border-color:#4b6f96;background:#152b3d}
   .llmbar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 10px;
           padding:9px 13px;border:1px solid var(--line);border-radius:11px;background:#0f121a;
           font-size:12px;color:var(--muted);line-height:1.6}
@@ -139,6 +143,8 @@
   .shadow-banner b{color:var(--purple);font-weight:700}
   .shadow-banner .sb-sub{display:block;margin-top:3px;color:var(--muted);overflow-wrap:anywhere}
   .shadow-banner .sb-sub b{color:#ffcc66}
+  .shadow-banner.new-banner{border-color:#2f5c46;background:linear-gradient(90deg,#12271d,#10131c)}
+  .shadow-banner.new-banner b{color:var(--green)}
   .shadow-view code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     font-size:11px;color:#c3cbe0;background:#151a26;border:1px solid var(--line);border-radius:6px;
     padding:1px 6px;overflow-wrap:anywhere;word-break:break-all;max-width:100%}
@@ -246,7 +252,7 @@
   </header>
 
   <div class="tabs" id="tabs" role="tablist" aria-label="榜单切换">
-    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="false" aria-controls="list" tabindex="-1">新梗榜</button>
+    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="false" aria-controls="newView" tabindex="-1">新梗榜<span class="tab-badge" title="模块版：读 GET /api/meme-info?only=publishable&amp;limit=8；旧 /api/top?list=new 已从 UI 下线">模块版</span></button>
     <button class="tab" id="tab-classic" role="tab" data-tab="classic" aria-selected="false" aria-controls="list" tabindex="-1">经典榜</button>
     <button class="tab" id="tab-all" role="tab" data-tab="all" aria-selected="true" aria-controls="list" tabindex="0">全部</button>
     <button class="tab" id="tab-shadow" role="tab" data-tab="shadow" aria-selected="false" aria-controls="shadowView" tabindex="-1">模块 shadow</button>
@@ -258,6 +264,17 @@
   </div>
   <div id="llmNotice" class="notice llm" role="status" aria-live="polite" hidden></div>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+  <section id="newView" class="shadow-view" role="tabpanel" aria-labelledby="tab-new" hidden>
+    <div class="shadow-banner new-banner" role="note">
+      <b>模块 publishable · 只发 2×2 达标项；观察项去模块 shadow</b>
+      <span class="sb-sub">数据来自 <code>GET /api/meme-info?only=publishable&amp;limit=8</code>（只读报告，<b>不回退旧 /api/top?list=new</b>）：
+        只展示 status=hot/rising、2×2 证据成立且 LLM gate 通过的条目；未达标/观察项在「模块 shadow」看全量。本轮不 top-up。</span>
+    </div>
+    <div id="newHead" class="shadow-head" aria-live="polite"></div>
+    <div id="newAlert" class="notice" role="status" aria-live="polite" hidden></div>
+    <div id="newList" aria-busy="false"><div class="empty"><div class="spinner"></div>正在读取模块 publishable…</div></div>
+  </section>
 
   <section id="shadowView" class="shadow-view" role="tabpanel" aria-labelledby="tab-shadow" hidden>
     <div class="shadow-banner" role="note">
@@ -751,20 +768,6 @@ function renderEmpty(data){
     listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>本轮采集中</h2><p>完成后会自动刷新</p></div>';
     return;
   }
-  if(currentTab === "new" && data && data.cycle){
-    const llm = llmSummary(data);
-    const fallback = !!(llm && (llm.fallback || llm.fallback_reason));
-    const sub = !llm
-      ? "当前接口未返回 LLM 审核信息，本页按规则版展示（非服务故障）。"
-      : fallback
-        ? "本轮 LLM 未启用/降级，新梗榜按规则版展示，因此没有「通过审核」的条目。"
-        : String(llm.mode || "off") === "off"
-          ? "当前 LLM 审核未启用（模式 off），新梗榜按规则版展示。"
-          : "本轮候选均未通过 LLM 审核，不是服务故障。";
-    listEl.innerHTML = '<div class="empty"><h2>本轮没有通过审核的新梗</h2><p>' + esc(sub) + '</p>' +
-      '<p>可以切到经典榜看稳定梗，或看全部榜单</p>' + emptyActions() + '</div>';
-    return;
-  }
   if(data && data.cycle){
     const label = currentTab === "classic" ? "经典榜" : "榜单";
     listEl.innerHTML = '<div class="empty"><h2>本轮' + label + '暂无上榜</h2><p>语料不足或判定阈值偏高，等待下一轮</p></div>';
@@ -897,17 +900,17 @@ function shadowStatusBadge(status){
     esc(s || "未知") + (SHADOW_STATUS_LABEL[s] ? " · " + esc(SHADOW_STATUS_LABEL[s]) : "") + '</span>';
 }
 
-function setShadowAlert(text, bad){
-  if(!text){ shadowAlertEl.hidden = true; shadowAlertEl.textContent = ""; return; }
-  shadowAlertEl.hidden = false;
-  shadowAlertEl.className = "notice" + (bad ? " bad" : "");
-  shadowAlertEl.textContent = String(text);
+function setAlert(el, text, bad){
+  if(!text){ el.hidden = true; el.textContent = ""; return; }
+  el.hidden = false;
+  el.className = "notice" + (bad ? " bad" : "");
+  el.textContent = String(text);
 }
+function setShadowAlert(text, bad){ setAlert(shadowAlertEl, text, bad); }
 
-function renderShadowHead(data){
+function moduleHeadHtml(data, only){
   const verify = (data && data.verification) || {};
   const llm = verify.llm || {};
-  const only = shadowOnlyEl.checked ? "publishable" : "all";
   const generated = (data && data.generated_at)
     ? fmtDate(data.generated_at) + "（" + (timeAgo(data.generated_at) || "时间不明") + "）"
     : "未提供（按文件 mtime 估龄）";
@@ -915,8 +918,7 @@ function renderShadowHead(data){
     ? fmtAge(data.age_seconds) : "-";
   const maxAge = (data && data.max_age_seconds !== null && data.max_age_seconds !== undefined)
     ? fmtAge(data.max_age_seconds) : "-";
-  shadowHeadEl.innerHTML =
-    '<div class="s-row">' + shadowStatusBadge(data && data.status) +
+  return '<div class="s-row">' + shadowStatusBadge(data && data.status) +
       '<span class="s-kv">generated_at <b>' + esc(generated) + '</b></span>' +
       '<span class="s-kv">age <b>' + esc(age) + '</b> / max_age <b>' + esc(maxAge) + '</b></span>' +
       '<span class="s-kv">publishable_count <b>' + esc(fmtInt(data && data.publishable_count)) + '</b>' +
@@ -935,6 +937,10 @@ function renderShadowHead(data){
     '</div>';
 }
 
+function renderShadowHead(data){
+  shadowHeadEl.innerHTML = moduleHeadHtml(data, shadowOnlyEl.checked ? "publishable" : "all");
+}
+
 function renderShadowStats(data){
   const stats = (data && data.stats) || {};
   const defs = [
@@ -947,29 +953,32 @@ function renderShadowStats(data){
   shadowStatsEl.innerHTML = parts.length ? parts.join("") : '<span class="s-stat">报告未提供 stats</span>';
 }
 
-function applyShadowStatus(data){
+function applyModuleStatus(data, label, footerNote){
   const st = String((data && data.status) || "");
   const dot = document.getElementById("dot");
   const statusEl = document.getElementById("statusText");
-  const label = SHADOW_STATUS_LABEL[st] || st || "未知";
+  const badgeLabel = SHADOW_STATUS_LABEL[st] || st || "未知";
   statusEl.removeAttribute("title");
   if(st === "ok"){
     dot.className = "dot";
-    statusEl.textContent = "模块 shadow · 报告" + label;
   } else {
     dot.className = "dot warn";
-    statusEl.textContent = "模块 shadow · 报告" + label;
     if(data && data.error) statusEl.title = String(data.error);
   }
+  statusEl.textContent = label + " · 报告" + badgeLabel;
   document.getElementById("cycleMeta").textContent = (data && data.generated_at)
     ? "报告生成 " + fmtDate(data.generated_at) : "报告生成时间未知";
   document.getElementById("updatedAt").textContent =
     (data && data.age_seconds !== null && data.age_seconds !== undefined)
       ? "age " + fmtAge(data.age_seconds) : "";
-  document.getElementById("meta").textContent = "模块 shadow · 报告 " +
+  document.getElementById("meta").textContent = label + " · 报告 " +
     ((data && data.report_path) || "-") + " · 可发布标记 " +
     fmtInt(data && data.publishable_count) + " / 共 " + fmtInt(data && data.total_memes) +
-    " 条 · 仅对比，不参与发布（可发布标记 ≠ 已发布）";
+    " 条 · " + footerNote;
+}
+
+function applyShadowStatus(data){
+  applyModuleStatus(data, "模块 shadow", "仅对比，不参与发布（可发布标记 ≠ 已发布）");
 }
 
 function shadowEvidenceHtml(meme){
@@ -1132,10 +1141,13 @@ async function refreshShadow(){
 
 function applyTabChrome(){
   const shadow = currentTab === "shadow";
+  const isNew = currentTab === "new";
   shadowViewEl.hidden = !shadow;
-  listEl.hidden = shadow;
-  document.getElementById("llmBar").hidden = shadow;
+  newViewEl.hidden = !isNew;
+  listEl.hidden = shadow || isNew;
+  document.getElementById("llmBar").hidden = shadow || isNew;
   if(shadow){ startShadowTimer(); } else { stopShadowTimer(); }
+  if(isNew){ startNewTimer(); } else { stopNewTimer(); }
 }
 
 shadowOnlyEl.addEventListener("change", refreshShadow);
@@ -1145,6 +1157,121 @@ shadowListEl.addEventListener("click", ev => {
     shadowOnlyEl.checked = false;
     refreshShadow();
   }
+});
+
+/* ---------- 新梗榜（模块版）：GET /api/meme-info?only=publishable&limit=8 ----------
+   旧 /api/top?list=new 已从 UI 下线：本 tab 只读模块报告、绝不请求 /api/top；
+   模块 shadow 保持 only=all 全量。两者共用卡片/头部渲染，但各自容器与请求互不覆盖。 */
+const NEW_LIMIT = 8;
+const NEW_POLL_MS = 30000;
+const newViewEl = document.getElementById("newView");
+const newHeadEl = document.getElementById("newHead");
+const newAlertEl = document.getElementById("newAlert");
+const newListEl = document.getElementById("newList");
+
+let newLoading = false;
+let newReqSeq = 0;
+let newTimer = null;
+
+function newEmptyActions(){
+  return '<div class="empty-actions">' +
+    '<button type="button" data-tab="shadow">去模块 shadow 看全部/观察</button>' +
+    '<button type="button" data-tab="classic">查看经典榜</button>' +
+    '<button type="button" data-tab="all">查看全部</button></div>';
+}
+
+function renderNew(data){
+  const st = String((data && data.status) || "");
+  newHeadEl.innerHTML = moduleHeadHtml(data, "publishable");
+  applyModuleStatus(data, "新梗榜", "模块 publishable；旧 /api/top?list=new 已从 UI 下线");
+  newListEl.setAttribute("aria-busy", "false");
+
+  if(st === "missing"){
+    setAlert(newAlertEl, "status=missing：报告文件不存在，adapter 返回空数据（不抛异常、不 500）。" +
+      "新梗榜不回退旧 /api/top?list=new；请先运行 tools/meme_info_shadow.py 生成报告。", true);
+    newListEl.innerHTML = '<div class="empty"><h2>模块 publishable 报告缺失</h2>' +
+      '<p>未找到报告文件：' + esc((data && data.report_path) || "(未配置)") + '</p>' +
+      '<p>生成方式：<code>python -m tools.meme_info_shadow --out ' +
+      esc((data && data.report_path) || "/tmp/meme_info_latest.json") + '</code></p>' +
+      '<p>新梗榜只读模块报告；可先切「模块 shadow」（同样缺报告）或「经典榜 / 全部」。</p>' +
+      newEmptyActions() + '</div>';
+    return;
+  }
+  if(st === "invalid"){
+    setAlert(newAlertEl, "status=invalid：报告文件存在但不合法，adapter 已拒绝解析，不渲染任何条目" +
+      "（不猜测、不修复）。新梗榜不回退旧 /api/top?list=new。", true);
+    newListEl.innerHTML = '<div class="empty"><h2>模块 publishable 报告无效</h2><p>' +
+      esc((data && data.error) || "报告结构不符合 schema") + '</p>' +
+      '<p>请重新生成报告后再看；可先切「模块 shadow」排查或看「经典榜 / 全部」。</p>' +
+      newEmptyActions() + '</div>';
+    return;
+  }
+  if(st === "stale"){
+    setAlert(newAlertEl, "status=stale：报告已过期（generated_at=" +
+      ((data && data.generated_at) ? fmtDate(data.generated_at) : "未知") +
+      "，age=" + fmtAge(data && data.age_seconds) +
+      "，超过 max_age=" + fmtAge(data && data.max_age_seconds) +
+      "）。以下仍展示最近一次数据并标注 age，未做实时判断，仅供发布参考。", false);
+  } else {
+    setAlert(newAlertEl, "", false);
+  }
+
+  const memes = (data && Array.isArray(data.memes)) ? data.memes : [];
+  if(!memes.length){
+    newListEl.innerHTML = '<div class="empty"><h2>本轮无 publishable</h2>' +
+      '<p>only=publishable 下没有命中「status=hot/rising + 2×2 证据 + LLM gate」的条目；' +
+      '本轮不 top-up、不回退旧新梗榜。</p>' +
+      '<p>去「模块 shadow」看全部 / 观察项（only=all），或切「经典榜 / 全部」。</p>' +
+      newEmptyActions() + '</div>';
+    return;
+  }
+  newListEl.innerHTML = memes.map(shadowCardHtml).join("");
+}
+
+function startNewTimer(){
+  if(newTimer) return;
+  newTimer = setInterval(() => { if(currentTab === "new") refreshNew(); }, NEW_POLL_MS);
+}
+function stopNewTimer(){
+  if(newTimer){ clearInterval(newTimer); newTimer = null; }
+}
+
+async function refreshNew(){
+  if(newLoading) return;
+  const seq = ++newReqSeq;
+  newLoading = true;
+  newListEl.setAttribute("aria-busy", "true");
+  try{
+    const res = await fetch("/api/meme-info?limit=" + NEW_LIMIT + "&only=publishable", {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if(seq !== newReqSeq || currentTab !== "new") return;
+    if(connMode === "offline") connMode = sseOpen ? "" : "poll";
+    renderNew(data);
+    paintNotice();
+    newListEl.setAttribute("aria-busy", "false");
+  }catch(_){
+    if(seq !== newReqSeq || currentTab !== "new") return;
+    newListEl.setAttribute("aria-busy", "false");
+    connMode = "offline";
+    document.getElementById("dot").className = "dot off";
+    document.getElementById("statusText").textContent = "服务未连接";
+    document.getElementById("cycleMeta").textContent = "新梗榜报告不可达";
+    document.getElementById("updatedAt").textContent = "";
+    paintNotice();
+    if(!newListEl.querySelector(".s-card")){
+      newListEl.innerHTML = '<div class="empty"><h2>新梗榜服务未连接</h2>' +
+        '<p>请确认服务已启动；连接恢复后会自动重试（每 30 秒）</p></div>';
+    }
+    startPolling();
+  }finally{
+    newLoading = false;
+  }
+}
+
+newListEl.addEventListener("click", ev => {
+  const btn = ev.target.closest("[data-tab]");
+  if(btn){ setTab(btn.dataset.tab); }
 });
 
 /* ---------- 榜单 tab 交互（点击 + 方向键），选择写入 localStorage ---------- */
@@ -1167,7 +1294,8 @@ function setTab(tab){
   applyTabChrome();
   lastSig = "";
   historyEpoch = null;
-  if(tab !== "shadow") listEl.setAttribute("aria-busy", "true");
+  if(tab === "classic" || tab === "all"){ listEl.setAttribute("aria-busy", "true"); }
+  else if(tab === "new"){ newListEl.setAttribute("aria-busy", "true"); }
   refresh();
 }
 tabsEl.addEventListener("click", ev => {
@@ -1198,8 +1326,10 @@ function stopPolling(){
 
 let reqSeq = 0;
 async function refresh(){
-  // shadow tab 的数据源是 /api/meme-info：此处直接分派，绝不用 /api/top 数据覆盖 shadow。
+  // 模块数据源（新梗榜 / 模块 shadow）走 /api/meme-info：此处直接分派，
+  // 绝不用 /api/top 数据覆盖，也绝不请求已下线的 /api/top?list=new。
   if(currentTab === "shadow"){ return refreshShadow(); }
+  if(currentTab === "new"){ return refreshNew(); }
   const seq = ++reqSeq;
   const tab = currentTab;
   try{
@@ -1243,8 +1373,9 @@ function subscribe(){
       sseOpen = true;
       if(connMode === "offline") connMode = "";
       stopPolling();
-      // shadow tab：SSE 是 /api/top 快照通知，与 /api/meme-info 无关，只维持连接状态、不消费数据
-      if(currentTab === "shadow"){ paintNotice(); return; }
+      // 模块 tab（新梗榜 / 模块 shadow）不消费 /api/top 快照：只维持连接状态，
+      // 数据由各自 30s 定时器走 /api/meme-info 刷新。
+      if(currentTab === "shadow" || currentTab === "new"){ paintNotice(); return; }
       refresh(); // SSE 只作通知：按当前 tab 重新拉取，保证 list/llm 字段一致
     }catch(_){}
   };

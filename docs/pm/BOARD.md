@@ -493,3 +493,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 冷缓存 module 跑（`/tmp/cold-cache-1`，`/tmp/gate_cold.json`）：212.5s / 198 请求 / 40 审 / 20 rejected / gate=true；Top10 **无闪身步、无用户 ❌**；publishable 7/10；`灭建国`/`蓝色大肥鱼`/`不小心惹了上帝` 因 2×2=false 不在 publishable。
 - 决定：按用户同意切新梗榜——UI `新梗榜` 改读 `/api/meme-info?only=publishable&limit=8`；旧 `/api/top?list=new` 从 UI 下线（API 暂留）；模块 shadow tab 保留全量。
 - 注意：新榜只发 7 条左右；meta-only/2×2 未过项进「模块 shadow」观察，不 top-up。
+
+## 28. 新梗榜切模块版（01:19）
+
+- `app/static/index.html`：`新梗榜` 改为 `GET /api/meme-info?only=publishable&limit=8`；旧 `/api/top?list=new` 从 UI 下线（API 暂留）；经典/全部仍走 `/api/top`；模块 shadow tab 保留 `only=all`。
+- 实测 8011（`/tmp/newtab-web.db` + `/tmp/gate_cold.json`）：新梗榜 8 卡（publishable_count=12/20）；**全会话 `/api/top?list=new` = 0 次**；console/HTTP 错误 0；sparkline/键盘/移动端正常；截图 `docs/pm/assets/new-tab-module.png`。
+- 冷 gate 报告已复制到 `/tmp/meme_info_latest.json`，供默认路径启动。
+- 已知 tradeoff：publishable 需要 2×2 证据，`灭建国`（用户 ✅）、`蓝色大肥鱼`、`不小心惹了上帝` 暂被排除；若产品认为不可接受，需放宽 publishable 规则（不建议为凑数放水）。
+- 仍未部署：8000 未启动；模块报告刷新 worker 未建；先确认这两项再算 live。
