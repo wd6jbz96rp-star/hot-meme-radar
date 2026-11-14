@@ -150,9 +150,12 @@ LLM_MODE = (os.getenv("HOTMEME_LLM_MODE", "off").strip().lower() or "off")
 if LLM_MODE not in LLM_MODES:   # 非法值按 off 处理，避免配置错字放大风险
     LLM_MODE = "off"
 LLM_MAX_ROUNDS = max(1, _env_int("HOTMEME_LLM_MAX_ROUNDS", 3))
-LLM_MAX_CALLS = max(0, _env_int("HOTMEME_LLM_MAX_CALLS", 18))
+# P6：审核池上限（默认 24）与单轮调用预算（默认 24）对齐，保证池内每条都能审到。
+# 旧的 50 池 + 18 调用必然「池审不完」，被规则垃圾占满时抽取候选连一次都轮不到；
+# 真实 shadow 实测审核单条 ≈ ¥0.0015–0.002，24 条 ≈ ¥0.05，仍在 ≤¥0.07/轮预算内。
+LLM_MAX_CALLS = max(0, _env_int("HOTMEME_LLM_MAX_CALLS", 24))
 LLM_TARGET = max(1, _env_int("HOTMEME_LLM_TARGET", 10))
-LLM_REVIEW_LIMIT = max(1, min(50, _env_int("HOTMEME_LLM_REVIEW_LIMIT", 50)))
+LLM_REVIEW_LIMIT = max(1, min(50, _env_int("HOTMEME_LLM_REVIEW_LIMIT", 24)))
 LLM_BUDGET_SECONDS = max(0.0, _env_float("HOTMEME_LLM_BUDGET_SECONDS", 60.0))
 
 # ---- LLM 候选抽取（P5，docs/02 §5.2）----

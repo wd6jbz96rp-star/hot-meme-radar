@@ -105,12 +105,30 @@ def _review_summary(conn, cycle_id: int, stats: dict, token_delta: dict) -> dict
         (cycle_id,),
     ).fetchall()
     counts = Counter(str(row["verdict"]) for row in rows)
+    pool_details = list(stats.get("llm_pool_details") or [])
+    kind_by_key = {
+        detail.get("family_key"): detail.get("pool_kind")
+        for detail in pool_details
+    }
+    reviewed = [
+        {
+            "meme": row["family_key"],
+            "verdict": row["verdict"],
+            "meme_prob": row["meme_prob"],
+            "reason": (row["reason"] or "")[:160],
+            "pool_kind": kind_by_key.get(row["family_key"]),
+        }
+        for row in rows
+    ]
+    extract_reviewed = [item for item in reviewed if item["pool_kind"] == "extract"]
     approved = [
-        {"meme": row["family_key"], "meme_prob": row["meme_prob"]}
+        {"meme": row["family_key"], "meme_prob": row["meme_prob"],
+         "pool_kind": kind_by_key.get(row["family_key"])}
         for row in rows if row["verdict"] == "approve"
     ]
     rejected = [
-        {"meme": row["family_key"], "reason": (row["reason"] or "")[:80]}
+        {"meme": row["family_key"], "reason": (row["reason"] or "")[:80],
+         "pool_kind": kind_by_key.get(row["family_key"])}
         for row in rows if row["verdict"] == "reject"
     ]
     return {
@@ -118,6 +136,11 @@ def _review_summary(conn, cycle_id: int, stats: dict, token_delta: dict) -> dict
         "calls": stats.get("llm_calls"),
         "rounds": stats.get("llm_rounds"),
         "pool": stats.get("llm_pool"),
+        "pool_extract": stats.get("llm_pool_extract"),
+        "pool_comment": stats.get("llm_pool_comment"),
+        "pool_score": stats.get("llm_pool_score"),
+        "extract_in_new": stats.get("llm_extract_new_total"),
+        "extract_admitted": stats.get("llm_extract_admitted_total"),
         "reviewed": stats.get("llm_reviewed"),
         "approved": stats.get("llm_approved"),
         "rejected": stats.get("llm_rejected"),
@@ -125,10 +148,37 @@ def _review_summary(conn, cycle_id: int, stats: dict, token_delta: dict) -> dict
         "fallback": stats.get("llm_fallback"),
         "fallback_reason": stats.get("llm_fallback_reason"),
         "verdicts": dict(counts),
+        "pool_details": pool_details,
+        "reviewed_items": reviewed,
+        "extract_reviewed": extract_reviewed,
+        "extract_reviewed_count": len(extract_reviewed),
+        "extract_approved_count": sum(
+            1 for item in extract_reviewed if item["verdict"] == "approve"
+        ),
         "approved_items": approved,
         "rejected_items": rejected,
         "tokens": token_delta,
     }
+
+
+def _new_list(conn, cycle_id: int, limit: int = 10) -> list[dict]:
+    """new 榜实际展示候选（含 rank=0 的观察项），与 `/api/top?list=new` 同口径。"""
+    try:
+        from app import store
+
+        rows = store.list_items(conn, cycle_id, "new", limit)
+    except Exception:  # noqa: BLE001 - 报告字段缺失不影响 shadow 主流程
+        return []
+    return [
+        {
+            "rank": item.get("rank"),
+            "meme": item.get("canonical"),
+            "score": item.get("score"),
+            "status": item.get("status"),
+            "llm_verdict": (item.get("llm_review") or {}).get("verdict"),
+        }
+        for item in rows
+    ]
 
 
 def _top10(snapshot: dict) -> list[dict]:
@@ -198,17 +248,17 @@ def main(argv: list[str] | None = None) -> int:
         "prompt_tokens": 0, "completion_tokens": 0,
         "elapsed": 0.0,
     }
-    reviewer = ChatClient(llm_config)
-    before_stats = reviewer.stats_dict()
-
     try:
         for index in range(1, args.rounds + 1):
+            # 每轮新建 ChatClient：它的 max_calls 是「进程内累计」硬上限，
+            # 跨轮复用会让第 3 轮把累计 60 次调用误报成审核预算耗尽（P6 实测）。
+            reviewer = ChatClient(llm_config)
+            before_stats = reviewer.stats_dict()
             started = time.time()
             snapshot = pipeline.run_cycle(conn=conn, client=BiliClient(),
                                           reviewer=reviewer)
             after_stats = reviewer.stats_dict()
             token_delta = _token_delta(before_stats, after_stats)
-            before_stats = after_stats
             cycle = snapshot.get("cycle") or {}
             stats = cycle.get("stats") or {}
             extract = _extract_summary(stats)
@@ -242,8 +292,9 @@ def main(argv: list[str] | None = None) -> int:
                 },
                 "extract": extract,
                 "review": review,
-                "cost": cost,
                 "top10": _top10(snapshot),
+                "new_list": _new_list(conn, int(cycle.get("id") or 0)),
+                "cost": cost,
             }
             results.append(entry)
             print(json.dumps(entry, ensure_ascii=False))
@@ -278,11 +329,10 @@ def main(argv: list[str] | None = None) -> int:
         _write_json(args.json, report)
         print(json.dumps({"status": "failed", "error": report["error"],
                           "json": str(args.json)}, ensure_ascii=False))
-        conn.close()
         return 1
     finally:
-        if not conn.closed:
-            conn.close()
+        # sqlite3.Connection 没有 `.closed` 属性（P6 崩溃根因）；close() 本身幂等。
+        conn.close()
 
     totals["cost_cny"] = _cost(totals["prompt_tokens"],
                                totals["completion_tokens"])

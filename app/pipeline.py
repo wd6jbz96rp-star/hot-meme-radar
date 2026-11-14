@@ -597,15 +597,84 @@ def build_reviewer():
         return None
 
 
+def _review_item_extract_meta(item: dict) -> dict:
+    """读取 P5 写进 item 的 `llm_extract` metadata（三种形状兼容）。"""
+    for holder in (item, item.get("components"), item.get("raw_signals")):
+        if not isinstance(holder, dict):
+            continue
+        meta = holder.get("llm_extract")
+        if isinstance(meta, dict) and meta:
+            return meta
+        source = holder.get("source")
+        if isinstance(source, str) and "llm_extract" in source:
+            return {"source": source}
+    return {}
+
+
+def _review_item_comment_backed(item: dict) -> bool:
+    """P1 评论证据候选标记：item / components / raw_signals 任一为真。"""
+    if bool(item.get("comment_backed")):
+        return True
+    for holder in (item.get("components"), item.get("raw_signals")):
+        if isinstance(holder, dict) and bool(holder.get("comment_backed")):
+            return True
+    return False
+
+
+def review_pool_kind(item: dict) -> str:
+    """审核池优先级分类：extract > comment_backed > score。"""
+    if _review_item_extract_meta(item):
+        return "extract"
+    if _review_item_comment_backed(item):
+        return "comment"
+    return "score"
+
+
 def review_pool(items: list[dict]) -> list[dict]:
-    """`list=new` 的 top N（默认 50）：含 rank=0 的 observing/comment_backed。"""
-    pool = [
+    """`list=new` 审核池：抽取候选 > 评论证据候选 > 规则分补足。
+
+    P6 根因：真实 shadow 里规则垃圾（ai/co/ge…）按 score 排在前面，抽取出的
+    「给我整不会了/油腻老登」等候选分低，被 top50 挤掉，LLM 一次都没审到。
+    这里改为三级优先级，组内仍按 score 降序；池上限与 `LLM_REVIEW_LIMIT`
+    （默认 24）对齐，配合 `LLM_MAX_CALLS`=24 保证池内每条都能审到。
+    只选 `hot/observing`（可发布候选），不为凑数把 rejected 拉进审核。
+    """
+    eligible = [
         item for item in items
         if item.get("list") == "new" and item.get("status") in ("hot", "observing")
     ]
-    pool.sort(key=lambda item: (
-        -float(item.get("score") or 0.0), str(item.get("canonical") or "")))
-    return pool[: max(0, int(config.LLM_REVIEW_LIMIT))]
+    groups: dict[str, list[dict]] = {"extract": [], "comment": [], "score": []}
+    for item in eligible:
+        groups[review_pool_kind(item)].append(item)
+    def _rank_key(item: dict) -> tuple[float, str]:
+        return (-float(item.get("score") or 0.0), str(item.get("canonical") or ""))
+    ordered = (
+        sorted(groups["extract"], key=_rank_key)
+        + sorted(groups["comment"], key=_rank_key)
+        + sorted(groups["score"], key=_rank_key)
+    )
+    return ordered[: max(0, int(config.LLM_REVIEW_LIMIT))]
+
+
+def review_pool_stats(pool: list[dict]) -> dict:
+    """审核池构成（截断后）+ 明细，供 stats / shadow 报告核对。"""
+    kinds = [review_pool_kind(item) for item in pool]
+    detail = []
+    for item, kind in zip(pool, kinds):
+        meta = _review_item_extract_meta(item)
+        detail.append({
+            "family_key": item.get("family_key"),
+            "canonical": item.get("canonical"),
+            "score": round(float(item.get("score") or 0.0), 2),
+            "pool_kind": kind,
+            "known": bool(item.get("llm_known") or meta.get("known")),
+        })
+    return {
+        "llm_pool_extract": kinds.count("extract"),
+        "llm_pool_comment": kinds.count("comment"),
+        "llm_pool_score": kinds.count("score"),
+        "llm_pool_details": detail,
+    }
 
 
 def review_candidate(item: dict, family: dict | None = None,
@@ -836,6 +905,17 @@ def _run_llm_gate(conn, cycle_id: int, items: list[dict], families_by_key: dict,
 
     pool = review_pool(items)
     stats["llm_pool"] = len(pool)
+    stats.update(review_pool_stats(pool))
+    # 可观测性：抽取候选在 list=new 的总数 vs 过了规则闸门可送审的数量。
+    # 两者差距大 = 抽取候选证据不足（多数只有 1 条评论），不是审核池排序问题。
+    new_extract = [
+        item for item in items
+        if item.get("list") == "new" and review_pool_kind(item) == "extract"
+    ]
+    stats["llm_extract_new_total"] = len(new_extract)
+    stats["llm_extract_admitted_total"] = sum(
+        1 for item in new_extract if item.get("status") in ("hot", "observing")
+    )
     instance = build_reviewer() if reviewer is _DEFAULT_REVIEWER else reviewer
     if instance is None:
         stats["llm_fallback"] = True
