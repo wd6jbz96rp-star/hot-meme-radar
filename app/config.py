@@ -52,15 +52,23 @@ MIN_VIDEOS_FOR_RANK = 2   # 至少出现在 2 个视频中才进稳定榜
 
 # ---- 采集量 ----
 VIDEOS_PER_ZONE = 25
-# v2 P1（docs/pm/BOARD.md §14）：评论 30 视频 ×（mode3 1 页 + mode2 3 页）=120 请求，
-# 弹幕降到 7 视频、每视频 ≤200 条，只作「梗句扩散」旁证；总请求预算 ≤160。
-COMMENT_VIDEOS = 30
-DANMAKU_VIDEOS = 7
+# v2 P4（docs/pm/BOARD.md §17）：评论 45 视频 ×（mode3 1 页 + mode2 3 页）=180 请求，
+# 弹幕保持 10 视频、每视频 ≤200 条，只作「梗句扩散」旁证；总请求预算 ≈210–230。
+COMMENT_VIDEOS = 45
+DANMAKU_VIDEOS = 10
 SEARCH_DANMAKU_VIDEOS = 2
 SEARCH_COMMENT_VIDEOS = 10
 # mode=2 单页只回 3–9 条但可用 next=0/20/40 翻页（P0 实测 4 页 60 条不重复），
 # 因此按 mode 配页数；缓存键 (aid, mode, page) 已含页号，命中不请求。
 COMMENT_PAGES = {3: 1, 2: 3}
+# P4 评论页失败重试：仅对可重试故障（HTTP 412/403、5xx、HTML/空、非 JSON、code=-352）。
+# 首次失败后指数退避 0.5/1/2s，最多 3 次重试（4 次尝试）；-404/无评论等业务空不重试。
+COMMENT_RETRY_DELAYS = (0.5, 1.0, 2.0)
+COMMENT_MAX_ATTEMPTS = len(COMMENT_RETRY_DELAYS) + 1
+# 单轮最多重试次数（保护冷轮耗时）：45 视频 180 页的约 22%。
+COMMENT_RETRY_BUDGET = 40
+# 失败页占比超过该阈值才把 cycle 标 degraded；单页失败不降级整轮。
+COMMENT_FAIL_RATE_MAX = 0.20
 # 热度评论 mode=3 / 时间序评论 mode=2（`/x/v2/reply/main`）
 COMMENT_MODES = (3, 2)
 COMMENT_PAGE_SIZE = 20

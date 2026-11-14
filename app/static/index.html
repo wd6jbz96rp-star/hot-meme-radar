@@ -32,6 +32,54 @@
           background:#1f1a10;color:var(--gold);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
   .notice[hidden]{display:none}
   .notice.bad{border-color:#5a2a2a;background:#221313;color:#ff9b9b}
+  .notice.llm{border-color:#3a3f5c;background:#161b2b;color:#c3cbe0}
+  .notice.llm[hidden]{display:none}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;padding:4px;background:#10131c;
+        border:1px solid var(--line);border-radius:12px;width:fit-content;max-width:100%}
+  .tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--muted);
+       font:inherit;font-size:13px;padding:7px 16px;border-radius:9px;cursor:pointer;
+       transition:color .15s ease,background .15s ease,border-color .15s ease}
+  .tab:hover{color:var(--text);background:#171c29}
+  .tab[aria-selected="true"]{color:var(--text);background:#1c2335;border-color:#33405c}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tab .cnt{color:#6c7590;font-size:11px;margin-left:5px;font-variant-numeric:tabular-nums}
+  .tab[aria-selected="true"] .cnt{color:#9aa6c4}
+  .llmbar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 10px;
+          padding:9px 13px;border:1px solid var(--line);border-radius:11px;background:#0f121a;
+          font-size:12px;color:var(--muted);line-height:1.6}
+  .llmbar .mode{font-variant-numeric:tabular-nums;color:#8b93a7}
+  .llmbar .mode b{color:#c3cbe0;font-weight:600}
+  .llm-badge{font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
+             color:var(--muted);background:#151a26;white-space:nowrap}
+  .llm-badge.active{color:var(--green);border-color:#2f5c46;background:#12271d}
+  .llm-badge.fallback{color:var(--gold);border-color:#4a3f1f;background:#1f1a10}
+  .llm-badge.off{color:#9aa6c4;background:#161b26}
+  .llm-desc{overflow-wrap:anywhere;min-width:0}
+  .llm-counts{display:flex;gap:6px 10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+  .llm-counts b{color:var(--text);font-weight:600}
+  .verdict{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+  .verdict.approve{color:var(--green);border-color:#2f5c46;background:#12271d}
+  .verdict.reject{color:#ff9b9b;border-color:#5a2a2a;background:#221313}
+  .verdict.unclear{color:var(--gold);border-color:#4a3f1f;background:#1f1a10}
+  .verdict.merge{color:var(--purple);border-color:#43345f;background:#1b1528}
+  .verdict.pending{color:#8b93a7;border-color:#2c3345;background:#141924}
+  .llm-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:12px;
+            color:var(--muted);line-height:1.6;min-width:0}
+  .llm-line .reason{overflow-wrap:anywhere;min-width:0}
+  .evidence{margin-top:6px;font-size:11px;color:#6c7590;line-height:1.7;
+            display:flex;gap:4px 12px;flex-wrap:wrap}
+  .evidence span:not(:first-child)::before{content:"·";color:#3d455c;margin-right:8px}
+  .evidence b{color:#aab3c9;font-weight:600;font-variant-numeric:tabular-nums}
+  .tag.lst-new{color:#8fd9ff;border-color:#2b4a63;background:#11202c}
+  .tag.lst-classic{color:#c9b68a;border-color:#4a3f2a;background:#221d12}
+  .panel.observing{border-style:dashed}
+  .panel.observing .rank{font-size:12px;letter-spacing:1px;color:#6c7590;font-weight:600}
+  .empty-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .empty-actions button{appearance:none;font:inherit;font-size:13px;padding:8px 16px;border-radius:9px;
+      border:1px solid #33405c;background:#171c29;color:var(--text);cursor:pointer}
+  .empty-actions button:hover{background:#1f2740;border-color:#405174}
+  .empty-actions button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  #list[aria-busy="true"]{opacity:.55;transition:opacity .15s ease}
   .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
          border-radius:16px;padding:18px 20px;margin-bottom:14px;display:grid;
          grid-template-columns:64px minmax(0,1fr) auto;gap:16px;align-items:center;position:relative;
@@ -91,13 +139,18 @@
   }
   @media (max-width:640px){
     .wrap{padding:24px 14px 64px}
+    .tabs{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+    .tab{padding:8px 6px;font-size:12px;text-align:center}
+    .llmbar{font-size:11px;padding:8px 10px;gap:6px 8px}
     .panel{grid-template-columns:44px minmax(0,1fr);gap:10px 12px;padding:16px 14px}
     .score{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px;min-width:0}
     .rank{font-size:26px}
+    .rank.obs{font-size:10px}
     h1{font-size:21px}
     .status{justify-content:flex-start;font-size:11px}
     .toggle{right:12px}
     .chips{gap:6px}
+    .evidence{gap:3px 10px}
     .spark-svg{max-height:88px}
   }
 </style>
@@ -107,7 +160,7 @@
   <header>
     <div>
       <h1>网络热梗 · 实时 <span>Top10</span></h1>
-      <div class="sub">B站 分区榜 + 评论 + 弹幕语料 · 规则判定 · 10 分钟一轮<br>
+      <div class="sub">B站 分区榜 + 评论 + 弹幕语料 · 规则判定 + LLM 审核（新梗榜） · 10 分钟一轮<br>
         热度 = 曝光 · 互动 · 广度 · 增速 · 梗性 的分位加权 × 时间衰减</div>
     </div>
     <div class="status">
@@ -118,6 +171,17 @@
     </div>
   </header>
 
+  <div class="tabs" id="tabs" role="tablist" aria-label="榜单切换">
+    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="false" aria-controls="list" tabindex="-1">新梗榜</button>
+    <button class="tab" id="tab-classic" role="tab" data-tab="classic" aria-selected="false" aria-controls="list" tabindex="-1">经典榜</button>
+    <button class="tab" id="tab-all" role="tab" data-tab="all" aria-selected="true" aria-controls="list" tabindex="0">全部</button>
+  </div>
+
+  <div id="llmBar" class="llmbar" aria-live="polite">
+    <span class="llm-badge off">规则版</span>
+    <span class="llm-desc">正在读取 LLM 审核状态…</span>
+  </div>
+  <div id="llmNotice" class="notice llm" role="status" aria-live="polite" hidden></div>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
   <div id="list"><div class="empty"><div class="spinner"></div>正在加载榜单…</div></div>
@@ -126,6 +190,7 @@
     <div id="meta"></div>
     <div class="legend">
       <span>点击卡片或按 Enter / 空格展开分项与走势</span>
+      <span>LLM 通过 / 否决 / 待定 / 合并 为审核结论，未审核项如实标注</span>
       <span>数据来源：B站公开榜单 / 评论 / 弹幕</span>
       <span>仅统计公开内容，不保存用户身份</span>
     </div>
@@ -134,6 +199,15 @@
 
 <script>
 const TYPE_ORDER = ["词","句式","谐音","缩写","名场面"];
+const TAB_STORAGE_KEY = "hotmeme.dashboard.tab.v2";
+const TAB_LABEL = {new:"新梗榜", classic:"经典榜", all:"全部"};
+const VERDICT_LABEL = {
+  approve:{text:"LLM 通过", cls:"approve"},
+  reject:{text:"LLM 否决", cls:"reject"},
+  unclear:{text:"LLM 待定", cls:"unclear"},
+  merge:{text:"LLM 合并", cls:"merge"}
+};
+const MODE_LABEL = {off:"规则版", shadow:"观察", demote:"已撤下否决项", require_approve:"仅通过项发布"};
 const REASON_LABEL = {
   seed_hit:"命中梗词典", alias_hit:"命中别名表", quoted:"被引号引用", cohesion:"独立成词",
   suffix:"梗式后缀", breadth:"跨视频跨分区", breadth_small:"多视频出现",
@@ -174,6 +248,77 @@ function fmtInt(v){ const n=Number(v); return Number.isFinite(n) ? Math.round(n)
 function fmtSec(v){ const n=Number(v); return Number.isFinite(n) ? n.toFixed(1) : "-"; }
 function fmt2(v){ const n=Number(v); return v==null || !Number.isFinite(n) ? "-" : n.toFixed(2); }
 function clamp(v,min,max){ return Math.min(max, Math.max(min,v)); }
+function truncate(s, n){
+  const str = String(s == null ? "" : s).trim();
+  return str.length > n ? str.slice(0, n - 1) + "…" : str;
+}
+
+/* ---------- 新梗证据：components.comment（旧数据回退 raw.comment_evidence） ---------- */
+function commentEvidence(item){
+  const comp = (item && item.components) || {};
+  const raw = comp.raw && typeof comp.raw === "object" ? comp.raw : {};
+  const ev = (comp.comment && typeof comp.comment === "object") ? comp.comment
+           : (raw.comment_evidence && typeof raw.comment_evidence === "object") ? raw.comment_evidence
+           : raw;
+  return ev && typeof ev === "object" ? ev : {};
+}
+function evidenceHtml(item){
+  const ev = commentEvidence(item);
+  const parts = [];
+  const age = ev.age_days;
+  if(age !== null && age !== undefined && Number.isFinite(Number(age))){
+    parts.push('<span>梗龄 <b>' + esc(fmt2(age)) + '</b> 天</span>');
+  }
+  const c7 = ev.comment_7d_count;
+  if(c7 !== null && c7 !== undefined && Number.isFinite(Number(c7))){
+    parts.push('<span>近 7 天评论 <b>' + esc(fmtInt(c7)) + '</b></span>');
+  }
+  const lw = ev.comment_like_weighted;
+  if(lw !== null && lw !== undefined && Number.isFinite(Number(lw))){
+    parts.push('<span>评论赞加权 <b>' + esc(fmt2(lw)) + '</b></span>');
+  }
+  return parts.length ? '<div class="evidence">' + parts.join("") + '</div>' : "";
+}
+function verdictTag(review, inactive){
+  if(!review || !review.verdict) return "";
+  const v = VERDICT_LABEL[review.verdict] || {text:"LLM " + review.verdict, cls:"pending"};
+  const reason = truncate(review.reason || "", 84);
+  return '<div class="llm-line"><span class="verdict ' + esc(v.cls) + '" title="' +
+    esc("verdict=" + review.verdict + (review.mode ? " · mode=" + review.mode : "") + (review.model ? " · model=" + review.model : "")) + '">' +
+    esc(v.text) + (review.merge_into ? esc(" → " + review.merge_into) : "") + '</span>' +
+    (inactive ? '<span class="verdict pending">本轮未生效</span>' : "") +
+    (reason ? '<span class="reason" title="' + esc(review.reason) + '">' + esc(reason) + '</span>' : "") +
+    '</div>';
+}
+function reviewDetail(review){
+  if(!review || !review.verdict) return "";
+  const v = VERDICT_LABEL[review.verdict] || {text:"LLM " + review.verdict};
+  const bits = [v.text];
+  if(review.mode) bits.push("mode=" + review.mode);
+  if(review.model) bits.push("model=" + review.model);
+  if(review.merge_into) bits.push("合并至 " + review.merge_into);
+  const reason = String(review.reason || "").trim();
+  return "LLM 审核：" + bits.join(" · ") + (reason ? "；理由：" + reason : "；无理由");
+}
+
+/* ---------- 榜单 tab（localStorage 记忆） ---------- */
+let currentTab = "all";
+let currentLlm = null;
+function readTab(){
+  try{
+    const v = window.localStorage.getItem(TAB_STORAGE_KEY);
+    return (v === "new" || v === "classic" || v === "all") ? v : "all";
+  }catch(_){ return "all"; }
+}
+function saveTab(tab){
+  try{ window.localStorage.setItem(TAB_STORAGE_KEY, tab); }catch(_){}
+}
+
+/* ---------- LLM 摘要（/api/top 的 llm 字段；缺失时按规则版兼容） ---------- */
+function llmSummary(data){
+  if(data && data.llm && typeof data.llm === "object") return data.llm;
+  return null;
+}
 
 // 新晋：优先用 API 的 is_new（Wave 2A），字段缺失时回退 first_seen < 36h
 function isNew(item){
@@ -185,8 +330,8 @@ function isNew(item){
 }
 
 /* ---------- 历史走势：展开时懒加载 + 同 key 缓存 ---------- */
-const historyCache = new Map(); // family_key -> {cycleId, state:"loading"|"ok"|"err", points:[]}
-let currentCycleId = null;
+const historyCache = new Map(); // family_key -> {epoch, state:"loading"|"ok"|"err", points:[]}
+let historyEpoch = null; // 轮次 + 榜单来源：切 tab / 沿用上一轮时失效
 
 function histEmpty(text){
   return '<div class="spark-empty">'+esc(text || "暂无历史")+'</div>';
@@ -273,19 +418,19 @@ function ensureHistory(card){
   const key = card.dataset.key;
   if(!key) return;
   const cached = historyCache.get(key);
-  if(cached && cached.cycleId === currentCycleId){ paintHistory(key); return; }
-  historyCache.set(key, {cycleId: currentCycleId, state: "loading", points: []});
+  if(cached && cached.epoch === historyEpoch){ paintHistory(key); return; }
+  historyCache.set(key, {epoch: historyEpoch, state: "loading", points: []});
   paintHistory(key);
   fetch("/api/meme/"+encodeURIComponent(key)+"/history?limit=60", {cache: "no-store"})
     .then(res => { if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
     .then(data => {
       const raw = data && Array.isArray(data.history) ? data.history : [];
       const points = raw.filter(p => p && Number.isFinite(Number(p.score)) && Number(p.rank) >= 0);
-      historyCache.set(key, {cycleId: currentCycleId, state: "ok", points: points});
+      historyCache.set(key, {epoch: historyEpoch, state: "ok", points: points});
       paintHistory(key);
     })
     .catch(() => {
-      historyCache.set(key, {cycleId: currentCycleId, state: "err", points: []});
+      historyCache.set(key, {epoch: historyEpoch, state: "err", points: []});
       paintHistory(key);
     });
 }
@@ -303,6 +448,8 @@ function toggleCard(card, next){
 
 const listEl = document.getElementById("list");
 listEl.addEventListener("click", ev => {
+  const tabBtn = ev.target.closest("[data-tab]");
+  if(tabBtn){ setTab(tabBtn.dataset.tab); return; }
   const card = ev.target.closest(".panel");
   if(!card || ev.target.closest("a")) return;
   toggleCard(card);
@@ -419,27 +566,49 @@ function cardHtml(item, idx){
   ].map(([k, v]) => '<span class="chip">' + k + '<b>' + esc(fmt2(v)) + '</b></span>').join("");
   const canonical = item.canonical || item.family_key || "未命名";
   const seen = timeAgo(item.first_seen);
+  const rank = Number(item.rank);
+  const observing = !(Number.isFinite(rank) && rank > 0);
+  const rankText = observing ? "观察" : fmtInt(rank);
+  const listLabel = item.list === "new" ? "新梗" : item.list === "classic" ? "经典" : "";
+  const listTag = listLabel
+    ? '<span class="tag lst-' + esc(item.list) + '">' + esc(listLabel) + '</span>' : "";
+  const review = item.llm_review && item.llm_review.verdict ? item.llm_review : null;
+  const llmActive = !!(currentLlm && String(currentLlm.mode || "off") !== "off");
+  const llmFallback = !!(currentLlm && (currentLlm.fallback || currentLlm.fallback_reason));
+  const reviewTag = review
+    ? verdictTag(review, llmFallback)
+    : (llmActive && !llmFallback && item.list === "new"
+        ? '<div class="llm-line"><span class="verdict pending">LLM 未审核</span></div>' : "");
+  const detailReview = review ? '<div class="reasons">' + esc(reviewDetail(review)) + '</div>' : "";
+  const ariaRank = observing ? "观察项" : "第 " + rank + " 名";
   return `
-  <article class="panel ${item.rank <= 3 ? "top" + item.rank : ""}" data-key="${esc(item.family_key)}"
+  <article class="panel ${(!observing && rank <= 3) ? "top" + rank : ""}${observing ? " observing" : ""}"
+           data-key="${esc(item.family_key)}"
            tabindex="0" role="button" aria-expanded="false" aria-controls="detail-${idx}"
-           aria-label="${esc("第 " + item.rank + " 名 " + canonical + "，" + score.toFixed(1) + " 分，展开查看分项与走势")}">
-    <div class="rank">${fmtInt(item.rank)}</div>
+           aria-label="${esc(ariaRank + " " + canonical + "，" + score.toFixed(1) + " 分" +
+             (review ? "，LLM 审核 " + ((VERDICT_LABEL[review.verdict] || {}).text || review.verdict) : "") +
+             "，展开查看分项与走势")}">
+    <div class="rank">${esc(rankText)}</div>
     <div>
       <div class="name">
         <span class="title">${esc(canonical)}</span>
         <span class="tag type">${esc(item.type || "词")}</span>
+        ${listTag}
         ${isNew(item) ? '<span class="tag new">新晋</span>' : ''}
         ${seen ? '<span class="tag">' + esc(seen) + '</span>' : ''}
       </div>
       <div class="sample">${item.sample ? '<em>“' + esc(item.sample) + '”</em>' : "暂无代表用法"}</div>
+      ${evidenceHtml(item)}
+      ${reviewTag}
       <div class="bar"><i style="width:${width.toFixed(1)}%"></i></div>
     </div>
     <div class="score">
       <div class="num">${score.toFixed(1)}</div>
-      ${deltaHtml(item.delta)}
+      ${observing ? "" : deltaHtml(item.delta)}
     </div>
     <div class="detail" id="detail-${idx}" role="region" aria-label="分项与走势">
       <div class="chips">${chips}</div>
+      ${detailReview}
       <div class="hist" data-hist="${esc(item.family_key)}">${histEmpty("展开后加载走势…")}</div>
       <div class="reasons">判定依据：${esc(reasonText || "仅统计信号")}</div>
     </div>
@@ -448,8 +617,9 @@ function cardHtml(item, idx){
 }
 
 function listSignature(top){
-  return String(currentCycleId) + "|" + top.map(i =>
-    [i.family_key, i.rank, Math.round(Number(i.score || 0) * 10), isNew(i) ? 1 : 0].join(":")
+  return currentTab + "|" + String(historyEpoch) + "|" + top.map(i =>
+    [i.family_key, i.rank, Math.round(Number(i.score || 0) * 10), isNew(i) ? 1 : 0,
+     i.list || "", (i.llm_review && i.llm_review.verdict) || ""].join(":")
   ).join(",");
 }
 
@@ -470,6 +640,12 @@ function renderList(top){
   }
 }
 
+function emptyActions(){
+  return '<div class="empty-actions">' +
+    '<button type="button" data-tab="classic">查看经典榜</button>' +
+    '<button type="button" data-tab="all">查看全部</button></div>';
+}
+
 function renderEmpty(data){
   if(data && data.error){
     listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>' + esc(String(data.error).slice(0, 160)) + '</p><p>下一轮会自动重试</p></div>';
@@ -479,8 +655,27 @@ function renderEmpty(data){
     listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>上一轮采集失败，等待自动重试</p></div>';
     return;
   }
+  if(data && data.running){
+    listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>本轮采集中</h2><p>完成后会自动刷新</p></div>';
+    return;
+  }
+  if(currentTab === "new" && data && data.cycle){
+    const llm = llmSummary(data);
+    const fallback = !!(llm && (llm.fallback || llm.fallback_reason));
+    const sub = !llm
+      ? "当前接口未返回 LLM 审核信息，本页按规则版展示（非服务故障）。"
+      : fallback
+        ? "本轮 LLM 未启用/降级，新梗榜按规则版展示，因此没有「通过审核」的条目。"
+        : String(llm.mode || "off") === "off"
+          ? "当前 LLM 审核未启用（模式 off），新梗榜按规则版展示。"
+          : "本轮候选均未通过 LLM 审核，不是服务故障。";
+    listEl.innerHTML = '<div class="empty"><h2>本轮没有通过审核的新梗</h2><p>' + esc(sub) + '</p>' +
+      '<p>可以切到经典榜看稳定梗，或看全部榜单</p>' + emptyActions() + '</div>';
+    return;
+  }
   if(data && data.cycle){
-    listEl.innerHTML = '<div class="empty"><h2>本轮暂无上榜</h2><p>语料不足或判定阈值偏高，等待下一轮</p></div>';
+    const label = currentTab === "classic" ? "经典榜" : "榜单";
+    listEl.innerHTML = '<div class="empty"><h2>本轮' + label + '暂无上榜</h2><p>语料不足或判定阈值偏高，等待下一轮</p></div>';
     return;
   }
   listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>首轮采集中</h2><p>约需 1–3 分钟，完成后会自动刷新</p></div>';
@@ -492,9 +687,57 @@ function renderOffline(){
   listEl.innerHTML = '<div class="empty"><h2>服务未连接</h2><p>请确认服务已启动（默认 127.0.0.1:8000）</p><p>连接恢复后会自动更新</p></div>';
 }
 
+function updateLlm(data){
+  const llm = llmSummary(data);
+  const bar = document.getElementById("llmBar");
+  const notice = document.getElementById("llmNotice");
+  currentLlm = llm;
+  const mode = llm ? String(llm.mode || "off") : "off";
+  const active = mode !== "off";
+  const fallbackReason = llm ? String(llm.fallback_reason || "") : "";
+  const fallback = !!(llm && (llm.fallback || fallbackReason));
+  let noticeText = "";
+
+  if(!llm){
+    bar.innerHTML = '<span class="llm-badge off">规则版</span>' +
+      '<span class="llm-desc">接口未返回 llm 字段，按规则榜展示（兼容旧版 API）</span>';
+  } else if(fallback){
+    bar.innerHTML = '<span class="llm-badge fallback">规则版（降级）</span>' +
+      '<span class="llm-desc">LLM mode=<b>' + esc(mode) + '</b> 本轮未生效，已回退规则榜</span>' +
+      '<span class="llm-counts">通过 <b>' + esc(fmtInt(llm.approved)) + '</b> · 否决 <b>' +
+      esc(fmtInt(llm.rejected)) + '</b> · 已审 <b>' + esc(fmtInt(llm.reviewed)) + '</b></span>';
+    noticeText = "LLM 未启用/降级，当前为规则版" + (fallbackReason ? "：" + fallbackReason : "");
+  } else if(!active){
+    bar.innerHTML = '<span class="llm-badge off">规则版</span>' +
+      '<span class="llm-desc">LLM 审核未启用（mode=off），榜单为规则判定结果</span>';
+  } else {
+    const desc = mode === "shadow" ? "只审核、不改榜（观察）"
+               : mode === "demote" ? "否决/合并项已从新梗榜撤下"
+               : mode === "require_approve" ? "新梗榜仅发布审核通过的条目"
+               : "LLM 审核状态已记录";
+    bar.innerHTML = '<span class="llm-badge active">LLM ' + esc(mode) + '</span>' +
+      '<span class="llm-desc">mode=<b>' + esc(mode) + '</b> · ' + esc(desc) +
+      (llm.gate_applied ? " · 发布门已生效" : " · 发布门未生效") + '</span>' +
+      '<span class="llm-counts">通过 <b>' + esc(fmtInt(llm.approved)) + '</b> · 否决 <b>' +
+      esc(fmtInt(llm.rejected)) + '</b> · 已审 <b>' + esc(fmtInt(llm.reviewed)) + '</b>' +
+      (Number(llm.shortfall) > 0 ? ' · 缺口 <b>' + esc(fmtInt(llm.shortfall)) + '</b>' : '') + '</span>' +
+      (llm.new_list_cycle != null
+        ? '<span class="llm-desc">新梗榜沿用第 ' + esc(fmtInt(llm.new_list_cycle)) + ' 轮审核结果</span>' : '');
+  }
+  notice.hidden = !noticeText;
+  notice.textContent = noticeText;
+}
+
 function render(data){
-  const top = ((data && data.top) || []).filter(x => x && Number(x.rank) > 0);
-  currentCycleId = data && data.cycle && data.cycle.id != null ? data.cycle.id : null;
+  const top = ((data && data.top) || []).filter(
+    x => x && Number.isFinite(Number(x.rank)) && Number(x.rank) >= 0
+  );
+  const cycle = data && data.cycle;
+  const llm = llmSummary(data);
+  const carried = llm && llm.new_list_cycle != null ? String(llm.new_list_cycle) : "";
+  historyEpoch = (cycle && cycle.id != null ? String(cycle.id) : "none") +
+    "|" + currentTab + (carried ? "|c" + carried : "");
+  updateLlm(data);
   updateStatus(data, top);
   updateMeta(data);
   if(!top.length){ renderEmpty(data); lastSig = ""; return; }
@@ -502,6 +745,46 @@ function render(data){
   if(sig !== lastSig){ lastSig = sig; renderList(top); }
   document.querySelectorAll(".panel.open").forEach(card => ensureHistory(card));
 }
+
+/* ---------- 榜单 tab 交互（点击 + 方向键），选择写入 localStorage ---------- */
+const tabsEl = document.getElementById("tabs");
+const tabButtons = Array.from(tabsEl.querySelectorAll('[role="tab"]'));
+
+function syncTabs(){
+  tabButtons.forEach(btn => {
+    const on = btn.dataset.tab === currentTab;
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+    btn.tabIndex = on ? 0 : -1;
+  });
+}
+function setTab(tab){
+  if(tab !== "new" && tab !== "classic" && tab !== "all") tab = "all";
+  if(tab === currentTab) return;
+  currentTab = tab;
+  saveTab(tab);
+  syncTabs();
+  lastSig = "";
+  historyEpoch = null;
+  listEl.setAttribute("aria-busy", "true");
+  refresh();
+}
+tabsEl.addEventListener("click", ev => {
+  const btn = ev.target.closest('[role="tab"]');
+  if(btn) setTab(btn.dataset.tab);
+});
+tabsEl.addEventListener("keydown", ev => {
+  const idx = tabButtons.indexOf(document.activeElement);
+  if(idx < 0) return;
+  let next = -1;
+  if(ev.key === "ArrowRight") next = (idx + 1) % tabButtons.length;
+  else if(ev.key === "ArrowLeft") next = (idx - 1 + tabButtons.length) % tabButtons.length;
+  else if(ev.key === "Home") next = 0;
+  else if(ev.key === "End") next = tabButtons.length - 1;
+  if(next < 0) return;
+  ev.preventDefault();
+  tabButtons[next].focus();
+  setTab(tabButtons[next].dataset.tab);
+});
 
 function startPolling(){
   if(pollTimer) return;
@@ -511,15 +794,22 @@ function stopPolling(){
   if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
 }
 
+let reqSeq = 0;
 async function refresh(){
+  const seq = ++reqSeq;
+  const tab = currentTab;
   try{
-    const res = await fetch("/api/top?limit=10", {cache: "no-store"});
+    const res = await fetch("/api/top?list=" + encodeURIComponent(tab) + "&limit=10", {cache: "no-store"});
     if(!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
+    if(seq !== reqSeq || tab !== currentTab) return; // 切换 tab 后丢弃过期响应
     if(connMode === "offline") connMode = sseOpen ? "" : "poll";
     render(data);
+    listEl.setAttribute("aria-busy", "false");
     paintNotice();
   }catch(_){
+    if(seq !== reqSeq) return;
+    listEl.setAttribute("aria-busy", "false");
     document.getElementById("dot").className = "dot off";
     const st = document.getElementById("statusText");
     st.textContent = "服务未连接";
@@ -548,8 +838,8 @@ function subscribe(){
       if(!data || !Array.isArray(data.top)) return;
       sseOpen = true;
       if(connMode === "offline") connMode = "";
-      render(data);
-      paintNotice();
+      stopPolling();
+      refresh(); // SSE 只作通知：按当前 tab 重新拉取，保证 list/llm 字段一致
     }catch(_){}
   };
   source.onerror = () => {
@@ -562,6 +852,8 @@ function subscribe(){
   }, 12000);
 }
 
+currentTab = readTab();
+syncTabs();
 refresh();
 subscribe();
 </script>

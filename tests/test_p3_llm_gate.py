@@ -201,10 +201,11 @@ def test_demote_drops_reject_from_new_but_all_is_unchanged(tmp_path, monkeypatch
 
     assert store.list_items(conn, cycle_id, "new", 10) == []
     all_items = store.top_items(conn, cycle_id, 10)
-    assert [item["canonical"] for item in all_items] == ["嘉豪"]
-    assert all_items[0]["rank"] == 1
-    assert all_items[0]["status"] == "observing"       # all/classic 规则状态不变
-    assert all_items[0]["llm_review"]["verdict"] == "reject"
+    # P4 评论 45 视频后离线语料更足：「破防」也进入 rank 池，但 demote 不改 all 的成员/状态。
+    assert {item["canonical"] for item in all_items} == {"破防", "嘉豪"}
+    by_name = {item["canonical"]: item for item in all_items}
+    assert by_name["嘉豪"]["status"] == "observing"       # all/classic 规则状态不变
+    assert by_name["嘉豪"]["llm_review"]["verdict"] == "reject"
     conn.close()
 
 

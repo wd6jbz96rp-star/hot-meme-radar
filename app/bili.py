@@ -14,6 +14,7 @@ import html as html_lib
 import json
 import re
 import time
+from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -234,6 +235,11 @@ class BiliClient:
         self._wbi_keys: tuple[str, str] | None = None
         self._bootstrapped = False
         self.errors: list[dict] = []
+        # P4 评论页健壮性观测：失败页 / 重试次数 / 失败类型（cycle.stats 读取，跨轮用增量）。
+        self.comment_page_ok = 0
+        self.comment_page_fail = 0
+        self.comment_page_retry = 0
+        self.comment_page_fail_kinds: Counter[str] = Counter()
 
     # ---------- 基础请求 ----------
     def _record_error(self, source: str, error: Exception) -> None:
@@ -398,6 +404,14 @@ class BiliClient:
 
     # 视频/评论接口对「无评论」「视频不可见」返回的 code：不是采集故障，不记 error。
     BENIGN_COMMENT_CODES = {-404, 12002, 12061, 12071}
+    # P4：可重试的评论页故障。业务空（-404/无评论）不在其中，绝不重试。
+    RETRYABLE_COMMENT_KINDS = frozenset({
+        "http_412", "http_403", "http_5xx", "html", "empty", "non_json", "code:-352",
+    })
+    # 触发重新 bootstrap/buvid 的故障（风控页/失效凭证）。
+    REBOOTSTRAP_COMMENT_KINDS = frozenset({
+        "http_412", "http_403", "html", "empty", "code:-352",
+    })
 
     @contextmanager
     def _without_buvid3(self):
@@ -420,12 +434,63 @@ class BiliClient:
             for cookie in saved:
                 jar.set_cookie(cookie)
 
-    def comment_page(self, aid: int, page: int = 1, mode: int = 3,
-                     cursor: int | None = None, ps: int = 20) -> tuple[list[dict], int]:
-        """一级评论页：`/x/v2/reply/main`（免 wbi）。
+    @staticmethod
+    def _classify_http_error(exc: HttpError) -> str:
+        """把 HTTP 失败分成可观测的类别；412/403 是风控、5xx 是服务端、其余不重试。"""
+        status = getattr(exc, "status", None)
+        if status in (412, 403):
+            return "http_412"
+        if isinstance(status, int) and 500 <= status < 600:
+            return "http_5xx"
+        if isinstance(status, int) and status > 0:
+            return f"http_{status}"
+        return "network"
 
-        mode=3 热度序（默认），mode=2 时间序；`next` 为游标（首屏 0），返回 (评论, 下一页游标)。
-        单页失败记录错误并返回空列表，不抛异常。
+    def _comment_payload(self, url: str) -> tuple[dict | None, str]:
+        """取一页评论原始响应并分类：ok / html / empty / non_json / HTTP 类。
+
+        直接用 `http.get` 拿字节（而不是 `get_json`），才能区分「HTML 风控页」
+        与「空响应」「JSON decode 失败」；不改变 `app/http.py` 的公共接口。
+        旧测试/旧客户端只实现 `get_json` 时退回 JSON 路径。
+        """
+        getter = getattr(self.http, "get", None)
+        if getter is None:  # pragma: no cover - 兼容仅实现 get_json 的旧客户端
+            try:
+                return self.http.get_json(url), "ok"
+            except HttpError as exc:
+                return None, self._classify_http_error(exc)
+        try:
+            raw = getter(url, referer="https://www.bilibili.com/")
+        except HttpError as exc:
+            return None, self._classify_http_error(exc)
+        if not raw or not raw.strip():
+            return None, "empty"
+        text = raw.decode("utf-8", errors="replace").lstrip() if isinstance(raw, bytes) else str(raw).lstrip()
+        if text[:1] == "<":
+            return None, "html"
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return None, "non_json"
+        if not isinstance(payload, dict):
+            return None, "non_json"
+        return payload, "ok"
+
+    def _comment_fail(self, aid: int, mode: int, kind: str, attempts: int) -> None:
+        """失败页只记一次（含最终失败类别与尝试次数），供 stats 聚合。"""
+        self.comment_page_fail += 1
+        self.comment_page_fail_kinds[kind] += 1
+        self._record_error(
+            f"reply:{aid}:{mode}", RuntimeError(f"{kind} (attempts={attempts})")
+        )
+
+    def comment_page_ex(self, aid: int, page: int = 1, mode: int = 3,
+                        cursor: int | None = None, ps: int = 20) -> tuple[list[dict], int, bool]:
+        """一级评论页；返回 (评论, 下一页游标, 是否有效 JSON 页)。
+
+        有效性是缓存的前提：只有 `ok=True` 的页才允许写 comment_cache，
+        失败页下一轮会重新请求。失败不抛异常，按 `RETRYABLE_COMMENT_KINDS`
+        指数退避重试（0.5/1/2s，最多 3 次），并在风控类失败时强制重取 buvid。
         """
         self._ensure()
         if self.offline:
@@ -434,25 +499,69 @@ class BiliClient:
             payload_text = (self._fixture(f"reply_main_mode{mode}.json")
                             or self._fixture("reply_main.json")
                             or self._fixture("reply.json"))
-            payload = json.loads(payload_text) if payload_text else {"code": -1}
-            return parse_comment_page(payload)
+            try:
+                payload = json.loads(payload_text) if payload_text else {"code": -1}
+            except json.JSONDecodeError:
+                payload = {"code": -1}
+            if not isinstance(payload, dict) or payload.get("code") != 0:
+                self._comment_fail(int(aid), int(mode), "offline", 1)
+                return [], 0, False
+            self.comment_page_ok += 1
+            items, next_cursor = parse_comment_page(payload)
+            return items, next_cursor, True
+
         offset = 0 if page <= 1 else (page - 1) * ps
         next_cursor = offset if cursor is None else int(cursor)
-        try:
+        url = (
+            f"{API}/x/v2/reply/main?type=1&oid={int(aid)}&mode={int(mode)}"
+            f"&next={next_cursor}&ps={int(ps)}"
+        )
+        kind = "network"
+        attempts = 0
+        rebootstrapped = False
+        while attempts < config.COMMENT_MAX_ATTEMPTS:
+            attempts += 1
             with self._without_buvid3():
-                payload = self._api(
-                    "/x/v2/reply/main",
-                    f"type=1&oid={int(aid)}&mode={int(mode)}&next={next_cursor}&ps={int(ps)}",
-                    source=f"reply:{mode}",
-                )
-        except HttpError as exc:
-            self._record_error(f"reply:{aid}:{mode}", exc)
-            return [], 0
-        code = payload.get("code")
-        if code not in (0, None) and code not in self.BENIGN_COMMENT_CODES:
-            self._record_error(f"reply:{aid}:{mode}", RuntimeError(f"code={code}"))
-            return [], 0
-        return parse_comment_page(payload)
+                payload, kind = self._comment_payload(url)
+            if payload is not None:
+                code = payload.get("code")
+                if code == -352:
+                    kind = "code:-352"
+                elif code not in (0, None) and code not in self.BENIGN_COMMENT_CODES:
+                    # 业务错误/无评论：不重试，直接算失败页；不写缓存。
+                    self._comment_fail(int(aid), int(mode), f"code={code}", attempts)
+                    return [], 0, False
+                else:
+                    self.comment_page_ok += 1
+                    items, next_cursor = parse_comment_page(payload)
+                    return items, next_cursor, True
+
+            if kind not in self.RETRYABLE_COMMENT_KINDS:
+                break
+            if attempts >= config.COMMENT_MAX_ATTEMPTS:
+                break
+            if self.comment_page_retry >= config.COMMENT_RETRY_BUDGET:
+                break
+            if kind in self.REBOOTSTRAP_COMMENT_KINDS and not rebootstrapped:
+                # 风控/凭证失效：重取 buvid3/buvid4 再试（每页最多一次，避免放大请求量）。
+                self.bootstrap(force=True)
+                rebootstrapped = True
+            self.comment_page_retry += 1
+            time.sleep(config.COMMENT_RETRY_DELAYS[attempts - 1])
+        self._comment_fail(int(aid), int(mode), kind, attempts)
+        return [], 0, False
+
+    def comment_page(self, aid: int, page: int = 1, mode: int = 3,
+                     cursor: int | None = None, ps: int = 20) -> tuple[list[dict], int]:
+        """一级评论页：`/x/v2/reply/main`（免 wbi）。
+
+        mode=3 热度序（默认），mode=2 时间序；`next` 为游标（首屏 0），返回 (评论, 下一页游标)。
+        单页失败记录错误并返回空列表，不抛异常；失败类型/重试次数见 `comment_page_ex`。
+        """
+        items, next_cursor, _ok = self.comment_page_ex(
+            aid, page=page, mode=mode, cursor=cursor, ps=ps
+        )
+        return items, next_cursor
 
     def comments(self, aid: int, page: int = 1, mode: int = 3,
                  cursor: int | None = None, ps: int = 20) -> list[dict]:

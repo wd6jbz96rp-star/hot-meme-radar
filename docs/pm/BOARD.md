@@ -267,3 +267,57 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 | 输出 | `status`、`llm_review` 字段、`llm_review` 审计表、stats（calls/approved/rejected/fallback） |
 | 降级 | 无 key/超时/预算/连续错误 → 保留规则榜，`fallback_reason` 入 stats |
 | 发布 | 新梗榜只发 approved；不足 10 条显示「审核中/候选不足」，不空榜、不注入未审项 |
+
+## 16. v2 P3 结果与当前状态（16:56）
+
+### 16.1 P3 完成
+
+- `run_cycle(..., reviewer=...)` 在落库前调用 `run_llm_gate`；只审 `list=new` top50，classic/all 不动。
+- 模式：`off`（默认）/`shadow`/`demote`/`require_approve`；无 key/超时/预算/异常 → 规则榜 + `fallback_reason`。
+- `llm_review` 审计表（含 merge_into）；API 返回 `llm_review` 与 `llm` 摘要；stats 14 项。
+- 全仓 **135 passed**；真机 `/tmp/p3.db`：shadow 19 调用/10 approved/9 rejected；warm demote 撤掉 9 条纯 ASCII/数字，all Top8 种子不变。
+- 无真实 key：`build_reviewer()` 返回 None，零真实调用；质量待真机 shadow。
+
+### 16.2 已知风险
+
+| 风险 | 证据 | 处理 |
+|---|---|---|
+| 评论接口非 JSON | P3 冷轮 28 页 `reply/main` 返回非 JSON → degraded | P4 加退避/重试/降级；区分 412/风控/空响应 |
+| 新梗候选质量 | P1 comment_backed 70 条几乎全是 ascii/数字；LLM 可过滤但无好候选可审 | P4 LLM 从近期评论抽取候选（不只 n-gram） |
+| 评论量 | 408/轮，未达 600 | 45–48 个评论视频或放宽窗口；需预算决策 |
+| 无 key | env 未配置 | 等用户提供；否则只能 fake 验证接线 |
+| 线上旧进程 | 8000 PID 39002，cycle#17 仍是 90 评论/31 请求 | 完成后重启；否则看不到 P1–P3 |
+
+### 16.3 P4 建议（待确认）
+
+1. **LLM 候选抽取**：每轮取 300–500 条近期高赞评论，让 LLM 抽「像梗的短语 + 出处/含义 + 证据」，补 n-gram 召回；成本 1–3 调用/轮。
+2. **评论接口健壮性**：非 JSON/412 重试与退避，失败页记 `comment_page_fail`，不整轮 degraded。
+3. **评论量**：评论视频 30→45（请求 180–200，冷轮 ~100s），或 90 天证据 + 7 天增速。
+4. **前端**：新梗榜/经典榜 tab，展示 LLM 审核结论与证据；无 key 时显示「规则版」。
+5. **真机 shadow**：拿到 key 后跑 3 轮，人工核对 LLM verdict 与 Top10；再切 `demote`/`require_approve`。
+
+## 17. v2 P4：DeepSeek + 45 视频 + 抽取/健壮性/前端（16:58）
+
+### 17.1 用户决策
+
+| # | 决策 |
+|---|---|
+| D8 | LLM 用 **DeepSeek**（OpenAI 兼容；默认 base `https://api.deepseek.com/v1`，model `deepseek-chat`） |
+| D9 | 审核推进顺序：**shadow 3 轮 → demote → require_approve** |
+| D10 | 评论视频 **30 → 45**（mode2 3 页 + mode3 1 页；请求约 210–230，冷轮 ~110s，warm 缓存后 ~31 请求） |
+| D11 | 重启 8000 待 P4 完成后执行（当前 PID 39002 仍是旧代码） |
+
+### 17.2 P4 分工
+
+| 会话 | 所有权 | 任务 | 依赖 |
+|---|---|---|---|
+| comment-robust | app/bili.py、pipeline.py、config.py、store.py、tests/*、docs/02 | 45 视频、非 JSON/412 退避重试、失败统计、评论 ≥600、warm 0 请求 | 无 |
+| llm-extract | 新建 app/llm_extract.py、tests/test_llm_extract.py、docs/pm/P4-LLM-EXTRACT.md | 从 300–500 条近期高赞评论抽候选（surface/meaning/origin/evidence/confidence），假客户端测试 | 无（真实调用等 key） |
+| frontend-v2 | app/static/index.html、docs/pm/P4-WEB-REPORT.md | new/classic tab、LLM 审核 badge/证据、空榜/降级态、移动端 | 可用 /tmp/p3.db |
+
+### 17.3 验收口径
+
+- 评论 ≥600/轮；失败页 ≤5%；冷轮 ≤130s、warm ≤35s；0 未捕获错误。
+- LLM 抽取：只从证据评论出候选，禁止编造；输出可合并进 `discover` 前的候选池。
+- 前端：无 key/新榜为空时明确显示「规则版/审核中」，不假装有数据。
+- 不写生产库、不碰 8000、不 commit。

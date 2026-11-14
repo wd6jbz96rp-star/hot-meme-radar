@@ -84,13 +84,43 @@ def select_targets(videos: list[dict]) -> tuple[list[dict], list[dict]]:
 
     search_danmaku = search_videos[: config.SEARCH_DANMAKU_VIDEOS]
     search_comments = search_videos[: config.SEARCH_COMMENT_VIDEOS]
-    danmaku_targets = _dedupe_videos(search_danmaku + danmaku_targets)[
-        : config.DANMAKU_VIDEOS
-    ]
-    comment_targets = _dedupe_videos(search_comments + comment_targets)[
-        : config.COMMENT_VIDEOS
-    ]
-    return comment_targets, danmaku_targets
+    danmaku_targets = _dedupe_videos(search_danmaku + danmaku_targets)
+    comment_targets = _dedupe_videos(search_comments + comment_targets)
+
+    # P4：分区配额是「下限」，按 reply/view 从剩余视频补齐到 45/10。
+    # 视频池不足时保持现有数量（不重复选同一个 bvid）。
+    def _fill(targets: list[dict], limit: int) -> list[dict]:
+        if len(targets) >= limit:
+            return targets[:limit]
+        chosen = {video.get("bvid") for video in targets}
+        for video in sorted(
+            videos,
+            key=lambda v: (v.get("reply", 0), v.get("view", 0)),
+            reverse=True,
+        ):
+            if len(targets) >= limit:
+                break
+            bvid = video.get("bvid")
+            if not bvid or bvid in chosen:
+                continue
+            chosen.add(bvid)
+            targets.append(video)
+        return targets[:limit]
+
+    return (_fill(comment_targets, config.COMMENT_VIDEOS),
+            _fill(danmaku_targets, config.DANMAKU_VIDEOS))
+
+
+def _fetch_comment_page(client, aid: int, page: int, mode: int,
+                        cursor: int) -> tuple[list[dict], int, bool]:
+    """兼容实现 `comment_page_ex` 的客户端；旧客户端/fake 视为有效页。"""
+    fetch = getattr(client, "comment_page_ex", None)
+    if fetch is not None:
+        return fetch(int(aid), page=page, mode=mode, cursor=cursor)
+    items, next_cursor = client.comment_page(
+        int(aid), page=page, mode=mode, cursor=cursor
+    )
+    return items, next_cursor, True
 
 
 def collect_docs(client: BiliClient, conn, cycle_id: int,
@@ -101,11 +131,18 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
              "comment_dupes": 0, "comment_filtered_old": 0,
              "comment_modes": {str(mode): 0 for mode in config.COMMENT_MODES},
              "danmaku": 0, "danmaku_docs": 0, "danmaku_cached": 0,
-             "comment_requests": 0, "comment_cached": 0, "pagelist_requests": 0}
+             "comment_requests": 0, "comment_cached": 0, "pagelist_requests": 0,
+             # P4：评论页可观测性。失败页/重试次数在 collect_docs 内按客户端增量统计；
+             # 失败率 > COMMENT_FAIL_RATE_MAX 才让 cycle degraded。
+             "comment_page_fail": 0, "comment_page_retry": 0,
+             "comment_page_fail_kinds": {}, "comment_page_fail_rate": 0.0,
+             "comment_degraded": False}
     danmaku_docs: list[TextDoc] = []
     comment_docs: list[TextDoc] = []
     now_ts = _now().timestamp()
     recent_seconds = config.COMMENT_RECENT_DAYS * 86400
+    retry_base = int(getattr(client, "comment_page_retry", 0) or 0)
+    fail_kinds_base = Counter(getattr(client, "comment_page_fail_kinds", {}) or {})
 
     # 一次批量取 cid：搜索视频的 cid 在上一轮已由 collect_docs 回写，
     # 这里命中即可完全跳过 pagelist（warm 轮 25 → 0）。
@@ -164,12 +201,16 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
                     items, cursor = cached
                     stats["comment_cached"] += 1
                 else:
-                    items, cursor = client.comment_page(
-                        int(aid), page=page, mode=mode, cursor=cursor
+                    items, cursor, ok = _fetch_comment_page(
+                        client, int(aid), page=page, mode=mode, cursor=cursor
                     )
                     stats["comment_requests"] += 1
-                    store.put_comment_cache(conn, int(aid), mode, page, items,
-                                            next_cursor=cursor)
+                    if ok:
+                        # 只缓存有效 JSON 页；失败页不写缓存，下一轮重新请求。
+                        store.put_comment_cache(conn, int(aid), mode, page, items,
+                                                next_cursor=cursor)
+                    else:
+                        stats["comment_page_fail"] += 1
                 for item in items:
                     text = (item.get("text") or "").strip()
                     if not text:
@@ -258,6 +299,19 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
                         zone=video.get("zone", ""), kind="tag",
                         owner=video.get("owner_name", ""))
             )
+
+    stats["comment_page_retry"] = max(
+        0, int(getattr(client, "comment_page_retry", 0) or 0) - retry_base
+    )
+    kinds = Counter(getattr(client, "comment_page_fail_kinds", {}) or {}) - fail_kinds_base
+    stats["comment_page_fail_kinds"] = dict(kinds)
+    attempted = stats["comment_requests"]
+    fail_rate = (stats["comment_page_fail"] / attempted) if attempted else 0.0
+    stats["comment_page_fail_rate"] = round(fail_rate, 4)
+    # 单页/少量失败不降级整轮；失败页 >20% 才标 degraded（仍用已有语料产出）。
+    stats["comment_degraded"] = bool(
+        attempted and fail_rate > config.COMMENT_FAIL_RATE_MAX
+    )
 
     rng.shuffle(danmaku_docs)
     return danmaku_docs + comment_docs + header_docs, stats
@@ -1157,7 +1211,14 @@ def run_cycle(conn=None, client: BiliClient | None = None,
         stats["elapsed"] = round(time.time() - started, 1)
         stats["errors"] = list(client.errors)
 
-        if client.errors or any(count == 0 for count in zone_counts.values()):
+        non_comment_errors = [
+            item for item in client.errors
+            if not str(item.get("source", "")).startswith("reply:")
+        ]
+        if non_comment_errors or any(count == 0 for count in zone_counts.values()):
+            status = "degraded"
+        # P4：评论页失败率 >20% 才整轮降级；单页失败只计数，不把 cycle 标 degraded。
+        if collect_stats.get("comment_degraded"):
             status = "degraded"
         store.finish_cycle(conn, cycle_id, status, stats)
         store.prune(conn)

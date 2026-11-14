@@ -32,25 +32,45 @@
 
 分区权重按造梗密度设定：鬼畜 1.4、生活 1.2、动画 1.1、游戏 1.1、影视 1.0、音乐 0.9、娱乐 0.9、知识 0.7。
 
-### 2.1 语料配额与窗口（v2 P0 评论区优先）
+### 2.1 语料配额与窗口（v2 P4：45 评论视频）
 
 评论是第一语料区，弹幕降为「梗句扩散」旁证：
 
 | 项 | 口径 |
 |---|---|
-| 评论视频 | 30 个（分区榜按 `reply` 取 + 10 个梗搜索视频），`COMMENT_VIDEOS=30` |
-| 评论接口 | `/x/v2/reply/main`，每视频 `mode=3`（热度）1 页 + `mode=2`（时间）3 页，`ps=20`，`COMMENT_PAGES={3:1, 2:3}`；30 视频共 120 评论请求 |
+| 评论视频 | 45 个（分区榜按 `reply` 取 + 10 个梗搜索视频；分区配额不足时按 `reply/view` 补齐），`COMMENT_VIDEOS=45` |
+| 评论接口 | `/x/v2/reply/main`，每视频 `mode=3`（热度）1 页 + `mode=2`（时间）3 页，`ps=20`，`COMMENT_PAGES={3:1, 2:3}`；45 视频共 180 评论请求 |
 | 每视频保留 | 两种 mode 合并去重后 ≤40 条（`COMMENT_MAX_PER_VIDEO=40`）：热度评论按赞、时间评论按 `ctime` 各取一半，再按赞补齐 |
 | 评论窗口 | 只收 `ctime` ≤30 天（`COMMENT_WINDOW_DAYS=30`）；≤7 天单独计数用于增速（`COMMENT_RECENT_DAYS=7`） |
 | 评论去重 | 先按 `rpid`，再按归一化文本；同一评论同时出现在两个 mode 只留一条 |
 | 评论落库 | `text_sample.raw_time = ctime`（Unix 秒）；`TextDoc` 以动态属性携带 `ctime/mode/rpid`，不改 `extract.TextDoc` 字段 |
-| 弹幕视频 | 7 个（`DANMAKU_VIDEOS=7`），每视频随机采样 ≤200 条（`MAX_DANMAKU_PER_VIDEO=200`）；为 120 评论请求让出预算 |
+| 弹幕视频 | 10 个（`DANMAKU_VIDEOS=10`），每视频随机采样 ≤200 条（`MAX_DANMAKU_PER_VIDEO=200`）；只占约 10 请求 |
 | 弹幕定位 | 只作整句扩散旁证与「老梗刷屏」识别，不参与评论证据门控 |
-| 请求预算 | 冷轮 ≈160（评论 120 + 排行榜 8 + 热门 1 + 搜索 20 + spi/nav 2 + pagelist ≤2 + 弹幕 7），P1 验收上限 160 |
+| 请求预算 | 冷轮 ≈210–230（评论 180 + 排行榜 8 + 热门 1 + 搜索 20 + spi/nav 2 + pagelist ≤10 + 弹幕 10 + 偶发重试）；2 rps 下 ≈110–120s |
 
 翻页必须把上一页返回的 `cursor.next` 原样传给下一页（实测是 1682 这类 opaque 游标，不是 20/40 偏移量：传 20 会翻到 2024 年旧页并 `is_end`）。翻页停止只认 `cursor.next == 0`（`is_end`），不能按「短页」提前停。缓存键 `(aid, mode, page)` 并持久化 `next_cursor`，warm 轮命中缓存即可判断是否还有下一页，命中不产生请求。
 
-旧 `/x/v2/reply` 实测匿名仅返回 3 条 → 一轮 90 条评论；`reply/main` 单页 ~19–20 条，30 视频 ×（mode3 1 页 + mode2 3 页）≈ 单轮 600–800 条候选。旧 fixture 结构（只有 `data.replies`）仍可解析。
+旧 `/x/v2/reply` 实测匿名仅返回 3 条 → 一轮 90 条评论；`reply/main` 单页 ~19–20 条，45 视频 ×（mode3 1 页 + mode2 3 页）≈ 单轮 900+ 条候选（30 天窗口内按 P1 实测约 13–20 条/视频落地）。
+
+### 2.2 评论页失败分类、重试与失败统计（P4）
+
+评论页失败不再「一律返回空 + 记 error」，而是先分类再决定是否重试：
+
+| 类别 | 判定 | 是否重试 |
+|---|---|---|
+| `http_412` / `http_403` | `HttpError.status in (412,403)`（风控；urllib 与 curl 兜底都失败） | 是，且在首次重试前强制重新 `bootstrap`（重取 buvid3/buvid4），每页最多一次 |
+| `http_5xx` | HTTP 5xx | 是 |
+| `html` | 2xx 但响应体以 `<` 开头（风控 HTML 页） | 是，且强制重新 bootstrap |
+| `empty` | 2xx 但响应体为空/空白 | 是，且强制重新 bootstrap |
+| `non_json` | 2xx 但 `json.loads` 失败（非 HTML） | 是 |
+| `code:-352` | 合法 JSON 但 `code=-352`（风控） | 是，且强制重新 bootstrap |
+| `code=-404/12002/12061/12071` | 无评论/视频不可见 | **否**；视为有效空页（可缓存），不记 error |
+| 其他业务 code / 网络错误 | 合法 JSON 业务错误，或 urllib 网络失败（`http.get` 内部已重试） | 否 |
+
+- 重试退避：`0.5s → 1s → 2s`（指数），最多 3 次重试（共 4 次尝试，`COMMENT_MAX_ATTEMPTS=4`）；单轮重试总预算 `COMMENT_RETRY_BUDGET=40`，防止风控风暴把冷轮拖长（超出预算的页直接记失败，不再退避）。
+- **只缓存有效 JSON 页**：`comment_page_ex` 返回 `(items, next_cursor, ok)`，`ok=True` 才写 `comment_cache`（含 `-404` 这类有效空页）；失败页不写缓存，下一轮会重新请求（warm 轮因此可能残留少量评论请求，这是正确行为，不是缓存失效）。
+- **单页失败不整轮降级**：失败页计入 `comment_page_fail`，重试计入 `comment_page_retry`；只有 `comment_page_fail / comment_requests > 20%`（`COMMENT_FAIL_RATE_MAX`）才把 cycle 标 `degraded`。评论 error 仍写入 `stats.errors` 与 `source_error`，用于追溯，但不再触发「有任何 error 就 degraded」的旧逻辑。
+- **失败也产出榜单**：评论、标题、弹幕、种子/候选池互相独立；评论全失败时 `comment_evidence_ready=false`、评论门控跳过，仍用标题/弹幕/已有候选正常出榜，不空榜。
 
 ## 3. 候选发现
 
@@ -208,7 +228,7 @@ PRIMARY KEY(cycle_id, family_key)
 
 | 风险 | 应对 |
 |---|---|
-| -352 / -412 风控 | spi 取 buvid3、限速 2 rps、缓存、熔断、回退上一轮 |
+| -352 / -412 风控 | spi 取 buvid3、限速 2 rps、评论页分类重试（0.5/1/2s，最多 3 次后仍失败则整页放弃）、失败率 >20% 才降级、回退上一轮 |
 | 弹幕 raw-deflate | 显式 `zlib(-15)`，失败回退 gzip |
 | Python 默认 CA 失败 | cafile 回退链 `/etc/ssl/cert.pem` → certifi |
 | 接口变更 | adapter 隔离 + fixture 回归 |
@@ -220,7 +240,8 @@ PRIMARY KEY(cycle_id, family_key)
 - **弹幕缓存**：24h（`CACHE_TTL_SECONDS`），按 cid 命中。
 - **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, mode, page)` 命中（旧库启动时幂等迁移，历史行补 `mode=3`、`next_cursor=0`）；缓存内容带 `ctime` 与 `next_cursor`。命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变；warm 轮靠缓存的 `next_cursor` 判断是否继续翻页。
 - **cid 持久化**：搜索视频首轮补 `x/player/pagelist` 后回写 `video.cid`；后续轮 `upsert_videos` 用 `COALESCE` 保留，warm 轮 `pagelist_requests=0`。
-- `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav，`reply/main` 计入 `comments`）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
+- `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底与重试）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav，`reply/main` 计入 `comments`）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底，含重试）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
+- 评论页失败指标：`comment_page_fail`（最终失败页数，一页只计一次）、`comment_page_retry`（重试次数）、`comment_page_fail_kinds`（按 `http_412/http_5xx/html/empty/non_json/code:-352` 等分类计数）、`comment_page_fail_rate`（失败页/拉取页）、`comment_degraded`（失败率是否 >20%）；`comment_evidence_ready` 仍按 `comments_recent ≥ 200` 判断。
 - 评论语料指标：`comments`（本轮保留条数）、`comments_recent`（≤30 天）、`comments_7d`（≤7 天）、`comment_modes`（各 mode 保留条数）、`comment_dupes`（rpid/文本去重数）、`comment_filtered_old`（窗口外丢弃数）、`danmaku`/`danmaku_docs`（弹幕文档数）、`comment_evidence_ready`、`comment_gate_checked`（通过梗性门控、进入评论门控的候选数）、`comment_gate_rejected`（被 P0 门控拒绝的候选数）、`meme_gate_rejected`（被梗性门控拒绝的候选数）、`comment_backed_count`（满足评论证据通道门槛的候选数）、`comment_backed_admitted`（实际经该通道绕过 `MEME_MIN` 入池数）。
 
 ## 8. 扩展点
