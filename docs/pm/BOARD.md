@@ -509,3 +509,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 启动后 `/api/health` 200、`scheduler=false`、`/api/meme-info=ok`、`/api/top` 仍为旧数据；生产库 hash 未变。
 - 部署/回滚：`docs/pm/LIVE-DEPLOY.md`。
 - 待观察：worker 首轮完成后 report age<600、新榜 8 条稳定；1–2 小时后决定是否恢复旧采集或调整 publishable。
+
+## 30. Live 调整 publishable 口径（01:30）
+
+- 首次 live 发现 2×2 硬门槛只出 6 条，且误杀用户 ✅ `灭建国/扎啤`；按用户「7–8 条」验收调整为：
+  `publishable = hot/rising 且（2×2 或 LLM is_meme/is_current）`；2×2 仍单独展示。
+- 8000 已重启加载新规则：`/api/meme-info?only=publishable&limit=8` 返回 8 条（`publishable_count=15`），包含 `灭建国/扎啤/老实赚钱`；`/api/top` 仍 cycle#24。
+- worker 首轮 261s 完成，报告 `generated_at=01:23:23`；下一轮 600s 后。
+- 全仓 300 passed；`docs/pm/LIVE-DEPLOY.md` 已同步。

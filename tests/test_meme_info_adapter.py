@@ -197,15 +197,16 @@ def test_publishable_marking(report_file):
     _write(report_file, make_report())
     data = meme_info_adapter.load_report()
     flags = {m["canonical"]: m["publishable"] for m in data["memes"]}
-    assert flags == {"吃了不烧心": True, "扎啤": False, "观察中": False}
+    # 2026-11-15：2×2 只是徽标；LLM is_meme/is_current=true 的 rising 也 publishable
+    assert flags == {"吃了不烧心": True, "扎啤": True, "观察中": False}
     # 只做标记，不硬过滤：all 仍返回 3 条
     assert data["count"] == 3
-    assert data["publishable_count"] == 1  # 扎啤 rising 但 2×2 false；观察中 status 不符
+    assert data["publishable_count"] == 2
     all_items = meme_info_adapter.load_report(only="all")
     assert all_items["count"] == 3
     publishable = meme_info_adapter.load_report(only="publishable")
-    assert publishable["count"] == 1
-    assert [m["canonical"] for m in publishable["memes"]] == ["吃了不烧心"]
+    assert publishable["count"] == 2
+    assert [m["canonical"] for m in publishable["memes"]] == ["吃了不烧心", "扎啤"]
     assert publishable["total_memes"] == 3
     with pytest.raises(ValueError):
         meme_info_adapter.load_report(only="bogus")
@@ -329,8 +330,8 @@ def test_api_meme_info_limit_and_only(client, report_file):
     clamped = client.get("/api/meme-info", params={"limit": 0}).json()
     assert clamped["count"] == 1
     only = client.get("/api/meme-info", params={"only": "publishable"}).json()
-    assert only["count"] == 1
-    assert only["memes"][0]["publishable"] is True
+    assert only["count"] == 2
+    assert all(m["publishable"] is True for m in only["memes"])
 
 
 def test_api_meme_info_status_codes(client, report_file):

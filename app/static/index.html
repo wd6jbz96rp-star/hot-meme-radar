@@ -267,9 +267,9 @@
 
   <section id="newView" class="shadow-view" role="tabpanel" aria-labelledby="tab-new" hidden>
     <div class="shadow-banner new-banner" role="note">
-      <b>模块 publishable · 只发 2×2 达标项；观察项去模块 shadow</b>
+      <b>模块 publishable · hot/rising + LLM 通过；2×2 是证据徽标</b>
       <span class="sb-sub">数据来自 <code>GET /api/meme-info?only=publishable&amp;limit=8</code>（只读报告，<b>不回退旧 /api/top?list=new</b>）：
-        只展示 status=hot/rising、2×2 证据成立且 LLM gate 通过的条目；未达标/观察项在「模块 shadow」看全量。本轮不 top-up。</span>
+        展示 status=hot/rising 且（2×2 证据成立或 LLM is_meme/is_current 通过）的条目；2×2 徽标单独标注，未达标项去「模块 shadow」看全量。本轮不 top-up。</span>
     </div>
     <div id="newHead" class="shadow-head" aria-live="polite"></div>
     <div id="newAlert" class="notice" role="status" aria-live="polite" hidden></div>

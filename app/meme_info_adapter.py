@@ -219,6 +219,12 @@ def _trim_meme(rank: int, meme: dict) -> dict:
     usage = meme.get("usage") if isinstance(meme.get("usage"), list) else []
     rate_2x2 = signals.get("evidence_rate_2x2") is True
     status = str(meme.get("status") or "")
+    verified = _trim_verified(meme.get("verified"))
+    # 2026-11-15 产品决策：2×2 是证据徽标，不是唯一硬门槛。
+    # 用户确认的真梗（灭建国/扎啤等）常只有 1 梗视频+1 使用；只按 2×2 会误杀，
+    # 因此 hot/rising + LLM is_meme/is_current 也视为 publishable；2×2 仍单独展示。
+    llm_ok = bool(verified and verified.get("is_meme") is True
+                  and verified.get("is_current") is True)
     return {
         "rank": rank,
         "family_key": str(meme.get("family_key") or ""),
@@ -228,8 +234,8 @@ def _trim_meme(rank: int, meme: dict) -> dict:
         "type": _truncate(meme.get("type"), 20),
         "meaning": _truncate(meme.get("meaning"), 200),
         "evidence_rate_2x2": rate_2x2,
-        "publishable": status in PUBLISHABLE_STATUSES and rate_2x2,
-        "verified": _trim_verified(meme.get("verified")),
+        "publishable": status in PUBLISHABLE_STATUSES and (rate_2x2 or llm_ok),
+        "verified": verified,
         "meta_count": len(meta) if meta else _int(signals.get("meta_videos")),
         "usage_count": len(usage) if usage else _int(signals.get("usage_docs")),
         "evidence": _trim_evidence(meme),
@@ -269,8 +275,9 @@ def load_report(path: str | Path | None = None,
 
     ``status``：``missing``（文件不存在）→ ``invalid``（JSON/契约错误）→
     ``stale``（``generated_at`` 超过 ``MEME_INFO_MAX_AGE_SECONDS``）→ ``ok``。
-    ``only=publishable`` 只保留 ``status∈(hot,rising)`` 且 2×2 证据为 true 的条目；
-    只做标记/筛选，不改变模块结论。
+    ``only=publishable`` 保留 ``status∈(hot,rising)`` 且
+    （2×2 证据为 true 或 LLM is_meme/is_current 为 true）的条目；
+    2×2 仍作为独立徽标；只做标记/筛选，不改变模块结论。
     """
     if only not in ONLY_VALUES:
         raise ValueError(f"only 仅支持 {'|'.join(ONLY_VALUES)}")

@@ -4,6 +4,7 @@
 
 - `127.0.0.1:8000`：uvicorn 已启动，**`HOTMEME_DISABLE_SCHEDULER=1`**（旧 pipeline 暂停，不再写生产库、不再抢 B站 2rps）。
 - 新梗榜：模块 `publishable`（`GET /api/meme-info?only=publishable&limit=8`），旧 `/api/top?list=new` 从 UI 下线。
+- publishable 口径（2026-11-15 01:30 调整）：`hot/rising` 且（2×2=true **或** LLM `is_meme/is_current=true`）；2×2 仍作为证据徽标。当前报告 15 条 publishable，展示前 8 条；`灭建国/扎啤/老实赚钱` 已恢复可见。
 - 经典/全部：仍走 `/api/top`，当前停在 cycle#24（11-14 17:43），**不会自动更新**；这是暂停旧引擎的预期代价。
 - `/tmp/meme_info_worker.log`：worker 每 600s 跑一轮 `tools/meme_info_shadow.py`，原子更新 `/tmp/meme_info_latest.json`。
 
@@ -42,7 +43,7 @@ curl -s '127.0.0.1:8000/api/top?limit=2'
 
 ## 5. 已知限制
 
-- 新梗榜只发 2×2 达标项（7–8 条/轮）；`灭建国` 等用户确认但 2×2=false 的条目只在「模块 shadow」可见。
+- 新梗榜按 `publishable` 展示前 8 条；2×2=false 但 LLM 通过的用户确认真梗也会进入（如 `灭建国/扎啤`）。`publishable_count` 为全量（当前 15），不是展示条数。
 - 模块报告刷新依赖 worker；worker 停则 1h 后 stale（UI 会提示）。
 - 经典/全部在 scheduler 暂停期间是静态快照。
 - 生产库事故已止损；当前字节等于 00:11 副本，无业务行变化（`docs/pm/INCIDENT-20261115.md`）。
@@ -50,5 +51,5 @@ curl -s '127.0.0.1:8000/api/top?limit=2'
 ## 6. 后续
 
 - 观察 1–2 小时 report age/新梗榜条数；
-- 若要接受 `灭建国` 等弱证据真梗，调 publishable 规则（不建议为凑数放水）；
+- 若后续想更严格，可把 `publishable` 改回 2×2 硬门槛；当前选择是为了不误杀用户确认的弱证据真梗。
 - 将 worker 改成 launchd/systemd 常驻，或并入架构里的独立 worker。
