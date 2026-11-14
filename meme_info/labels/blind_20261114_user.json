@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "as_of": "2026-11-14",
+  "source": "用户盲标（16 条，基于 2026-11-14 22:25 gate 版 Top16；不是从梗百科标题生成）",
+  "notes": "判定口径：✅当前真梗 / ❌不是梗（普通词、标题、人名地名、一次性说法） / ❓没听过或不确定。仅 16 条，作为盲标回归起点，不是完整 gold set。",
+  "items": [
+    {
+      "canonical": "吃了不烧心",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "司凤音乐",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "扎啤",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "老实赚钱很枯燥吧",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "灭建国",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "中国人能飞",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "吴家村",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "MJ宇宙",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "最怕BLG夺冠之人",
+      "label": "non_meme",
+      "current": false,
+      "confidence": "user",
+      "notes": "用户盲标 ❌：不是梗/一次性标题"
+    },
+    {
+      "canonical": "非凡之爱",
+      "label": "non_meme",
+      "current": false,
+      "confidence": "user",
+      "notes": "用户盲标 ❌：不是梗/标题"
+    },
+    {
+      "canonical": "PiuPiuPiu",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "狗尾草表情包",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "雪豹眉眉",
+      "label": "unclear",
+      "current": false,
+      "confidence": "user",
+      "notes": "用户盲标 ❓：不确定/没听过"
+    },
+    {
+      "canonical": "腋毛攻击",
+      "label": "non_meme",
+      "current": false,
+      "confidence": "user",
+      "notes": "用户盲标 ❌：不是梗"
+    },
+    {
+      "canonical": "没希望，佩不上",
+      "label": "current_meme",
+      "current": true,
+      "confidence": "user",
+      "notes": "用户盲标 ✅"
+    },
+    {
+      "canonical": "明码标价",
+      "label": "non_meme",
+      "current": false,
+      "confidence": "user",
+      "notes": "用户盲标 ❌：普通词/不是梗"
+    }
+  ]
+}

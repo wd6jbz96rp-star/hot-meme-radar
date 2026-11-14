@@ -406,11 +406,12 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 5. 数据量：45 视频 → 60，或 mode=2 5 页；评论 631 → 1,000+，冷轮 ~150s。
 6. 评测：用 20–30 条人工标注的「近期真梗/老梗/非梗」做 precision 检查，再决定是否继续。
 
-## 21. 工程师 meme_info 交付复核（22:25）
+## 21. 工程师 meme_info 交付复核（22:45，含用户盲标）
 
 - 交付：`7a585af feat(meme-info)`，`meme_info/` 独立库 + `tools/meme_info.py` + 49 tests；全仓 263 passed；不 import app、不写库、不起服务。
-- 独立重跑：规则版 Top 出现 `音乐` #4（普通词）；带 LLM gate 后 40 审 14 剔，但 Top 仍有 `吴家村/明码标价/扎啤`；`eval` P@10 **0.70**、label coverage 0.70（工程师报告 19:35 快照为 1.0）。
-- 代码缺陷：`Knowledge.is_generic`（knowledge.py:149）未接入 `blocked_reason`（:166），`音乐` 在 lexicon 却漏过；单条 signals 缺 `evidence_rate_2x2`；银标与查询同通道，存在循环性。
-- 判定：**架构/工程通过，质量未过；暂不组装进 app 生产链路。**
+- 用户 16 条盲标（`meme_info/labels/blind_20261114_user.json`）：**11 真 / 4 假 / 1 不确定**；P@5 **1.00**、P@10 **0.80**、P@16 **0.688**；**Top8 全部为真**。
+- 假阳性集中在 9/10/14/16：`最怕BLG夺冠之人`、`非凡之爱`、`腋毛攻击`、`明码标价`（均被 LLM gate 放行）。
+- 独立重跑还发现：规则版 `音乐` #4（`is_generic` 未接入 `blocked_reason`）；单条 signals 缺 `evidence_rate_2x2`；银标 71 条与查询同通道（P@10 1.0 不可复现，独立银标 run 0.70）。
+- 判定：**架构/工程通过；质量条件性通过**——Top8 全对、P@10 0.80 够做 shadow，但 4 条假阳性 + P@16 0.688，**不能自动发布**。
 - 复核报告：`docs/pm/MEME-INFO-REVIEW.md`。
-- 下一步：工程师按返工清单加固 generic/proper 过滤、LLM gate 要求 2×2 独立使用、补稳定性测试；用户盲标 50–100 条；通过 P@10 ≥0.8 后再做 shadow adapter。
+- 下一步：工程师修 generic/proper 过滤 + LLM gate 对 4 条假阳性回归 + 盲标纳入 eval；通过 P@10 ≥0.9、P@16 ≥0.8 后做 shadow adapter。
