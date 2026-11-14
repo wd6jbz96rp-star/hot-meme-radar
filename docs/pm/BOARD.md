@@ -348,3 +348,26 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 
 - 用户把 DeepSeek key 写入 `~/.hotmeme_llm_key`（`chmod 600`），或设置 `HOTMEME_LLM_API_KEY`；**不要贴聊天**。
 - 我方只以 `HOTMEME_LLM_API_KEY_FILE` 读取，不打印、不入库、不提交。
+
+## 19. v2 P5 结果与真实 LLM 阻塞（17:22）
+
+### 19.1 P5 完成
+
+- `run_cycle` 在 `discover` 前调用 LLM 抽取；候选按 norm 合并、补 metadata、known 标记；stats `llm_extract_*`。
+- `HOTMEME_LLM_API_KEY_FILE` 支持；key 不打印、不入库。
+- `tools/shadow_run.py`：3 轮 shadow + 抽取，`/tmp/shadow.db`，拒绝生产库；无 key exit 2。
+- 全仓 **207 passed**；fake 集成 3 轮链路通过（approve 1、gate applied）。
+- **真实 shadow 未执行**：无 `~/.hotmeme_llm_key` / `HOTMEME_LLM_API_KEY`。
+
+### 19.2 当前状态（重要）
+
+- **new 榜在 fake 审核下是垃圾**：截图 `docs/pm/assets/02-tab-new.png` 里「也不/烂梗/还没/都没」被 `fake-heuristic` 标通过。这证明接线通了，但**不是可发布质量**。
+- `HOTMEME_LLM_MODE` 默认 **off**，因此线上不会展示这些 fake 结果；new 榜需要真实 key 才能启用。
+- 8000 仍是旧进程（PID 39002，cycle#17），P1–P5 未加载。
+
+### 19.3 下一步（P6，等 key）
+
+1. 用户把 DeepSeek key 写入 `~/.hotmeme_llm_key`（chmod 600），或设 `HOTMEME_LLM_API_KEY`。
+2. 跑 `tools/shadow_run.py --rounds 3 --db /tmp/shadow.db`；检查 extract 候选、review verdict、Top10、调用/成本。
+3. 人工核对 3 轮：记住「new 榜必须至少 1 条非种子且 LLM approve」；达不到就继续修抽取 prompt/证据，不要切发布。
+4. 通过后 `HOTMEME_LLM_MODE=demote` 灰度，再 `require_approve`；最后重启 8000 并更新 README。
