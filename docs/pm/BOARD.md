@@ -431,3 +431,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 | 验收 | 59+ tests 全绿；TestClient 覆盖 missing/invalid/stale/ok/limit/only；一次真机 shadow 报告；不重启线上 |
 
 下一步：shadow 对比 2–3 轮 → 人工看新面孔/假阳性 → 再决定是否替换 `list=new`。
+
+### 22.1 Shadow adapter 交付（00:12）
+
+- 新增 `tools/meme_info_shadow.py`（采集端，原子写 `/tmp/meme_info_latest.json`；拒写 DB/data）、`app/meme_info_adapter.py`（只读/精简/缓存）、`GET /api/meme-info`；`/api/top` 未动。
+- 全仓 **297 passed**（+24）；原始报告 2.4MB → API 响应 6.3KB；状态机 ok/stale/missing/invalid 均 200，非法 only 400。
+- 真机 shadow：137s / 178 请求 / 1025 评论 / 20 memes；`publishable_count=7`；Top10 命中用户 16 锚点 7 条；app cycle#24 是 6.5h 前旧数据，overlap 0/10 **不是质量结论**。
+- 线上 8000 当时未运行；未重启、未写生产库。
+- 下一步：给看板加「模块 shadow」只读 tab（显示 status/age/evidence/LLM），用同一时段跑 2–3 轮再评估是否切 `list=new`；切之前仍不自动发布。
