@@ -130,6 +130,23 @@ CREATE TABLE IF NOT EXISTS source_error(
     source TEXT,
     error TEXT
 );
+CREATE TABLE IF NOT EXISTS llm_review(
+    cycle_id INTEGER NOT NULL,
+    family_key TEXT NOT NULL,
+    verdict TEXT NOT NULL,
+    meme_prob REAL NOT NULL DEFAULT 0,
+    novelty TEXT NOT NULL DEFAULT '',
+    origin TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    evidence_hash TEXT NOT NULL DEFAULT '',
+    mode TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    prompt_version TEXT NOT NULL DEFAULT '',
+    merge_into TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(cycle_id, family_key)
+);
+CREATE INDEX IF NOT EXISTS idx_llm_review_cycle ON llm_review(cycle_id);
 """
 
 
@@ -153,6 +170,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "ALTER TABLE meme_signal ADD COLUMN is_new INTEGER NOT NULL DEFAULT 0"
         )
     _migrate_comment_cache(conn)
+    _migrate_llm_review(conn)
+
+
+def _migrate_llm_review(conn: sqlite3.Connection) -> None:
+    """P3 审计表幂等迁移：老库无此表由 SCHEMA 建；缺 merge_into 的补列。
+
+    表本身用 `CREATE TABLE IF NOT EXISTS`，重复 init_db 不丢数据；
+    这里只处理「表已存在但列不全」的早期草稿库。
+    """
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(llm_review)")}
+    if columns and "merge_into" not in columns:
+        conn.execute("ALTER TABLE llm_review ADD COLUMN merge_into TEXT NOT NULL DEFAULT ''")
 
 
 def _migrate_comment_cache(conn: sqlite3.Connection) -> None:
@@ -539,6 +568,105 @@ def insert_signals(conn: sqlite3.Connection, cycle_id: int, items: Iterable[dict
     conn.commit()
 
 
+def insert_llm_reviews(conn: sqlite3.Connection, cycle_id: int,
+                       reviews: Iterable[dict]) -> None:
+    """P3 审核审计：同一 (cycle, family) 重跑时覆盖，不重复累积。
+
+    字段与 docs/pm/P2-LLM-DESIGN.md §7 的 log 对齐；`mode` 记录当时开关，
+    便于事后区分 shadow 观察值与 demote/require_approve 的发布决定。
+    """
+    stamp = now_iso()
+    rows = [
+        (
+            cycle_id, str(r["family_key"]), str(r.get("verdict", "unclear")),
+            float(r.get("meme_prob") or 0), str(r.get("novelty", "")),
+            str(r.get("origin", "")), str(r.get("reason") or "")[:500],
+            str(r.get("evidence_hash", "")), str(r.get("mode", "")),
+            str(r.get("model", "")), str(r.get("prompt_version", "")),
+            str(r.get("merge_into", "")), str(r.get("created_at") or stamp),
+        )
+        for r in reviews
+        if r.get("family_key")
+    ]
+    conn.executemany(
+        """INSERT INTO llm_review(cycle_id, family_key, verdict, meme_prob, novelty,
+               origin, reason, evidence_hash, mode, model, prompt_version,
+               merge_into, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(cycle_id, family_key) DO UPDATE SET
+             verdict=excluded.verdict, meme_prob=excluded.meme_prob,
+             novelty=excluded.novelty, origin=excluded.origin,
+             reason=excluded.reason, evidence_hash=excluded.evidence_hash,
+             mode=excluded.mode, model=excluded.model,
+             prompt_version=excluded.prompt_version,
+             merge_into=excluded.merge_into, created_at=excluded.created_at""",
+        rows,
+    )
+    conn.commit()
+
+
+def llm_review_map(conn: sqlite3.Connection, cycle_id: int) -> dict[str, dict]:
+    rows = conn.execute(
+        "SELECT * FROM llm_review WHERE cycle_id=?", (cycle_id,)
+    ).fetchall()
+    return {
+        row["family_key"]: {
+            "verdict": row["verdict"],
+            "meme_prob": float(row["meme_prob"] or 0),
+            "novelty": row["novelty"],
+            "origin": row["origin"],
+            "reason": row["reason"],
+            "merge_into": row["merge_into"],
+            "mode": row["mode"],
+            "model": row["model"],
+        }
+        for row in rows
+    }
+
+
+def cycle_stats(conn: sqlite3.Connection, cycle_id: int) -> dict:
+    row = conn.execute("SELECT stats_json FROM cycle WHERE id=?", (cycle_id,)).fetchone()
+    if not row:
+        return {}
+    try:
+        data = json.loads(row["stats_json"] or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def previous_approved_cycle(conn: sqlite3.Connection, before_cycle: int) -> int | None:
+    """找上一轮确有 approve 的 cycle，供 require_approve 0 通过时沿用。
+
+    不限定上一轮的模式：demote/shadow 的 approve 也是已审核结论；沿用时会再按
+    `verdict == approve` 过滤（见 `list_items`），不会把未审/拒绝项带回新梗榜。
+    """
+    rows = conn.execute(
+        "SELECT id, stats_json FROM cycle WHERE id<? AND status IN ('done','degraded') "
+        "ORDER BY id DESC", (before_cycle,)
+    ).fetchall()
+    for row in rows:
+        try:
+            data = json.loads(row["stats_json"] or "{}")
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(data, dict) or int(data.get("llm_approved") or 0) <= 0:
+            continue
+        # 降级轮（gate_applied=false）的 approve 没有真正发布，不能当历史结果。
+        if not data.get("llm_gate_applied", True):
+            continue
+        approved = conn.execute(
+            """SELECT COUNT(*) FROM llm_review lr
+               JOIN meme_signal s
+                 ON s.cycle_id=lr.cycle_id AND s.family_key=lr.family_key
+               WHERE lr.cycle_id=? AND lr.verdict='approve'""",
+            (int(row["id"]),),
+        ).fetchone()[0]
+        if int(approved or 0) > 0:
+            return int(row["id"])
+    return None
+
+
 def previous_scores(conn: sqlite3.Connection, before_cycle: int) -> dict[str, float]:
     row = conn.execute(
         "SELECT MAX(id) FROM cycle WHERE id<? AND status IN ('done','degraded')", (before_cycle,)
@@ -576,7 +704,7 @@ def hype_streak(conn: sqlite3.Connection, family_key: str, threshold: float, rou
 
 
 def _signal_item(row: sqlite3.Row, prev: dict[str, int]) -> dict:
-    """meme_signal 行 → API/榜单条目（含 P1 的 list 字段）。"""
+    """meme_signal 行 → API/榜单条目（含 P1 list、P3 llm_review）。"""
     components = {}
     try:
         components = json.loads(row["components_json"] or "{}")
@@ -588,6 +716,19 @@ def _signal_item(row: sqlite3.Row, prev: dict[str, int]) -> dict:
     if list_type not in ("new", "classic"):
         list_type = "classic"
     previous_rank = prev.get(row["family_key"])
+    keys = set(row.keys())
+    review = None
+    if "llm_verdict" in keys and row["llm_verdict"]:
+        review = {
+            "verdict": row["llm_verdict"],
+            "reason": row["llm_reason"] or "",
+            "meme_prob": float(row["llm_meme_prob"] or 0),
+            "novelty": row["llm_novelty"] or "",
+            "origin": row["llm_origin"] or "",
+            "merge_into": row["llm_merge_into"] or "",
+            "mode": row["llm_mode"] or "",
+            "model": row["llm_model"] or "",
+        }
     return {
         "meme_id": row["meme_id"],
         "family_key": row["family_key"],
@@ -604,17 +745,27 @@ def _signal_item(row: sqlite3.Row, prev: dict[str, int]) -> dict:
         "first_seen": row["first_seen"],
         "is_new": bool(row["is_new"]),
         "updated_at": row["updated_at"],
+        "llm_review": review,
     }
 
 
 _ITEM_COLUMNS = """s.family_key, s.score, s.rank, s.status, s.components_json, s.sample,
-                   s.is_new, s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen"""
+                   s.is_new, s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen,
+                   lr.verdict AS llm_verdict, lr.reason AS llm_reason,
+                   lr.meme_prob AS llm_meme_prob, lr.novelty AS llm_novelty,
+                   lr.origin AS llm_origin, lr.merge_into AS llm_merge_into,
+                   lr.mode AS llm_mode, lr.model AS llm_model"""
+
+_ITEM_JOIN = """FROM meme_signal s
+                JOIN meme m ON m.id=s.meme_id
+                LEFT JOIN llm_review lr
+                  ON lr.cycle_id=s.cycle_id AND lr.family_key=s.family_key"""
 
 
 def top_items(conn: sqlite3.Connection, cycle_id: int, limit: int = 10) -> list[dict]:
     rows = conn.execute(
         f"""SELECT {_ITEM_COLUMNS}
-           FROM meme_signal s JOIN meme m ON m.id=s.meme_id
+           {_ITEM_JOIN}
            WHERE s.cycle_id=? AND s.rank>0 ORDER BY s.rank LIMIT ?""",
         (cycle_id, limit),
     ).fetchall()
@@ -624,23 +775,54 @@ def top_items(conn: sqlite3.Connection, cycle_id: int, limit: int = 10) -> list[
 
 def list_items(conn: sqlite3.Connection, cycle_id: int, list_type: str,
                limit: int = 10) -> list[dict]:
-    """新旧榜过滤（P1）：`list` = new/classic。
+    """新旧榜过滤（P1/P3）：`list` = new/classic。
 
-    包含 rank=0 的 comment_backed 观察项（它们不占主榜名次，只在对应列表曝光），
-    按分数排序；经典榜仍以已排名条目为主。
+    - 包含 rank=0 的 comment_backed 观察项（它们不占主榜名次，只在对应列表曝光）；
+    - `list=new` 叠加 P3 发布门：cycle.stats.llm_mode 为 demote/require_approve 时，
+      按 llm_review.verdict 过滤；`llm_new_list_cycle` 存在时改读上一轮已审核结果
+      （require_approve 0 通过的沿用路径），源 cycle 为 0 则返回空榜；
+    - `classic` 不叠加任何 LLM 过滤，保持 P1 行为。
     """
+    stats = cycle_stats(conn, cycle_id)
+    carried = False
+    if list_type == "new" and "llm_new_list_cycle" in stats:
+        try:
+            source = int(stats.get("llm_new_list_cycle") or 0)
+        except (TypeError, ValueError):
+            source = 0
+        if source <= 0:
+            return []
+        cycle_id = source
+        stats = cycle_stats(conn, cycle_id)
+        carried = True
+
     rows = conn.execute(
         f"""SELECT {_ITEM_COLUMNS}
-           FROM meme_signal s JOIN meme m ON m.id=s.meme_id
+           {_ITEM_JOIN}
            WHERE s.cycle_id=? ORDER BY s.score DESC""",
         (cycle_id,),
     ).fetchall()
     prev = previous_ranks(conn, cycle_id)
+    mode = str(stats.get("llm_mode") or "off")
+    # 降级（无 key/超时/预算/异常）时 gate_applied=False：新梗榜必须回规则榜，
+    # 不能被 require_approve 的「只留 approve」误伤成空榜。
+    gate_applied = bool(stats.get("llm_gate_applied", True))
     items = []
     for row in rows:
         item = _signal_item(row, prev)
-        if item["list"] == list_type:
-            items.append(item)
+        if item["list"] != list_type:
+            continue
+        if list_type == "new":
+            verdict = (item.get("llm_review") or {}).get("verdict")
+            if carried:
+                # 沿用上一轮时只带 approved，绝不把未审/unclear 冒充严格榜。
+                if verdict != "approve":
+                    continue
+            elif gate_applied and mode == "require_approve" and verdict != "approve":
+                continue
+            elif gate_applied and mode == "demote" and verdict in ("reject", "merge"):
+                continue
+        items.append(item)
     return items[:limit]
 
 

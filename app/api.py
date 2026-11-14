@@ -35,6 +35,24 @@ def _list_items(snapshot: dict, list_type: str, limit: int) -> list[dict]:
         connection.close()
 
 
+def _llm_summary(snapshot: dict) -> dict:
+    """`/api/top` 回显本轮 LLM 发布门状态（off 时也存在，便于监控统一取字段）。"""
+    stats = (snapshot.get("cycle") or {}).get("stats") or {}
+    return {
+        "mode": stats.get("llm_mode", "off"),
+        "calls": stats.get("llm_calls", 0),
+        "rounds": stats.get("llm_rounds", 0),
+        "approved": stats.get("llm_approved", 0),
+        "rejected": stats.get("llm_rejected", 0),
+        "reviewed": stats.get("llm_reviewed", 0),
+        "shortfall": stats.get("llm_shortfall", 0),
+        "gate_applied": bool(stats.get("llm_gate_applied", False)),
+        "fallback": bool(stats.get("llm_fallback", False)),
+        "fallback_reason": stats.get("llm_fallback_reason", ""),
+        "new_list_cycle": stats.get("llm_new_list_cycle"),
+    }
+
+
 async def _broadcast(payload: dict) -> None:
     for queue in list(SUBSCRIBERS):
         try:
@@ -144,6 +162,7 @@ async def api_top(limit: int = config.TOP_N,
         "list": list_filter,
         "top": top[: _clamp_limit(limit)],
         "health": snapshot.get("health", {}),
+        "llm": _llm_summary(snapshot),
         "running": STATE["running"],
         "error": STATE["error"],
     }

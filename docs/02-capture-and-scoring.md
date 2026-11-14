@@ -152,7 +152,51 @@ GET /api/top?list=new|classic|all   # 默认 all，保持旧行为；limit 默�
 
 - `list=all`：返回 Top10（与旧版一致）；
 - `list=new|classic`：读本轮全部可用信号（含 rank=0 的 `comment_backed` 观察项）按 `list` 过滤后按分数取 `limit` 条；非法值返回 400；
-- 响应里新增回显字段 `list`。
+- 响应里新增回显字段 `list`；每条新增 `llm_review`（未审核为 `null`），响应顶层新增 `llm` 摘要（见 §5.1）；
+- `classic` 不做 LLM 过滤；`all` 仍按 `rank` 返回，审核结论不改变主榜成员与名次。
+
+### 5.1 LLM 审核发布门（P3）
+
+`list=new` 在发布前经过 LLM 审核（`app/review.py` 的 `review_candidates`，只审当前候选，不新增家族）；`classic` 与默认 `all` 保持规则榜。**默认 `off`：不构造客户端、零调用、零行为变化。** 无 key/超时/预算/错误一律降级为规则榜，绝不阻塞采集。
+
+| 环境变量 | 默认 | 含义 |
+|---|---|---|
+| `HOTMEME_LLM_MODE` | `off` | `off / shadow / demote / require_approve`（非法值按 off） |
+| `HOTMEME_LLM_MAX_ROUNDS` | 3 | 有界重排轮数（P2 循环） |
+| `HOTMEME_LLM_MAX_CALLS` | 18 | 单轮审核调用上限（与 `app/llm.py` 的客户端上限同名变量共用） |
+| `HOTMEME_LLM_TARGET` | 10 | 期望 approve 条数；不足时少发并标 shortfall |
+| `HOTMEME_LLM_REVIEW_LIMIT` | 50 | 单轮最多送审的候选数（钳位 1–50） |
+| `HOTMEME_LLM_BUDGET_SECONDS` | 60 | 审核阶段总耗时闸门，超时即降级规则榜 |
+
+模式矩阵（只作用于 `list=new`）：
+
+| 模式 | 新梗榜行为 | 审计 | 说明 |
+|---|---|---|---|
+| `off` | 规则榜原样 | 不写 | 默认；零调用 |
+| `shadow` | 规则榜原样，只观察 | 写 `llm_review` | 上线前观察通过率/延迟/成本 |
+| `demote` | `reject`/`merge` 撤下；`approve`/`unclear`/未审保留 | 写 | 推荐首开，只做剔除 |
+| `require_approve` | 仅 `approve` 发布；未审（超出 top50）也撤下 | 写 | 严格榜；0 通过时沿用上一轮（见下） |
+
+**候选**：在 `score_families` 与 status 计算之后，取 `list=new` 且 `status ∈ (hot, observing)` 的条目按 `score` 降序前 50（含 rank=0 的 `comment_backed` 观察项）。证据从 `components.comment` / `components.raw`（或 `raw_signals`）映射为 P2 的 `EvidencePacket` 字段：`age_days`、`seed_origin_year`、`comment_7d_count`、`comment_df_video`、`comment_like_weighted`、`recent_comments`（≤10）、`videos`（≤5）、`danmaku`（≤3）；缺字段不崩，P2 按 `unclear` 兜底。
+
+**撤下口径**：
+- rank=0 的新梗项被撤下时 `status=rejected`，不落 `meme_signal`；
+- rank>0 的新梗项（可能同时在 `all`）**保留规则 status/rank**，由 `list_items(list=new)` 按 `llm_review.verdict` 过滤，保证 `classic`/`all` 不变；
+- `merge` 只记录 `merge_into`，不做物理合并。
+
+**require_approve 0 通过**：本轮 `approved=0` 时，从 DB 找上一轮 `llm_approved>0` 且未降级（`llm_gate_applied`）的 cycle（不限模式），`list=new` 改读该轮并**只保留其中 `approve` 条目**（`cycle.stats.llm_new_list_cycle`）；没有则返回空榜并把 cycle 置 `degraded`，`llm_fallback_reason` 写明「审核未通过」，**绝不退回未审项**。
+
+**降级**：无 key（`not_configured`）、审核阶段超 `LLM_BUDGET_SECONDS`（`timeout_budget`）、P2 的 `budget`/`llm_auth`/`llm_error_streak`、任意异常 → 置 `llm_gate_applied=false`，`list=new` 整轮回本轮规则榜（严格模式不会因缺 verdict 误判成空榜）；原因进 stats；`cycle.status` 不因审核失败而置失败（0 通过且无历史除外）。`classic/all` 从不因降级改变。
+
+**审计表 `llm_review`**（幂等迁移；shadow 也写）：
+
+```
+(cycle_id, family_key, verdict, meme_prob, novelty, origin, reason,
+ evidence_hash, mode, model, prompt_version, merge_into, created_at)
+PRIMARY KEY(cycle_id, family_key)
+```
+
+**stats**：`llm_mode`、`llm_calls`、`llm_rounds`、`llm_approved`、`llm_rejected`（reject+unclear+merge）、`llm_reviewed`、`llm_merged`、`llm_shortfall`、`llm_pool`、`llm_gate_applied`、`llm_fallback`、`llm_fallback_reason`；0 通过沿用历史时另有 `llm_new_list_cycle`。`/api/top` 返回 `llm` 摘要（mode/calls/rounds/approved/rejected/gate_applied/fallback/fallback_reason）。
 
 ## 6. 验证
 
@@ -182,5 +226,5 @@ GET /api/top?list=new|classic|all   # 默认 all，保持旧行为；limit 默�
 ## 8. 扩展点
 
 - 接入微博/抖音/头条热榜（adapter 接口已隔离，只需实现 `fetch`）。
-- 接入 LLM 复核 Top 候选（规则先筛，LLM 只处理 20–50 条）。
+- LLM 复核 Top 候选已接入（P3，§5.1）：规则先筛，LLM 只审 `list=new` 前 50 条；后续可评估并发/异步以降低 45 次串行的延迟。
 - 图像/表情包梗识别、BGM 空耳检测。

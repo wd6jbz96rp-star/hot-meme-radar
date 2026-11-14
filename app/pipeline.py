@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import random
+import threading
 import time
 import zlib
 from collections import Counter, defaultdict
@@ -13,6 +14,7 @@ from .bili import BiliClient, parse_danmaku
 from .extract import TextDoc, discover, merge_families, sample_text
 from .judge import Judger, parse_origin_year, passes_meme_gate
 from .normalize import normalize_surface
+from .review import PROMPT_VERSION, review_candidates
 from .score import score_families
 from .zones import ZONES
 
@@ -472,13 +474,447 @@ def status_for(item: dict, family: dict, streak: bool) -> str:
     return "rejected"
 
 
-def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
+# ---------------------------------------------------------------------------
+# P3：LLM 审核发布门（只作用于 list=new）
+# ---------------------------------------------------------------------------
+
+_DEFAULT_REVIEWER = object()   # 区分「未注入」与显式 reviewer=None（模拟无 key）
+
+
+class ReviewBudgetExceeded(TimeoutError):
+    """审核阶段超过 `HOTMEME_LLM_BUDGET_SECONDS`；由 pipeline 降级为规则榜。"""
+
+
+class _DeadlineLLM:
+    """给真实客户端套总耗时闸门：超过 deadline 的下一次调用直接抛 budget。
+
+    外层 `review_with_budget` 负责硬停；这个代理让 P2 循环在两次调用之间尽快
+    收口，避免被放弃的线程继续烧调用预算。
+    """
+
+    def __init__(self, llm, deadline: float) -> None:
+        self._llm = llm
+        self._deadline = deadline
+        self.model = getattr(llm, "model", "") or ""
+        self.config = getattr(llm, "config", None)
+
+    def chat_json(self, *args, **kwargs):
+        if time.monotonic() > self._deadline:
+            from .llm import LlmError
+
+            raise LlmError("budget", "审核阶段总耗时预算已用尽")
+        return self._llm.chat_json(*args, **kwargs)
+
+
+def llm_mode() -> str:
+    mode = str(getattr(config, "LLM_MODE", "off") or "off").strip().lower()
+    return mode if mode in config.LLM_MODES else "off"
+
+
+def llm_stats_defaults() -> dict:
+    """每轮 stats 固定带 llm_* 字段（模式矩阵与监控依赖这些键存在）。"""
+    return {
+        "llm_mode": llm_mode(),
+        "llm_calls": 0,
+        "llm_rounds": 0,
+        "llm_approved": 0,
+        "llm_rejected": 0,
+        "llm_reviewed": 0,
+        "llm_gate_applied": False,
+        "llm_fallback": False,
+        "llm_fallback_reason": "",
+    }
+
+
+def build_reviewer():
+    """按 env 构造真实 LLM 客户端；off / 无 key 返回 None（绝不发起网络请求）。"""
+    if llm_mode() == "off":
+        return None
+    try:
+        from .llm import ChatClient, LlmConfig
+
+        cfg = LlmConfig.from_env()
+        if not cfg.configured:
+            return None
+        return ChatClient(cfg)
+    except Exception:  # noqa: BLE001 - 配置错误不能阻塞采集
+        return None
+
+
+def review_pool(items: list[dict]) -> list[dict]:
+    """`list=new` 的 top N（默认 50）：含 rank=0 的 observing/comment_backed。"""
+    pool = [
+        item for item in items
+        if item.get("list") == "new" and item.get("status") in ("hot", "observing")
+    ]
+    pool.sort(key=lambda item: (
+        -float(item.get("score") or 0.0), str(item.get("canonical") or "")))
+    return pool[: max(0, int(config.LLM_REVIEW_LIMIT))]
+
+
+def review_candidate(item: dict, family: dict | None = None,
+                     usage: dict | None = None,
+                     video_meta: dict | None = None,
+                     docs: list | None = None) -> dict:
+    """pipeline item → `EvidencePacket.from_candidate` 需要的扁平候选。
+
+    P1 证据在 `components.comment` / `components.raw` 里；这里映射成 P2 契约字段
+    （缺字段留空，EvidencePacket 会按 `unclear` 兜底，不抛异常）。
+    """
+    family = family or {}
+    components = item.get("components") if isinstance(item.get("components"), dict) else {}
+    evidence = components.get("comment")
+    if not isinstance(evidence, dict) or not evidence:
+        # P1 契约：evidence 同时以扁平字段写入 components.raw / raw_signals；
+        # 兼容「从 DB 读回的 signal」与「pipeline 内存 item」两种形状。
+        raw = components.get("raw")
+        if not isinstance(raw, dict):
+            raw = item.get("raw_signals")
+        if not isinstance(raw, dict):
+            raw = {}
+        evidence = raw.get("comment_evidence")
+        if not isinstance(evidence, dict) or not evidence:
+            evidence = raw
+    if not isinstance(evidence, dict):
+        evidence = {}
+    canonical = str(item.get("canonical") or "")
+    recent_comments: list[dict] = []
+    danmaku: list[str] = []
+    for doc in docs or ():
+        text = getattr(doc, "text", "") or ""
+        if not canonical or canonical not in text:
+            continue
+        kind = getattr(doc, "kind", "")
+        if kind == "comment":
+            recent_comments.append({
+                "text": text,
+                "ctime": int(getattr(doc, "ctime", 0) or 0),
+                "like": int(doc.likes or 0),
+            })
+        elif kind == "danmaku" and len(danmaku) < 3:
+            danmaku.append(text)
+    recent_comments.sort(key=lambda c: (c["like"], c["ctime"], c["text"]), reverse=True)
+
+    videos: list[dict] = []
+    bucket = (usage or {}).get(item.get("family_key")) or {}
+    for bvid in sorted(bucket.get("videos") or ())[:5]:
+        meta = (video_meta or {}).get(bvid) or {}
+        videos.append({"title": meta.get("title", ""), "zone": meta.get("zone", "")})
+
+    numeric_components = {
+        str(key): value for key, value in components.items()
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+    return {
+        "candidate_id": item.get("family_key") or f"cand:{canonical}",
+        "canonical": canonical,
+        "aliases": list(family.get("members") or [])[:6],
+        "type": family.get("type", ""),
+        "score": float(item.get("score") or 0.0),
+        "components": numeric_components,
+        "age_days": evidence.get("age_days"),
+        "seed_origin_year": evidence.get("seed_origin_year"),
+        "comment_7d_count": int(evidence.get("comment_7d_count") or 0),
+        "comment_df_video": int(evidence.get("comment_df_video") or 0),
+        "comment_like_weighted": float(evidence.get("comment_like_weighted") or 0.0),
+        "recent_comments": recent_comments[:10],
+        "videos": videos,
+        "danmaku": danmaku[:3],
+    }
+
+
+def invoke_reviewer(reviewer, candidates: list[dict], **kwargs) -> dict:
+    """允许注入 P2 客户端（有 chat_json）或整段假审核器（callable）。
+
+    测试用 callable 可完全绕过网络与 prompt；真实路径走 `review_candidates`。
+    """
+    if hasattr(reviewer, "chat_json"):
+        return review_candidates(candidates, reviewer, **kwargs)
+    if callable(reviewer):
+        return reviewer(candidates, **kwargs)
+    raise TypeError("reviewer 必须是 chat_json 客户端或 callable")
+
+
+def review_with_budget(fn, budget_seconds: float):
+    """在线程里跑审核并 join 总预算；超时抛 ReviewBudgetExceeded，不阻塞采集。
+
+    审核阶段不访问 DB，被放弃的 daemon 线程最多再耗一次单请求超时；
+    结果已被丢弃，不会改动任何发布状态。
+    """
+    if budget_seconds <= 0:
+        return fn()
+    box: dict = {}
+
+    def runner() -> None:
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - 原样抛回主线程
+            box["error"] = exc
+
+    thread = threading.Thread(target=runner, name="llm-review", daemon=True)
+    thread.start()
+    thread.join(budget_seconds)
+    if thread.is_alive():
+        raise ReviewBudgetExceeded(f"审核超过 {budget_seconds:.1f}s 预算")
+    if "error" in box:
+        raise box["error"]
+    return box.get("value")
+
+
+def _float(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def review_entries(items: list[dict], result: dict) -> dict[str, dict]:
+    """把 P2 的 approved/rejected/merged/log 收敛成 family_key → verdict。"""
+    by_key = {item["family_key"]: item for item in items}
+    by_canonical = {str(item.get("canonical") or ""): item for item in items}
+    entries: dict[str, dict] = {}
+
+    def add(entry: dict) -> None:
+        if not isinstance(entry, dict):
+            return
+        item = by_key.get(entry.get("candidate_id")) or by_key.get(entry.get("family_key"))
+        if item is None:
+            item = by_canonical.get(str(entry.get("canonical") or ""))
+        if item is None:
+            return
+        verdict = str(entry.get("verdict") or "").strip().lower()
+        if verdict not in ("approve", "reject", "merge", "unclear"):
+            return
+        entries[item["family_key"]] = {
+            "verdict": verdict,
+            "meme_prob": _float(entry.get("meme_prob")),
+            "novelty": str(entry.get("novelty") or ""),
+            "origin": str(entry.get("origin") or ""),
+            "reason": str(entry.get("reason") or ""),
+            "merge_into": str(entry.get("merge_into") or ""),
+            "evidence_hash": str(entry.get("evidence_hash") or ""),
+            "model": str(entry.get("model") or ""),
+            "prompt_version": str(entry.get("prompt_version") or ""),
+        }
+
+    for key in ("approved", "rejected", "merged"):
+        for entry in result.get(key) or ():
+            add(entry)
+    for entry in result.get("log") or ():   # log 字段最全，后写覆盖
+        add(entry)
+    return entries
+
+
+def apply_review_gate(items: list[dict], entries: dict[str, dict],
+                      mode: str) -> tuple[set[str], set[str]]:
+    """把审核结论落到新梗榜可见性；不改 score/components，也不动 classic/all。
+
+    - shadow：只挂 `llm_review`，发布集合与不审一致；
+    - demote：reject/merge 撤下新梗榜；approve/unclear/未审保留；
+    - require_approve：只有 approve 保留；未审（超出 top50）一律不上榜。
+    rank=0 的项被撤下时直接 `status=rejected`（本来就不落库），
+    rank>0 的项保留规则 status 以免改变 all/classic 的主榜，由 list_items 过滤。
+    """
+    published: set[str] = set()
+    withheld: set[str] = set()
+    for item in items:
+        if item.get("list") != "new" or item.get("status") not in ("hot", "observing"):
+            continue
+        key = item["family_key"]
+        entry = entries.get(key)
+        if entry:
+            item["llm_review"] = {
+                "verdict": entry["verdict"],
+                "reason": entry["reason"],
+                "meme_prob": entry["meme_prob"],
+                "novelty": entry["novelty"],
+                "merge_into": entry["merge_into"],
+            }
+        if mode == "shadow":
+            item["new_list_status"] = "shadow"
+            published.add(key)
+            continue
+        if mode == "demote":
+            keep = not entry or entry["verdict"] not in ("reject", "merge")
+        elif mode == "require_approve":
+            keep = bool(entry and entry["verdict"] == "approve")
+        else:
+            keep = True
+        if keep:
+            item["new_list_status"] = "published"
+            published.add(key)
+        else:
+            item["new_list_status"] = "withheld"
+            withheld.add(key)
+            if int(item.get("rank") or 0) == 0:
+                item["status"] = "rejected"
+    return published, withheld
+
+
+def run_llm_gate(conn, cycle_id: int, items: list[dict], families_by_key: dict,
+                 docs: list, video_meta: dict, usage: dict,
+                 reviewer=_DEFAULT_REVIEWER) -> tuple[dict, str]:
+    """审核 `list=new` top N 并应用发布门；返回 (stats, status_override)。
+
+    外层兜底：候选构造、审计、应用结果等任何未预期异常都收敛为规则榜，
+    绝不向上抛、不阻塞采集。
+    """
+    stats = llm_stats_defaults()
+    try:
+        return _run_llm_gate(
+            conn, cycle_id, items, families_by_key, docs, video_meta, usage,
+            reviewer, stats,
+        )
+    except Exception as exc:  # noqa: BLE001 - 审核阶段任何异常都不能拖垮采集
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = f"{type(exc).__name__}: {str(exc)[:120]}"
+        return stats, ""
+
+
+def _run_llm_gate(conn, cycle_id: int, items: list[dict], families_by_key: dict,
+                  docs: list, video_meta: dict, usage: dict, reviewer, stats: dict
+                  ) -> tuple[dict, str]:
+    mode = llm_mode()
+    if mode == "off":
+        return stats, ""
+
+    pool = review_pool(items)
+    stats["llm_pool"] = len(pool)
+    instance = build_reviewer() if reviewer is _DEFAULT_REVIEWER else reviewer
+    if instance is None:
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = "not_configured"
+        return stats, ""
+    if not pool:
+        # 没有可审的新梗项也是 approved=0：严格模式按「沿用上一轮/空榜」处理。
+        if mode == "require_approve":
+            previous = store.previous_approved_cycle(conn, cycle_id)
+            stats["llm_fallback"] = True
+            if previous:
+                stats["llm_fallback_reason"] = "no_approved_previous_cycle"
+                stats["llm_new_list_cycle"] = previous
+                stats["llm_gate_applied"] = True
+                return stats, ""
+            stats["llm_fallback_reason"] = "no_approved: 审核未通过（0 条 approve）"
+            stats["llm_new_list_cycle"] = 0
+            stats["llm_gate_applied"] = True
+            return stats, "degraded"
+        return stats, ""
+
+    candidates = [
+        review_candidate(
+            item, families_by_key.get(item["family_key"]), usage, video_meta, docs
+        )
+        for item in pool
+    ]
+    target = max(1, int(config.LLM_TARGET))
+    kwargs = {
+        "max_rounds": max(1, int(config.LLM_MAX_ROUNDS)),
+        "target": target,
+        "max_calls": max(0, int(config.LLM_MAX_CALLS)),
+        "limit": max(1, int(config.LLM_REVIEW_LIMIT)),
+    }
+    budget = float(config.LLM_BUDGET_SECONDS)
+    target_llm = instance
+    if budget > 0 and hasattr(instance, "chat_json"):
+        # 双重闸门：代理让 P2 循环在调用间隙看到预算，外层线程硬停兜底。
+        target_llm = _DeadlineLLM(instance, time.monotonic() + budget)
+    try:
+        result = review_with_budget(
+            lambda: invoke_reviewer(target_llm, candidates, **kwargs),
+            budget,
+        )
+    except ReviewBudgetExceeded:
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = "timeout_budget"
+        return stats, ""
+    except Exception as exc:  # noqa: BLE001 - 审核失败必须降级而非中断采集
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = f"{type(exc).__name__}: {str(exc)[:120]}"
+        return stats, ""
+    if not isinstance(result, dict):
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = "empty_result"
+        return stats, ""
+
+    entries = review_entries(items, result)
+    model = str(getattr(instance, "model", "") or "")
+    prompt_version = str(result.get("prompt_version") or PROMPT_VERSION)
+    approved = list(result.get("approved") or ())
+    rejected = list(result.get("rejected") or ())
+    merged = list(result.get("merged") or ())
+    stats.update({
+        "llm_calls": int(result.get("calls") or 0),
+        "llm_rounds": int(result.get("rounds") or 0),
+        "llm_approved": len(approved),
+        "llm_rejected": len(rejected) + len(merged),
+        "llm_merged": len(merged),
+        "llm_reviewed": len(entries),
+        "llm_pool": len(pool),
+        "llm_shortfall": max(0, target - len(approved)),
+        "llm_model": model,
+        "llm_prompt_version": prompt_version,
+    })
+
+    audit = [
+        {
+            "family_key": key,
+            "verdict": entry["verdict"],
+            "meme_prob": entry["meme_prob"],
+            "novelty": entry["novelty"],
+            "origin": entry["origin"],
+            "reason": entry["reason"],
+            "evidence_hash": entry["evidence_hash"],
+            "merge_into": entry["merge_into"],
+            "mode": mode,
+            "model": entry["model"] or model,
+            "prompt_version": entry["prompt_version"] or prompt_version,
+        }
+        for key, entry in entries.items()
+    ]
+    try:
+        if audit:
+            store.insert_llm_reviews(conn, cycle_id, audit)
+    except Exception as exc:  # noqa: BLE001 - 审计写失败也不能中断采集
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = f"audit_error: {type(exc).__name__}"
+        return stats, ""
+
+    degraded = str(result.get("degraded_reason") or "")
+    infra_failure = (
+        degraded in ("budget", "llm_error_streak", "candidate_leak")
+        or degraded.startswith("llm_")
+    )
+    if infra_failure:
+        # 预算/鉴权/连续错误：本轮审核不可信，回到规则榜（审计仍保留已审部分）。
+        stats["llm_fallback"] = True
+        stats["llm_fallback_reason"] = degraded
+        return stats, ""
+
+    apply_review_gate(items, entries, mode)
+    stats["llm_gate_applied"] = True
+
+    if mode == "require_approve" and len(approved) == 0:
+        previous = store.previous_approved_cycle(conn, cycle_id)
+        stats["llm_fallback"] = True
+        if previous:
+            stats["llm_fallback_reason"] = "no_approved_previous_cycle"
+            stats["llm_new_list_cycle"] = previous
+            return stats, ""
+        stats["llm_fallback_reason"] = "no_approved: 审核未通过（0 条 approve）"
+        stats["llm_new_list_cycle"] = 0
+        return stats, "degraded"
+    return stats, ""
+
+
+def run_cycle(conn=None, client: BiliClient | None = None,
+              reviewer=_DEFAULT_REVIEWER) -> dict:
     own_connection = conn is None
     conn = conn or store.connect()
     store.init_db(conn)
     started = time.time()
     cycle_id: int | None = None
-    stats: dict = {}
+    stats: dict = llm_stats_defaults()
     status = "done"
 
     try:
@@ -655,6 +1091,14 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             if not item["sample"] and family.get("members"):
                 item["sample"] = sample_text(family["members"][0], docs)
         display = ranked[: config.TOP_N]
+
+        # P3 发布门：只审 list=new 的 top N；classic/all 用上面的规则榜，不受影响。
+        gate_stats, gate_status = run_llm_gate(
+            conn, cycle_id, items, by_key, docs, video_meta, usage, reviewer
+        )
+        stats.update(gate_stats)
+        if gate_status == "degraded":
+            status = "degraded"
 
         usable = [item for item in items if item["status"] != "rejected"]
         store.upsert_candidates(

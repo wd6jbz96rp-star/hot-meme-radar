@@ -234,3 +234,36 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 |---|---|---|
 | novelty-core | `app/bili.py`、`pipeline.py`、`store.py`、`config.py`、`judge.py`、`score.py`、`api.py`、`tests/*`、`docs/02` | 评论 3 页、comment_backed、novelty/list、真机对比 |
 | llm-review | 新建 `app/llm.py`、`app/review.py`、`tests/test_llm_review.py`、`docs/pm/P2-LLM-DESIGN.md` | 客户端、rubric、状态机、假客户端测试 |
+
+## 15. v2 P1/P2 结果与 P3（16:42）
+
+### 15.1 P1 结果（`/tmp/p1.db` 两轮）
+
+| 项 | 冷轮 | warm |
+|---|---|---|
+| 评论保留 / ≤7 天 | 408 / 206 | 408 / 206 |
+| comment_backed / 非种子 usable | 70 / 70 | 69 / 77 |
+| 请求 / 耗时 | 160 / 87.9s | 31 / 15.9s |
+| new/classic | new 74 / classic 4 | 同 |
+| Top10 | **未变，8/8 种子** | 同 |
+
+- 修掉 P0 翻页 bug：`reply/main` 的 `next` 是 opaque 游标（1682），不是 20；改为上一页 `cursor.next` 串联并缓存，warm 轮 120 页 0 请求。
+- comment_backed 70 条几乎全是高频子串/ASCII（ai/co/10/in/on…），只进 `observing` 与 `list=new`，不占主榜；质量过滤交给 LLM。
+- novelty 权重：exposure 0.30→0.25，novelty 0.05；合计 1.0。
+- 未达 600 评论：30 天窗口丢 71%，要 600 需 45–48 个评论视频（超预算），未硬凑。
+
+### 15.2 P2 结果
+
+- `app/llm.py` + `app/review.py` + 44 tests，全仓 **117 passed**；OpenAI 兼容、JSON 校验、注入防护、有界循环、预算/降级、审计 log。
+- 无 key 可构造 fake；成本：单轮闸门 ≤18 调用 ≈ ¥0.037，10 分钟一轮满额约 ¥5.3/天（按 ¥1/¥2 M token 估算）。
+
+### 15.3 P3 集成计划
+
+| 项 | 决策 |
+|---|---|
+| 插入点 | `score_families` 之后、`display` 之前；只审 `list=new` 的 top50，不改分数 |
+| 模式 | `off`（默认）/ `shadow`（只记）/ `demote`（剔除 reject/merge，推荐首开）/ `require_approve`（只发 approved） |
+| 输入 | P1 的 comment/age/df 证据 + `EvidencePacket`；缺失自动 unclear |
+| 输出 | `status`、`llm_review` 字段、`llm_review` 审计表、stats（calls/approved/rejected/fallback） |
+| 降级 | 无 key/超时/预算/连续错误 → 保留规则榜，`fallback_reason` 入 stats |
+| 发布 | 新梗榜只发 approved；不足 10 条显示「审核中/候选不足」，不空榜、不注入未审项 |

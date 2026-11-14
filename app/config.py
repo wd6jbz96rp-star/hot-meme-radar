@@ -4,6 +4,21 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv("HOTMEME_DATA_DIR", str(BASE_DIR / "data")))
 DB_PATH = Path(os.getenv("HOTMEME_DB", str(DATA_DIR / "hotmeme.db")))
@@ -100,6 +115,18 @@ WEIGHTS = {
     "meme": 0.12,
     "novelty": 0.05,
 }
+
+# ---- LLM 审核发布门（P3，docs/02 §5.1）----
+# off 默认：零调用、零行为变化；其余模式只影响 list=new，classic/all 保持规则榜。
+LLM_MODES = ("off", "shadow", "demote", "require_approve")
+LLM_MODE = (os.getenv("HOTMEME_LLM_MODE", "off").strip().lower() or "off")
+if LLM_MODE not in LLM_MODES:   # 非法值按 off 处理，避免配置错字放大风险
+    LLM_MODE = "off"
+LLM_MAX_ROUNDS = max(1, _env_int("HOTMEME_LLM_MAX_ROUNDS", 3))
+LLM_MAX_CALLS = max(0, _env_int("HOTMEME_LLM_MAX_CALLS", 18))
+LLM_TARGET = max(1, _env_int("HOTMEME_LLM_TARGET", 10))
+LLM_REVIEW_LIMIT = max(1, min(50, _env_int("HOTMEME_LLM_REVIEW_LIMIT", 50)))
+LLM_BUDGET_SECONDS = max(0.0, _env_float("HOTMEME_LLM_BUDGET_SECONDS", 60.0))
 
 # ---- 数据保留 ----
 TEXT_SAMPLE_TTL_DAYS = 30
