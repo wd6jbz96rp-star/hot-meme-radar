@@ -1,0 +1,591 @@
+{
+  "version": 1,
+  "as_of": "2026-11-14",
+  "source": "silver: B站「梗百科/梗指南/梗学堂/是什么梗」标题与盘点视频 + 人工核对；不是 ground truth",
+  "notes": "heat 1–5 按可见视频播放/近期活跃度粗标，用于排序校准的弱标签；confidence A=有专门梗视频，B=盘点/多处提及，C=证据不足或不确定。",
+  "items": [
+    {
+      "canonical": "司凤音乐",
+      "label": "new_meme",
+      "current": true,
+      "heat": 5,
+      "confidence": "A",
+      "notes": "梗指南 2026-10-09，2.09M 播放；另有多条近期相关视频"
+    },
+    {
+      "canonical": "吃了不烧心",
+      "aliases": [
+        "不烧心"
+      ],
+      "label": "new_meme",
+      "current": true,
+      "heat": 5,
+      "confidence": "A",
+      "notes": "梗指南/梗百科 2026-10-04、10-06，2.27M/3.33M 播放"
+    },
+    {
+      "canonical": "灭建国",
+      "label": "new_meme",
+      "current": true,
+      "heat": 5,
+      "confidence": "A",
+      "notes": "3 个专门视频 2026-10-28～11-05，合计约 2M 播放"
+    },
+    {
+      "canonical": "MJ宇宙",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "B",
+      "notes": "灭建国视频标题中的关联梗，908k 播放；独立证据较少"
+    },
+    {
+      "canonical": "吴家村",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗百科 2026-11-09，648k 播放"
+    },
+    {
+      "canonical": "老实赚钱很枯燥吧",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗百科 2026-10-30，1.11M 播放"
+    },
+    {
+      "canonical": "雪豹眉眉",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "B",
+      "notes": "梗百科 2026-11-14，48k 播放；与「冷静点」同视频"
+    },
+    {
+      "canonical": "冷静点",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "B",
+      "notes": "同上"
+    },
+    {
+      "canonical": "没希望，佩不上",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗百科 2026-11-14，16k 播放"
+    },
+    {
+      "canonical": "明码标价",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗百科 2026-11-14，13k 播放"
+    },
+    {
+      "canonical": "大禹治水",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗百科 2026-11-08，407k 播放"
+    },
+    {
+      "canonical": "扎啤",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗学堂 2026-10-22，500k 播放；近期多条相关视频"
+    },
+    {
+      "canonical": "老牧师",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "白给梗科普 2026-08-04，44k 播放"
+    },
+    {
+      "canonical": "东南苦行山",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗科普 2026-10-24，158k 播放；歌曲类梗"
+    },
+    {
+      "canonical": "兔子洞",
+      "label": "classic_meme",
+      "current": false,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "梗百科 2026-03-05，2.06M 播放；距今 8 个月，不算当前"
+    },
+    {
+      "canonical": "以下范上手势",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "白给梗科普 2026-11-09，14k 播放"
+    },
+    {
+      "canonical": "心生爱慕的小曲",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "2026-10-13，265k 播放",
+      "aliases": [
+        "心生爱慕"
+      ]
+    },
+    {
+      "canonical": "半括号",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗指南 2026-09-10，2.36M 播放"
+    },
+    {
+      "canonical": "我等穷儒生",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "白给梗科普 2026-10-01，41k 播放"
+    },
+    {
+      "canonical": "蓝色大肥鱼",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "2026-10-28，2.96M 播放；近期使用证据偏少"
+    },
+    {
+      "canonical": "NTR",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗指南 2026-10-01，3.6M 播放；缩写类"
+    },
+    {
+      "canonical": "bin大小姐",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗指南 2026-11-08，483k 播放"
+    },
+    {
+      "canonical": "香香的口味你尝过没",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "2026-10-30，176k 播放"
+    },
+    {
+      "canonical": "狗尾草表情包",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗指南 2026-11-??，445k 播放"
+    },
+    {
+      "canonical": "你走不出欧特斯的雪山",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "梗学堂 2026-11-??，32k 播放"
+    },
+    {
+      "canonical": "非凡之爱",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "梗指南 2026-11-??，4k 播放；AI MV 相关"
+    },
+    {
+      "canonical": "我画地为牢啊",
+      "aliases": [
+        "我画地为牢厉娜"
+      ],
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗学堂 7.5k 播放；另有同名变体 891k 播放"
+    },
+    {
+      "canonical": "最怕BLG夺冠之人",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "C",
+      "notes": "梗指南 619k 播放；赛事语境强，按银标暂记为梗，待人工复核"
+    },
+    {
+      "canonical": "力工",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "B",
+      "notes": "2026-11 多条相关视频，但无专门梗视频；是否成熟梗待核"
+    },
+    {
+      "canonical": "神人",
+      "label": "unclear",
+      "current": true,
+      "heat": 1,
+      "confidence": "C",
+      "notes": "搜索多指向其他「神人」梗，泛词风险高"
+    },
+    {
+      "canonical": "嘉豪",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗指南 2026-09-26，2.19M 播放；11-11 新闻讨论"
+    },
+    {
+      "canonical": "请善待二旬老人",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "B",
+      "notes": "2026-09-21 盘点视频列出，73k 播放"
+    },
+    {
+      "canonical": "腋毛攻击",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "B",
+      "notes": "同上"
+    },
+    {
+      "canonical": "PiuPiuPiu",
+      "aliases": [
+        "piupiupiu"
+      ],
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "2026-09-25、10-04 多条 2M+ 视频；声音梗"
+    },
+    {
+      "canonical": "抽象",
+      "label": "evergreen",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "长期在场，2023 起源；当前仍有使用"
+    },
+    {
+      "canonical": "包的",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2024 前后活跃"
+    },
+    {
+      "canonical": "那咋了",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2024 前后活跃"
+    },
+    {
+      "canonical": "哈基米",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "2024 猫咪空耳，仍有使用"
+    },
+    {
+      "canonical": "咕咕嘎嘎",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2025 空耳"
+    },
+    {
+      "canonical": "牛马",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "2024 打工人"
+    },
+    {
+      "canonical": "吃瓜",
+      "label": "evergreen",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "常青围观表达"
+    },
+    {
+      "canonical": "破防",
+      "label": "evergreen",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "常青情绪表达"
+    },
+    {
+      "canonical": "上头",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2021 起源，仍有使用"
+    },
+    {
+      "canonical": "出圈",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2020 起源，仍有使用"
+    },
+    {
+      "canonical": "人设",
+      "label": "recent_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "A",
+      "notes": "2020 起源，仍有使用"
+    },
+    {
+      "canonical": "植物娘",
+      "label": "new_meme",
+      "current": true,
+      "heat": 2,
+      "confidence": "B",
+      "notes": "2026-11 梗指南 33k 播放"
+    },
+    {
+      "canonical": "寿来",
+      "label": "unclear",
+      "current": true,
+      "heat": 2,
+      "confidence": "C",
+      "notes": "2026-11 梗视频 70k 播放，语义不明"
+    },
+    {
+      "canonical": "飞飞鼠",
+      "label": "unclear",
+      "current": true,
+      "heat": 2,
+      "confidence": "C",
+      "notes": "2026-11 相关视频 168k 播放"
+    },
+    {
+      "canonical": "又三郎",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "B",
+      "notes": "梗指南/梗科普类视频 1.27M 播放，2026-11 仍活跃；人工复核为近期梗"
+    },
+    {
+      "canonical": "斩断过往的利刃",
+      "label": "unclear",
+      "current": true,
+      "heat": 1,
+      "confidence": "C",
+      "notes": "仅 601 播放，证据不足"
+    },
+    {
+      "canonical": "借过一下",
+      "label": "unclear",
+      "current": true,
+      "heat": 1,
+      "confidence": "C",
+      "notes": "31k 播放，可能是歌名/普通短语"
+    },
+    {
+      "canonical": "原神",
+      "label": "proper_noun",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "游戏名，不是梗"
+    },
+    {
+      "canonical": "循环歌单",
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "栏目/歌单名"
+    },
+    {
+      "canonical": "全新拼好歌",
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "歌曲/企划名"
+    },
+    {
+      "canonical": "特厨探店|南昌居民区本地人吃的餐厅",
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "视频标题，不是梗"
+    },
+    {
+      "canonical": "中老年病痛",
+      "label": "news_event",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "社会议题/烂梗讨论，不是可复用梗"
+    },
+    {
+      "canonical": "于朦胧发声",
+      "label": "news_event",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "事件/人物新闻"
+    },
+    {
+      "canonical": "BLG",
+      "label": "proper_noun",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "战队名"
+    },
+    {
+      "canonical": "韩立",
+      "label": "proper_noun",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "角色名（未证明被二创成梗）"
+    },
+    {
+      "canonical": "黄霄云",
+      "label": "proper_noun",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "歌手名"
+    },
+    {
+      "canonical": "华晨宇",
+      "label": "proper_noun",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "歌手名"
+    },
+    {
+      "canonical": "韩国事故救援体系",
+      "label": "news_event",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "新闻事件"
+    },
+    {
+      "canonical": "2026六大Pro Max影像横评",
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "数码评测标题"
+    },
+    {
+      "canonical": "原价129万支天价药进医保",
+      "label": "news_event",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "新闻标题（黄金集负例）"
+    },
+    {
+      "canonical": "真的吗",
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "普通口语（黄金集负例）"
+    },
+    {
+      "canonical": "双十一直播间抽奖福利",
+      "label": "marketing",
+      "current": false,
+      "heat": 0,
+      "confidence": "A",
+      "notes": "营销文案（黄金集负例）"
+    },
+    {
+      "canonical": "给",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "A",
+      "notes": "梗百科 2026-05-28；当前评论仍有使用"
+    },
+    {
+      "canonical": "野生狗奶",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗百科/梗指南 2026-08，7.1M/1.9M 播放；11 月评论/弹幕仍在使用"
+    },
+    {
+      "canonical": "doge",
+      "label": "classic_meme",
+      "current": false,
+      "heat": 1,
+      "confidence": "A",
+      "notes": "经典表情包梗，非当前新梗"
+    },
+    {
+      "canonical": "中国人能飞",
+      "aliases": [
+        "中国也能飞"
+      ],
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "B",
+      "notes": "2026「拼好歌/热梗小曲」句，2.5M 相关视频 + 弹幕使用"
+    },
+    {
+      "canonical": "结过婚我也认",
+      "label": "new_meme",
+      "current": true,
+      "heat": 4,
+      "confidence": "A",
+      "notes": "梗指南 2026，3.3M 播放；发布日期较久但仍在当前窗口"
+    }
+  ]
+}
