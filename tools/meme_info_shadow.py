@@ -24,13 +24,19 @@ import tempfile
 import time
 from pathlib import Path
 
+# 直接 `python tools/meme_info_shadow.py` 时，sys.path[0] 是 tools/，
+# 会被同目录的 tools/meme_info.py 遮蔽包 `meme_info`；显式把仓库根放最前。
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from meme_info.bili import BiliSource
 from meme_info.collect import CollectionPlan
 from meme_info.models import now_ts, parse_iso
 from meme_info.query import QueryConfig, find_hot_memes
 from meme_info.verify import ChatClient, LlmConfig, SemanticVerifier
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = _REPO_ROOT
 DEFAULT_OUT = Path("/tmp/meme_info_latest.json")
 DEFAULT_CACHE_DIR = Path("/tmp/meme_info_cache")
 DB_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".db-wal", ".db-shm", ".db-journal"}

@@ -446,3 +446,14 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 所有权：`app/static/index.html` + `docs/pm/SHADOW-TAB-REPORT.md`（+ 截图 `docs/pm/assets/shadow-tab.png`）；不改 app 代码。
 - 验证：8011 + `/tmp/shadow-web.db` 副本 + `/tmp/meme_info_latest.json`；headless 截图、console 0 error、`/api/top` 不变。
 - 禁止：重启 8000、写生产库、run 采集。
+
+## 24. 同一时段 shadow 评估（00:25）
+
+- 报告：`docs/pm/SHADOW-EVAL.md`；双侧冷缓存、首尾相接 16s，总跨度 7m00s。
+- app 旧 pipeline：195s / 275 请求 / 377 视频 / 592 评论 / 1704 弹幕；Top10 **10/10 种子**（抽象/上头/整活/咕咕嘎嘎/离谱/吃瓜/嘉豪/yyds/绝绝子/那咋了），105 usable。
+- 模块：207s / 228 请求 / 943 视频 / 826 评论 / 2000 弹幕；Top10 **10/10 新面孔**，7/10 命中用户 ✅，publishable 7/10。
+- **overlap 0/10（Top20 也 0/20）**；app 全量 105 条与模块 Top20 0/20。模块 Top10 无 ❌（3 条未标），Top20 有 2 条漏网 ❌：`最怕BLG夺冠之人`(#12)、`腋毛攻击`(#17)。
+- 单轮稳定性：模块 Top10 相对 00:01 上轮 7/10、Top20 15/20。
+- **发现 app `list=new` 不可用**：rank=0 的 comment_backed 噪声词（ai 87.5/看完/b站/ge/这句…）按 score 占满 new 榜，3 条真 new 梗被挤出；切榜前必须修或由模块替代。
+- 修了 `tools/meme_info_shadow.py` 直接运行被 `tools/meme_info.py` 遮蔽的 bug（sys.path 优先仓库根）；297 tests 仍全绿。
+- 结论：**继续 shadow，暂不切 `list=new`。**
