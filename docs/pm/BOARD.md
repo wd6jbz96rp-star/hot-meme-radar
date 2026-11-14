@@ -439,3 +439,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 真机 shadow：137s / 178 请求 / 1025 评论 / 20 memes；`publishable_count=7`；Top10 命中用户 16 锚点 7 条；app cycle#24 是 6.5h 前旧数据，overlap 0/10 **不是质量结论**。
 - 线上 8000 当时未运行；未重启、未写生产库。
 - 下一步：给看板加「模块 shadow」只读 tab（显示 status/age/evidence/LLM），用同一时段跑 2–3 轮再评估是否切 `list=new`；切之前仍不自动发布。
+
+## 23. Shadow tab（进行中，00:20）
+
+- 目标：看板加「模块 shadow」只读 tab，展示 `/api/meme-info` 的 status/age/top/2×2/LLM；明确「仅对比，不参与发布」。
+- 所有权：`app/static/index.html` + `docs/pm/SHADOW-TAB-REPORT.md`（+ 截图 `docs/pm/assets/shadow-tab.png`）；不改 app 代码。
+- 验证：8011 + `/tmp/shadow-web.db` 副本 + `/tmp/meme_info_latest.json`；headless 截图、console 0 error、`/api/top` 不变。
+- 禁止：重启 8000、写生产库、run 采集。
