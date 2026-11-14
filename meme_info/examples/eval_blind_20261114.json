@@ -1,0 +1,131 @@
+{
+  "k": 10,
+  "n": 10,
+  "precision_at_k": 1.0,
+  "current_precision_at_k": 1.0,
+  "new_precision_at_k": 0.0,
+  "labeled_precision_at_k": 1.0,
+  "labeled_current_precision_at_k": 1.0,
+  "mrr": 1.0,
+  "ndcg_at_k": 0.9953,
+  "recall_labels": 0.3448,
+  "recall_current": 0.4167,
+  "label_coverage": 1.0,
+  "unmatched_rate": 0.0,
+  "unmatched": [],
+  "evidence_rate_2x2": 0.5,
+  "meta_rate": 1.0,
+  "freshness_7d_rate": 1.0,
+  "label_counts": {
+    "current_meme": 10
+  },
+  "calibration": {
+    "n": 10,
+    "spearman": 0.7311,
+    "mae_100": 25.94
+  },
+  "total_labels": 62,
+  "generated_from": {
+    "predictions": 26,
+    "labels": 62
+  },
+  "baselines": {
+    "meta_views": {
+      "k": 10,
+      "n": 10,
+      "precision_at_k": 1.0,
+      "current_precision_at_k": 1.0,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_k": 0.9849,
+      "recall_labels": 0.3448,
+      "recall_current": 0.4167,
+      "label_coverage": 1.0,
+      "unmatched_rate": 0.0,
+      "unmatched": [],
+      "evidence_rate_2x2": 0.5,
+      "meta_rate": 1.0,
+      "freshness_7d_rate": 0.8,
+      "label_counts": {
+        "current_meme": 10
+      },
+      "calibration": {
+        "n": 10,
+        "spearman": 0.7311,
+        "mae_100": 32.54
+      },
+      "total_labels": 62
+    },
+    "usage_docs": {
+      "k": 10,
+      "n": 10,
+      "precision_at_k": 0.5,
+      "current_precision_at_k": 0.4,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 0.8,
+      "mrr": 1.0,
+      "ndcg_at_k": 0.8642,
+      "recall_labels": 0.1724,
+      "recall_current": 0.1667,
+      "label_coverage": 0.5,
+      "unmatched_rate": 0.5,
+      "unmatched": [
+        "给",
+        "练武术",
+        "学功夫",
+        "绷住",
+        "鬼畜"
+      ],
+      "evidence_rate_2x2": 1.0,
+      "meta_rate": 0.4,
+      "freshness_7d_rate": 1.0,
+      "label_counts": {
+        "current_meme": 4,
+        "evergreen": 1
+      },
+      "calibration": {
+        "n": 5,
+        "spearman": 0.3536,
+        "mae_100": 38.81
+      },
+      "total_labels": 62
+    },
+    "recency": {
+      "k": 10,
+      "n": 10,
+      "precision_at_k": 0.6,
+      "current_precision_at_k": 0.5,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 0.8333,
+      "mrr": 0.5,
+      "ndcg_at_k": 0.6431,
+      "recall_labels": 0.2069,
+      "recall_current": 0.2083,
+      "label_coverage": 0.6,
+      "unmatched_rate": 0.4,
+      "unmatched": [
+        "给",
+        "绷住",
+        "鬼畜",
+        "练武术"
+      ],
+      "evidence_rate_2x2": 0.8,
+      "meta_rate": 0.6,
+      "freshness_7d_rate": 1.0,
+      "label_counts": {
+        "current_meme": 5,
+        "evergreen": 1
+      },
+      "calibration": {
+        "n": 6,
+        "spearman": 0.7715,
+        "mae_100": 24.23
+      },
+      "total_labels": 62
+    }
+  }
+}
