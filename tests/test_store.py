@@ -69,3 +69,60 @@ def test_previous_scores_reads_last_cycle(tmp_path):
     store.finish_cycle(conn, second, "done", {})
     assert store.previous_scores(conn, second)["甲"] == 61.0
     conn.close()
+
+
+def test_is_new_persisted_and_exposed(tmp_path):
+    conn = store.connect(tmp_path / "isnew.db")
+    store.init_db(conn)
+    cycle_id = store.start_cycle(conn, "2026-11-14T10:00:00+08:00")
+    store.finish_cycle(conn, cycle_id, "done", {})
+    mapping = store.upsert_memes(
+        conn, [{"family_key": "新梗", "canonical": "新梗", "type": "词"}]
+    )
+    store.insert_signals(
+        conn, cycle_id,
+        [{"meme_id": mapping["新梗"], "family_key": "新梗", "score": 66.0, "rank": 1,
+          "status": "hot", "components": {}, "sample": "", "is_new": True}],
+    )
+    top = store.top_items(conn, cycle_id, 10)
+    assert top[0]["is_new"] is True
+    # 重启（新连接）后仍可读，不再依赖 pipeline 进程内变量
+    conn.close()
+    conn = store.connect(tmp_path / "isnew.db")
+    assert store.top_items(conn, cycle_id, 10)[0]["is_new"] is True
+    conn.close()
+
+
+def test_init_db_migrates_old_signal_table(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "legacy.db"
+    old = sqlite3.connect(path)
+    old.executescript(
+        """CREATE TABLE meme_signal(
+               cycle_id INTEGER NOT NULL, meme_id INTEGER NOT NULL,
+               family_key TEXT NOT NULL, score REAL NOT NULL, rank INTEGER NOT NULL,
+               status TEXT NOT NULL, components_json TEXT NOT NULL DEFAULT '{}',
+               sample TEXT DEFAULT '', updated_at TEXT NOT NULL,
+               PRIMARY KEY(cycle_id, meme_id));"""
+    )
+    old.commit()
+    old.close()
+
+    conn = store.connect(path)
+    store.init_db(conn)  # 不得因缺列打不开旧库
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(meme_signal)")}
+    assert "is_new" in columns
+    # 旧行默认 is_new=0，接口字段仍然存在
+    cycle_id = store.start_cycle(conn, "2026-11-14T10:00:00+08:00")
+    store.finish_cycle(conn, cycle_id, "done", {})
+    mapping = store.upsert_memes(
+        conn, [{"family_key": "旧梗", "canonical": "旧梗", "type": "词"}]
+    )
+    store.insert_signals(
+        conn, cycle_id,
+        [{"meme_id": mapping["旧梗"], "family_key": "旧梗", "score": 55.0, "rank": 1,
+          "status": "observing", "components": {}, "sample": ""}],
+    )
+    assert store.top_items(conn, cycle_id, 10)[0]["is_new"] is False
+    conn.close()

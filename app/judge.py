@@ -89,10 +89,16 @@ class Judger:
             score += 0.15
             reasons["suffix"] = 0.15
 
-        if family.get("df_video", 0) >= 3 and family.get("df_zone", 0) >= 2:
+        df_video = family.get("df_video", 0)
+        df_zone = family.get("df_zone", 0)
+        if df_video >= 3 and df_zone >= 2:
             score += 0.15
             reasons["breadth"] = 0.15
-        elif family.get("df_video", 0) >= 5:
+        elif df_video >= 2 and df_zone >= 1:
+            # 稳定榜口径（docs/02 §4）：跨 2 视频 + 跨分区即构成扩散证据
+            score += 0.10
+            reasons["breadth_mid"] = 0.10
+        elif df_video >= 5:
             score += 0.08
             reasons["breadth_small"] = 0.08
 
@@ -102,12 +108,12 @@ class Judger:
 
         if (family.get("cohesion", 0) >= 5.0 and family.get("entropy", 0) >= 1.5
                 and len(norm) >= 3 and not seed):
-            score += 0.08
-            reasons["cohesion"] = 0.08
+            score += 0.10
+            reasons["cohesion"] = 0.10
 
         if family.get("df_search", 0) >= 2:
-            score += 0.15
-            reasons["meme_source"] = 0.15
+            score += 0.12
+            reasons["meme_source"] = 0.12
 
         lower = norm
         if any(word in lower for word in self.news_words) or DATE_RE.search(lower):
@@ -119,6 +125,8 @@ class Judger:
         if norm in self.common_words:
             score -= 0.30
             reasons["common_word"] = -0.30
+        # 种子是已知梗先验：豁免 lexicon/proper_noun（已知梗很可能同时是
+        # 通用词/带专名后缀），只保留 evergreen 的新鲜度降权。
         if norm in self.lexicon and not seed:
             score -= 0.25
             reasons["lexicon"] = -0.25
@@ -132,9 +140,9 @@ class Judger:
         if norm in owner_names:
             score -= 0.30
             reasons["owner_name"] = -0.30
-        if norm in self.evergreen_words and not seed:
-            score -= 0.10
-            reasons["evergreen"] = -0.10
+        if norm in self.evergreen_words:
+            score -= 0.05
+            reasons["evergreen"] = -0.05
         if len(norm) < 2 or len(norm) > 12:
             score -= 0.15
             reasons["length"] = -0.15
@@ -145,14 +153,14 @@ class Judger:
             score -= 0.20
             reasons["short_ascii"] = -0.20
 
-        score = max(0.0, min(1.0, score))
+        score = round(max(0.0, min(1.0, score)), 3)
         return score, reasons
 
 
-def decide(score: float) -> str:
-    """按阈值给出候选状态。"""
-    if score >= config.MIN_SCORE:
-        return "hot"
-    if score >= config.OBSERVE_MIN:
-        return "observing"
-    return "rejected"
+def passes_meme_gate(meme_score: float, seed_hit: bool = False) -> bool:
+    """0-1 梗性分是否达入池线（docs/01 §6：≥ MEME_MIN 入候选池）。
+
+    种子命中是文档允许的先验豁免。注意本函数只接受 0-1 分，
+    不要与 0-100 的 MIN_SCORE / OBSERVE_MIN 混用（历史量纲 bug）。
+    """
+    return bool(seed_hit) or float(meme_score) >= config.MEME_MIN

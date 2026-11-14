@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS meme_signal(
     status TEXT NOT NULL,
     components_json TEXT NOT NULL DEFAULT '{}',
     sample TEXT DEFAULT '',
+    is_new INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL,
     PRIMARY KEY(cycle_id, meme_id)
 );
@@ -123,8 +124,18 @@ CREATE TABLE IF NOT EXISTS source_error(
 """
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """兼容旧库：为已存在的 meme_signal 补 is_new 列（幂等）。"""
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(meme_signal)")}
+    if "is_new" not in columns:
+        conn.execute(
+            "ALTER TABLE meme_signal ADD COLUMN is_new INTEGER NOT NULL DEFAULT 0"
+        )
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
 
 
@@ -338,14 +349,14 @@ def insert_signals(conn: sqlite3.Connection, cycle_id: int, items: Iterable[dict
             cycle_id, item["meme_id"], item["family_key"], float(item["score"]),
             int(item["rank"]), item.get("status", "observing"),
             json.dumps(item.get("components", {}), ensure_ascii=False),
-            item.get("sample", ""), stamp,
+            item.get("sample", ""), 1 if item.get("is_new") else 0, stamp,
         )
         for item in items
     ]
     conn.executemany(
         """INSERT OR REPLACE INTO meme_signal(cycle_id, meme_id, family_key, score, rank,
-               status, components_json, sample, updated_at)
-           VALUES(?,?,?,?,?,?,?,?,?)""",
+               status, components_json, sample, is_new, updated_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?)""",
         rows,
     )
     conn.commit()
@@ -390,7 +401,7 @@ def hype_streak(conn: sqlite3.Connection, family_key: str, threshold: float, rou
 def top_items(conn: sqlite3.Connection, cycle_id: int, limit: int = 10) -> list[dict]:
     rows = conn.execute(
         """SELECT s.family_key, s.score, s.rank, s.status, s.components_json, s.sample,
-                  s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen
+                  s.is_new, s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen
            FROM meme_signal s JOIN meme m ON m.id=s.meme_id
            WHERE s.cycle_id=? AND s.rank>0 ORDER BY s.rank LIMIT ?""",
         (cycle_id, limit),
@@ -418,6 +429,7 @@ def top_items(conn: sqlite3.Connection, cycle_id: int, limit: int = 10) -> list[
                 "components": components,
                 "sample": row["sample"],
                 "first_seen": row["first_seen"],
+                "is_new": bool(row["is_new"]),
                 "updated_at": row["updated_at"],
             }
         )

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from . import config, store
 from .bili import BiliClient, parse_danmaku
 from .extract import TextDoc, discover, merge_families, sample_text
-from .judge import Judger
+from .judge import Judger, passes_meme_gate
 from .normalize import normalize_surface
 from .score import score_families
 from .zones import ZONES
@@ -223,6 +223,24 @@ def compute_usage(families: list[dict], docs: list[TextDoc],
     return usage
 
 
+def confirm_rounds() -> int:
+    """`hype_streak` 只查已落库的历史轮次（当前轮尚未写入），故减 1。"""
+    return max(1, config.CONFIRM_ROUNDS - 1)
+
+
+def status_for(item: dict, family: dict, streak: bool) -> str:
+    """0-100 综合分的上榜状态；稳定性口径见 docs/02 §4。"""
+    if item["score"] >= config.MIN_SCORE:
+        newcomer = bool(item.get("is_new")) and (
+            item["components"].get("exposure", 0.0) >= config.NEWCOMER_PERCENTILE
+        )
+        enough_videos = family.get("df_video", 0) >= config.MIN_VIDEOS_FOR_RANK
+        return "hot" if (enough_videos and (streak or newcomer)) else "observing"
+    if item["score"] >= config.OBSERVE_MIN or item.get("seed_hit"):
+        return "observing"
+    return "rejected"
+
+
 def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
     own_connection = conn is None
     conn = conn or store.connect()
@@ -321,21 +339,11 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             item["first_seen"] = family.get("first_seen")
             item["is_new"] = bool(family.get("is_new"))
             item["judge_reasons"] = family.get("judge_reasons", {})
-            if not item.get("seed_hit") and item["components"].get("meme", 0.0) < config.OBSERVE_MIN:
+            if not passes_meme_gate(item["components"].get("meme", 0.0), item.get("seed_hit")):
                 item["status"] = "rejected"
                 continue
-            if item["score"] >= config.MIN_SCORE:
-                streak = store.hype_streak(conn, key, config.MIN_SCORE, rounds=1)
-                exposure_percentile = item["components"].get("exposure", 0.0)
-                newcomer = item["is_new"] and (
-                    exposure_percentile >= config.NEWCOMER_PERCENTILE
-                    or item["seed_hit"]
-                )
-                item["status"] = "hot" if (streak or newcomer) else "observing"
-            elif item["score"] >= config.OBSERVE_MIN or item.get("seed_hit"):
-                item["status"] = "observing"
-            else:
-                item["status"] = "rejected"
+            streak = store.hype_streak(conn, key, config.MIN_SCORE, rounds=confirm_rounds())
+            item["status"] = status_for(item, family, streak)
 
         display = [item for item in items if item["status"] in ("hot", "observing")][
             : config.TOP_N
@@ -387,6 +395,7 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
                         "raw": item.get("raw_signals", {}),
                     },
                     "sample": item.get("sample", ""),
+                    "is_new": bool(item.get("is_new")),
                 }
                 for item in usable
                 if item["family_key"] in meme_ids
