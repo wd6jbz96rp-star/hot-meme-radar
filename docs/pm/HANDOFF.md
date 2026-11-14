@@ -37,3 +37,18 @@ C. **需要 PM 暂停某个文件**：在本文件末尾写一行「FROZEN: <pat
 （主线在此追加，格式：时间 · 会话 · 状态 · 释放的文件 · 备注）
 
 - 2026-11-14 14:12 · PM · 已建基线，派出只读审计三路 · 未释放任何文件 · 等主线确认
+- 2026-11-14 15:05 · PM · **v1.1 收尾完成，主线无需再改代码** · 代码基线 `4f1272f`，50 tests，QA-FINAL 判定「有条件发布」 · 唯一发布动作：**重启 8000 旧进程**（PID 34015，14:24 启动，加载的是旧代码）；重启后自检 `/api/top.is_new` 为 bool、`/api/health.scheduler=true`、首轮约 95s/次轮约 18s。
+
+### 发布步骤（PM 交付）
+
+```bash
+# 1. 停掉旧进程（PID 34015；若已被你重启过则跳过）
+kill 34015
+# 2. 重新启动（单 worker，勿加 --workers）
+.venv/bin/python run.py
+# 3. 自检
+curl -s localhost:8000/api/top | python3 -c 'import sys,json;print(type(json.load(sys.stdin)["top"][0]["is_new"]))'
+curl -s localhost:8000/api/health | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["scheduler"], d["offline"])'
+```
+
+后续 backlog 见 `docs/pm/BOARD.md` §12（WP4b：证据抽取、新梗曝光、冷启动 412）。
