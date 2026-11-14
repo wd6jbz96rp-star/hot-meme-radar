@@ -416,3 +416,18 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 判定：**架构/工程通过；质量条件性通过，可做 shadow，不能自动发布**。用户 16 锚点 raw P@10=0.80（labeled 1.0）；报告写 1.0 是口径错误，需改。
 - 复核报告：`docs/pm/MEME-INFO-REVIEW.md` §8。
 - 下一步：shadow adapter（模块报告只读落新表/新 endpoint），用户复核 2–3 轮后再谈切换。
+
+## 22. Shadow adapter（23:58 启动）
+
+目标：把 `meme_info` 的 `HotMemeReport` 以**只读**方式接进 app，供内部对比；**不改 `/api/top`、不写 DB、不动调度器、不重启 8000**。
+
+| 项 | 决策 |
+|---|---|
+| 数据流 | `tools/meme_info_shadow.py` 跑模块 → 原子写 `/tmp/meme_info_latest.json` → app 只读 |
+| API | `GET /api/meme-info?limit=10&only=all|publishable`；返回 status/missing/stale/invalid + memes + verification |
+| 发布门 | 只给 `publishable` 标记（status hot/rising + 2×2 证据），**不硬过滤**；shadow 阶段全量展示 |
+| 文件 | 新增 `app/meme_info_adapter.py`、`tools/meme_info_shadow.py`、`tests/test_meme_info_adapter.py`；小改 `app/api.py`、`app/config.py` |
+| 禁止 | 不改 `meme_info/`（工程师冻结）、不改 static、不写生产库、不起 8000 |
+| 验收 | 59+ tests 全绿；TestClient 覆盖 missing/invalid/stale/ok/limit/only；一次真机 shadow 报告；不重启线上 |
+
+下一步：shadow 对比 2–3 轮 → 人工看新面孔/假阳性 → 再决定是否替换 `list=new`。

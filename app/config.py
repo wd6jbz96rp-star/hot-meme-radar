@@ -44,6 +44,14 @@ DB_PATH = Path(os.getenv("HOTMEME_DB", str(DATA_DIR / "hotmeme.db")))
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 FIXTURE_DIR = Path(os.getenv("HOTMEME_FIXTURES", str(BASE_DIR / "tests" / "fixtures")))
 
+# ---- meme_info shadow 报告（只读，docs/pm/BOARD.md §22）----
+# tools/meme_info_shadow.py 原子写 JSON；app 只读展示，不写库、不切 /api/top。
+MEME_INFO_REPORT_PATH = Path(
+    os.getenv("HOTMEME_MEME_INFO_REPORT", "/tmp/meme_info_latest.json")
+)
+# 报告超过该年龄标 stale（仍返回数据供对比，只做标记）。
+MEME_INFO_MAX_AGE_SECONDS = _env_int("HOTMEME_MEME_INFO_MAX_AGE", 3600)
+
 OFFLINE = os.getenv("HOTMEME_OFFLINE", "0") == "1"
 DISABLE_SCHEDULER = os.getenv("HOTMEME_DISABLE_SCHEDULER", "0") == "1"
 CYCLE_INTERVAL_SECONDS = int(os.getenv("HOTMEME_INTERVAL", "600"))

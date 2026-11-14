@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from . import config, pipeline, store
+from . import config, meme_info_adapter, pipeline, store
 
 STATE: dict = {"snapshot": None, "running": False, "error": ""}
 SUBSCRIBERS: set[asyncio.Queue] = set()
@@ -166,6 +166,20 @@ async def api_top(limit: int = config.TOP_N,
         "running": STATE["running"],
         "error": STATE["error"],
     }
+
+
+@app.get("/api/meme-info")
+async def api_meme_info(limit: int = 10, only: str = "all") -> dict:
+    """只读 shadow：回显 meme_info 模块报告（不写库、不影响 /api/top）。
+
+    ``only=all|publishable``；``publishable`` 只筛「hot/rising + 2×2 证据」标记。
+    ``status=missing|invalid|stale|ok`` 始终 200，坏文件不 500。
+    """
+    if only not in meme_info_adapter.ONLY_VALUES:
+        raise HTTPException(status_code=400, detail="only 仅支持 all|publishable")
+    return await asyncio.to_thread(
+        meme_info_adapter.load_report, None, limit, only
+    )
 
 
 @app.get("/api/meme/{family_key}/history")
