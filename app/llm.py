@@ -6,6 +6,7 @@
 |---|---|---|
 | `HOTMEME_LLM_BASE_URL` | `https://api.deepseek.com/v1` | 兼容端点根路径 |
 | `HOTMEME_LLM_API_KEY` | 空 | 为空时 `chat_json` 直接抛 `not_configured`，**不发网络请求** |
+| `HOTMEME_LLM_API_KEY_FILE` | 空 | key 文件路径；仅当 `HOTMEME_LLM_API_KEY` 为空时读取，strip 后为空视为未配置 |
 | `HOTMEME_LLM_MODEL` | `deepseek-chat` | 模型名 |
 | `HOTMEME_LLM_TIMEOUT` | `30` | 单次请求超时（秒） |
 | `HOTMEME_LLM_MAX_CALLS` | `60` | 单实例累计调用上限（含重试） |
@@ -25,7 +26,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
@@ -53,24 +54,56 @@ class LlmError(RuntimeError):
         return f"[{self.kind}] {self.args[0]}"
 
 
-def _env_float(name: str, default: float) -> float:
+def _env_get(env: dict[str, str] | None, name: str, default: str = "") -> str:
+    """统一 os.environ 与测试注入 dict 的取值口径。"""
+    if env is None:
+        return os.getenv(name, default)
+    value = env.get(name, default)
+    return default if value is None else str(value)
+
+
+def _env_float(env: dict[str, str] | None, name: str, default: float) -> float:
     try:
-        return float(os.getenv(name, str(default)))
+        return float(_env_get(env, name, str(default)))
     except (TypeError, ValueError):
         return default
 
 
-def _env_int(name: str, default: int) -> int:
+def _env_int(env: dict[str, str] | None, name: str, default: int) -> int:
     try:
-        return int(os.getenv(name, str(default)))
+        return int(_env_get(env, name, str(default)))
     except (TypeError, ValueError):
         return default
+
+
+def _read_api_key_file(path: str) -> str:
+    """读取 key 文件并 strip；不存在/不可读/编码错误一律视为未配置。
+
+    只返回内容，不打印路径或内容；调用方只用于鉴权头。
+    """
+    if not path:
+        return ""
+    try:
+        with open(os.path.expanduser(path), "r", encoding="utf-8") as handle:
+            return handle.read().strip()
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _resolve_api_key(env: dict[str, str] | None) -> str:
+    """`HOTMEME_LLM_API_KEY` 优先；为空才读 `HOTMEME_LLM_API_KEY_FILE`。"""
+    key = _env_get(env, "HOTMEME_LLM_API_KEY", "").strip()
+    if key:
+        return key
+    return _read_api_key_file(
+        _env_get(env, "HOTMEME_LLM_API_KEY_FILE", "").strip()
+    )
 
 
 @dataclass(frozen=True)
 class LlmConfig:
     base_url: str = DEFAULT_BASE_URL
-    api_key: str = ""
+    api_key: str = field(default="", repr=False)  # 默认 repr 也不能泄露 key
     model: str = DEFAULT_MODEL
     timeout: float = DEFAULT_TIMEOUT
     max_calls: int = DEFAULT_MAX_CALLS
@@ -79,21 +112,18 @@ class LlmConfig:
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "LlmConfig":
-        """从 env（默认 os.environ）构造；测试可传字典。"""
-        if env is None:
-            return cls(
-                base_url=os.getenv("HOTMEME_LLM_BASE_URL", DEFAULT_BASE_URL).rstrip("/"),
-                api_key=os.getenv("HOTMEME_LLM_API_KEY", ""),
-                model=os.getenv("HOTMEME_LLM_MODEL", DEFAULT_MODEL),
-                timeout=_env_float("HOTMEME_LLM_TIMEOUT", DEFAULT_TIMEOUT),
-                max_calls=_env_int("HOTMEME_LLM_MAX_CALLS", DEFAULT_MAX_CALLS),
-            )
+        """从 env（默认 os.environ）构造；测试可传字典。
+
+        `HOTMEME_LLM_API_KEY` 非空时直接用；否则读 `HOTMEME_LLM_API_KEY_FILE`
+        （适合把 key 放在 `~/.hotmeme_llm_key`，不经聊天/仓库传递）。
+        """
         return cls(
-            base_url=str(env.get("HOTMEME_LLM_BASE_URL", DEFAULT_BASE_URL)).rstrip("/"),
-            api_key=str(env.get("HOTMEME_LLM_API_KEY", "")),
-            model=str(env.get("HOTMEME_LLM_MODEL", DEFAULT_MODEL)),
-            timeout=float(env.get("HOTMEME_LLM_TIMEOUT", DEFAULT_TIMEOUT)),
-            max_calls=int(env.get("HOTMEME_LLM_MAX_CALLS", DEFAULT_MAX_CALLS)),
+            base_url=_env_get(env, "HOTMEME_LLM_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+            or DEFAULT_BASE_URL,
+            api_key=_resolve_api_key(env),
+            model=_env_get(env, "HOTMEME_LLM_MODEL", DEFAULT_MODEL) or DEFAULT_MODEL,
+            timeout=_env_float(env, "HOTMEME_LLM_TIMEOUT", DEFAULT_TIMEOUT),
+            max_calls=_env_int(env, "HOTMEME_LLM_MAX_CALLS", DEFAULT_MAX_CALLS),
         )
 
     @property

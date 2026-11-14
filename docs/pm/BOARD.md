@@ -321,3 +321,30 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - LLM 抽取：只从证据评论出候选，禁止编造；输出可合并进 `discover` 前的候选池。
 - 前端：无 key/新榜为空时明确显示「规则版/审核中」，不假装有数据。
 - 不写生产库、不碰 8000、不 commit。
+
+## 18. v2 P4 结果与 P5（17:06）
+
+### 18.1 结果
+
+| 项 | 结果 |
+|---|---|
+| 评论 | **631/轮（30 天）、293（≤7 天）**；45 视频、180 评论请求 |
+| 冷轮 | 223 请求 / **111.4s** / 0 失败页 / 0 错误 |
+| warm 轮 | **31 请求 / 17.6s** / 180 评论页全缓存 |
+| 健壮性 | 412/HTML/空/非 JSON/-352 分类重试；失败率 >20% 才 degraded；单页失败不整轮降级 |
+| LLM 抽取 | `app/llm_extract.py` 44 tests；450 评论/3 批 ≈ ¥0.033/轮；无 key 返回空、零调用 |
+| 前端 | 新/经典/全部三 tab、LLM badge、证据、空态/降级态；headless 实测、console 0 error |
+| 测试 | **192 passed** |
+
+### 18.2 P5 集成（下一步）
+
+1. 在 `discover(docs)` 之前调用 `llm_extract.extract_candidates`；把 LLM 候选按 `normalize_surface` 与 n-gram/种子合并，补 `meaning/origin/evidence`；不重复计分、不编造。
+2. 配置 `HOTMEME_LLM_EXTRACT=1`（默认 0）；无 key/失败静默跳过，stats 记 `llm_extract_*`。
+3. `LlmConfig` 支持 `HOTMEME_LLM_API_KEY_FILE`（key 文件，chmod 600），方便不把 key 写进聊天/仓库。
+4. 新脚本 `tools/shadow_run.py`：3 轮 shadow + 抽取，写 `/tmp/shadow.db`，输出每轮 candidate/approved/rejected 对比；不启服务、不写生产库。
+5. 拿到 key 后跑 3 轮 shadow，人工核对；再切 `demote`，最后 `require_approve`。
+
+### 18.3 Key 协议
+
+- 用户把 DeepSeek key 写入 `~/.hotmeme_llm_key`（`chmod 600`），或设置 `HOTMEME_LLM_API_KEY`；**不要贴聊天**。
+- 我方只以 `HOTMEME_LLM_API_KEY_FILE` 读取，不打印、不入库、不提交。

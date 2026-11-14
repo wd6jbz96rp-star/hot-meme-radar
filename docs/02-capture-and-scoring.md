@@ -84,6 +84,21 @@
    - 不在通用词表/口语常用词表中（种子词除外）
 4. **合并**：模式候选与 n-gram 候选合并，按 `频次 × log(1+视频数)` 排序取前 1500。
 
+### 3.1 LLM 候选抽取（P5，默认关）
+
+`HOTMEME_LLM_EXTRACT=1` 时，在 `discover(docs)` **之前**把 `kind=="comment"` 的近期评论交给
+`app/llm_extract.run_extraction`（近 30 天、高赞优先、450 条/3 批上限；见
+`docs/pm/P4-LLM-EXTRACT.md`）。候选按 `normalize_surface(canonical)` 与 n-gram 候选合并：
+
+- **已有同 surface**：只补 `type/meaning/origin_quote/confidence/known` 到 `metadata`
+  （`source="n-gram+llm_extract"`），**不重复计数**；
+- **新候选**：`count/df_video/df_zone` 由 `evidence_ids` 回映射评论/视频计算，
+  `source="llm_extract"`，作为新 candidate/family 入池；
+- **known=True**（命中 `data/seed_memes.json` 种子/别名）：标 `llm_known`，**不走**
+  「评论证据绕过梗性闸门」的新梗旁路（种子已有自己的通道）；
+- **降级**：无 key / 抽取失败 / 开关关 → 空列表 + `llm_extract_reason`，规则榜照旧；
+  任何异常都不中断采集。
+
 凝固度公式：对词 w 的每种切分 (a,b)，`PMI = log2( p(w) / (p(a)p(b)) )`，取最小值。
 
 邻接熵：对左/右邻字符分布求信息熵，取左右较小值；熵越高说明该词越能独立成词。
@@ -218,6 +233,47 @@ PRIMARY KEY(cycle_id, family_key)
 
 **stats**：`llm_mode`、`llm_calls`、`llm_rounds`、`llm_approved`、`llm_rejected`（reject+unclear+merge）、`llm_reviewed`、`llm_merged`、`llm_shortfall`、`llm_pool`、`llm_gate_applied`、`llm_fallback`、`llm_fallback_reason`；0 通过沿用历史时另有 `llm_new_list_cycle`。`/api/top` 返回 `llm` 摘要（mode/calls/rounds/approved/rejected/gate_applied/fallback/fallback_reason）。
 
+### 5.2 LLM 候选抽取（P5）
+
+在 `discover(docs)` 之前用近期评论补候选池（`pipeline.run_cycle` → `run_llm_extraction`），
+与 n-gram 候选按 `normalize_surface(canonical)` 合并；抽取置信度只作 metadata/排序证据，
+**不作为审核 approve 依据**。抽取与 P3 审核同轮执行：抽取发生在候选池构建阶段，审核仍在
+score/status/rank 之后。
+
+| 环境变量 | 默认 | 含义 |
+|---|---|---|
+| `HOTMEME_LLM_EXTRACT` | `0` | `1` 开；非法值/空按 0（关闭时零调用、零行为变化） |
+| `HOTMEME_LLM_EXTRACT_MAX_CALLS` | 3 | 抽取批预算（有效 1–3，越界回默认；与 P4a 3 批硬上限一致） |
+| `HOTMEME_LLM_EXTRACT_MAX_COMMENTS` | 450 | 采样评论上限（有效 1–2000，越界回默认） |
+| `HOTMEME_LLM_API_KEY_FILE` | 空 | key 文件路径；`HOTMEME_LLM_API_KEY` 为空时才读，strip 后为空视为未配置 |
+
+**metadata**：candidate 动态属性 / family 的 `llm_extract` 字段（`source/type/meaning/
+origin_quote/evidence_ids/confidence/known/prompt_version`），item 上另落
+`components.llm_extract` 与 `components.raw.llm_extract`（`components.llm_known` 便于审计）。
+
+**known 处理**：`known=True` 不丢，但与 n-gram/种子合并后标 `llm_known`；当梗性闸门未过时
+**不允许**用评论证据旁路入 observing（种子走自己的 `seed_hit` 通道），被拦次数记
+`llm_extract_known_blocked`。
+
+**降级路径**（全部只记账、不中断采集）：
+
+| 触发 | `llm_extract_reason` | 行为 |
+|---|---|---|
+| `HOTMEME_LLM_EXTRACT=0` | `disabled` | 不构造评论、不调用 |
+| 无 `kind=="comment"` 文档 | `empty_input` | 不调用 |
+| 无 key（env 与 key 文件都空） | `not_configured` | 不构造客户端、零调用 |
+| 超时/限流/坏 JSON/schema/鉴权/预算 | 原样（`timeout/rate_limit/bad_json/schema/auth/budget` 等） | 保留已得候选，规则榜照旧 |
+| extractor 注入实现抛异常 | `error`（附 `llm_extract_error`） | 空候选，cycle 照常收尾 |
+
+**stats**：`llm_extract_enabled/reason/input/sampled/calls/batches/cache_hits/candidates/
+merged/added/known/known_families/known_blocked/skipped/prompt_tokens/completion_tokens/
+total_tokens/details`；`details` 保留前 30 条候选（surface/canonical/type/confidence/known/
+meaning/origin_quote/evidence_ids）供 shadow 报告。
+
+**shadow**：`tools/shadow_run.py` 固定 `HOTMEME_LLM_MODE=shadow` + `HOTMEME_LLM_EXTRACT=1`，
+3 轮写 `/tmp/shadow.db`（可 `--db`），每轮输出 cycle/extract/review/Top10，汇总 JSON 默认
+`/tmp/shadow_report.json`；无 key 打印 `not_configured` 并 exit 2，不启动服务、不写生产库。
+
 ## 6. 验证
 
 - 固定 fixture 回放：离线跑通，排序稳定。
@@ -248,4 +304,5 @@ PRIMARY KEY(cycle_id, family_key)
 
 - 接入微博/抖音/头条热榜（adapter 接口已隔离，只需实现 `fetch`）。
 - LLM 复核 Top 候选已接入（P3，§5.1）：规则先筛，LLM 只审 `list=new` 前 50 条；后续可评估并发/异步以降低 45 次串行的延迟。
+- LLM 候选抽取已接入（P5，§3.1/§5.2，默认关）：拿 key 后先跑 `tools/shadow_run.py` 3 轮，人工核对抽取准确率/幻觉率与审核通过率，再决定是否默认开启。
 - 图像/表情包梗识别、BGM 空耳检测。

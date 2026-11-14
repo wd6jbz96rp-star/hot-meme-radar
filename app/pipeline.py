@@ -1,6 +1,7 @@
 """采集 → 抽取 → 判定 → 打分 → 落库 的完整流水线。"""
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 import threading
@@ -11,9 +12,10 @@ from datetime import datetime, timedelta
 
 from . import config, store
 from .bili import BiliClient, parse_danmaku
-from .extract import TextDoc, discover, merge_families, sample_text
+from .extract import Candidate, TextDoc, discover, merge_families, sample_text
 from .judge import Judger, parse_origin_year, passes_meme_gate
-from .normalize import normalize_surface
+from .llm_extract import run_extraction
+from .normalize import normalize_surface, normalize_text
 from .review import PROMPT_VERSION, review_candidates
 from .score import score_families
 from .zones import ZONES
@@ -961,14 +963,340 @@ def _run_llm_gate(conn, cycle_id: int, items: list[dict], families_by_key: dict,
     return stats, ""
 
 
+# ---------------------------------------------------------------------------
+# P5：LLM 候选抽取（在 discover 之前补候选池，不替代 n-gram）
+# ---------------------------------------------------------------------------
+
+DEFAULT_EXTRACTOR = object()   # 区分「未注入（按 env 构建）」与显式 None（禁用）
+
+LLM_EXTRACT_DETAIL_LIMIT = 30
+
+
+def llm_extract_stats_defaults() -> dict:
+    """每轮 stats 固定带 llm_extract_* 字段（关闭时也要有键，便于监控）。"""
+    return {
+        "llm_extract_enabled": bool(getattr(config, "LLM_EXTRACT_ENABLED", False)),
+        "llm_extract_reason": "disabled",
+        "llm_extract_input": 0,
+        "llm_extract_sampled": 0,
+        "llm_extract_calls": 0,
+        "llm_extract_batches": 0,
+        "llm_extract_cache_hits": 0,
+        "llm_extract_candidates": 0,
+        "llm_extract_merged": 0,
+        "llm_extract_added": 0,
+        "llm_extract_known": 0,
+        "llm_extract_known_families": 0,
+        "llm_extract_known_blocked": 0,
+        "llm_extract_skipped": 0,
+        "llm_extract_prompt_tokens": 0,
+        "llm_extract_completion_tokens": 0,
+        "llm_extract_total_tokens": 0,
+        "llm_extract_details": [],
+    }
+
+
+def _comment_doc_id(doc: TextDoc) -> str:
+    """与 llm_extract.select_comments 的稳定 id 口径一致：rpid，否则 h:<sha12>。"""
+    rpid = getattr(doc, "rpid", None)
+    if rpid not in (None, ""):
+        return str(rpid)
+    text = normalize_text(str(getattr(doc, "text", "") or ""))
+    return "h:" + hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:12]
+
+
+def _collect_llm_comments(
+    docs: list[TextDoc], video_meta: dict | None = None
+) -> tuple[list[dict], dict[str, dict]]:
+    """只取 `kind=="comment"` 的文档；title 从视频元数据按 bvid 关联。"""
+    meta = video_meta or {}
+    comments: list[dict] = []
+    for doc in docs or ():
+        if getattr(doc, "kind", "") != "comment":
+            continue
+        text = str(getattr(doc, "text", "") or "").strip()
+        if not text:
+            continue
+        bvid = str(getattr(doc, "bvid", "") or "")
+        video = meta.get(bvid) or {}
+        comments.append({
+            "id": _comment_doc_id(doc),
+            "text": text,
+            "ctime": int(getattr(doc, "ctime", 0) or 0),
+            "like": int(getattr(doc, "likes", 0) or 0),
+            "bvid": bvid,
+            "zone": str(getattr(doc, "zone", "") or ""),
+            "title": str(video.get("title") or ""),
+        })
+    return comments, {comment["id"]: comment for comment in comments}
+
+
+def _coerce_extract_report(result) -> dict:
+    """注入的 extractor 可返回 report dict 或 candidate list，统一成 report。"""
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, (list, tuple)):
+        candidates = [item for item in result if isinstance(item, dict)]
+        return {
+            "candidates": candidates,
+            "reason": "ok" if candidates else "no_candidates",
+            "calls": 0,
+            "sampled": len(candidates),
+        }
+    raise TypeError("extractor 必须返回 report dict 或 candidate list")
+
+
+def _evidence_id_list(value) -> list[str]:
+    """evidence_ids 容错：正常是 list；单值/字符串也收，坏类型返回空。"""
+    if isinstance(value, str):
+        return [value][:5] if value else []
+    if isinstance(value, (list, tuple)):
+        return [str(eid) for eid in value if str(eid)][:5]
+    return []
+
+
+def _llm_detail(item: dict) -> dict:
+    return {
+        "surface": str(item.get("surface") or ""),
+        "canonical": str(item.get("canonical") or ""),
+        "type": str(item.get("type") or "词"),
+        "confidence": round(_float(item.get("confidence"), 0.0), 3),
+        "known": bool(item.get("known")),
+        "meaning": str(item.get("meaning") or "")[:80],
+        "origin_quote": str(item.get("origin_quote") or "")[:80],
+        "evidence_ids": _evidence_id_list(item.get("evidence_ids")),
+    }
+
+
+def run_llm_extraction(docs: list[TextDoc], video_meta: dict | None = None,
+                       extractor=DEFAULT_EXTRACTOR
+                       ) -> tuple[list[dict], dict[str, dict], dict]:
+    """从 docs 的评论跑 LLM 抽取；返回 (candidates, comment_index, stats)。
+
+    任何失败（无 key/超时/坏 JSON/注入实现抛异常）都收敛为空列表 + reason，
+    绝不向上抛、绝不阻塞采集。
+    """
+    stats = llm_extract_stats_defaults()
+    stats["llm_extract_enabled"] = bool(getattr(config, "LLM_EXTRACT_ENABLED", False))
+    if not stats["llm_extract_enabled"]:
+        stats["llm_extract_reason"] = "disabled"
+        return [], {}, stats
+
+    comments, comment_index = _collect_llm_comments(docs, video_meta)
+    stats["llm_extract_input"] = len(comments)
+    if not comments:
+        stats["llm_extract_reason"] = "empty_input"
+        return [], comment_index, stats
+    if extractor is None:
+        stats["llm_extract_reason"] = "no_extractor"
+        return [], comment_index, stats
+
+    max_calls = int(getattr(config, "LLM_EXTRACT_MAX_CALLS", 3))
+    max_comments = int(getattr(config, "LLM_EXTRACT_MAX_COMMENTS", 450))
+    try:
+        if extractor is DEFAULT_EXTRACTOR:
+            report = run_extraction(comments, None, max_calls=max_calls,
+                                    max_comments=max_comments)
+        elif hasattr(extractor, "chat_json"):
+            report = run_extraction(comments, extractor, max_calls=max_calls,
+                                    max_comments=max_comments)
+        elif callable(extractor):
+            report = _coerce_extract_report(extractor(comments))
+        else:
+            raise TypeError("extractor 必须是 chat_json 客户端或 callable")
+    except Exception as exc:  # noqa: BLE001 - 抽取失败只降级，不影响流水线
+        stats["llm_extract_reason"] = "error"
+        stats["llm_extract_error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
+        return [], comment_index, stats
+
+    if not isinstance(report, dict):
+        stats["llm_extract_reason"] = "error"
+        stats["llm_extract_error"] = "extractor 返回的不是 dict"
+        return [], comment_index, stats
+
+    raw_candidates = report.get("candidates")
+    if not isinstance(raw_candidates, (list, tuple)):
+        raw_candidates = []
+    candidates: list[dict] = []
+    skipped = 0
+    for item in raw_candidates:
+        if isinstance(item, dict):
+            candidates.append(item)
+        else:
+            skipped += 1
+
+    stats["llm_extract_reason"] = str(
+        report.get("reason") or ("ok" if candidates else "no_candidates")
+    )
+    stats["llm_extract_sampled"] = int(report.get("sampled") or 0)
+    stats["llm_extract_calls"] = int(report.get("calls") or 0)
+    stats["llm_extract_batches"] = int(report.get("batches") or 0)
+    stats["llm_extract_cache_hits"] = int(report.get("cache_hits") or 0)
+    stats["llm_extract_candidates"] = len(candidates)
+    stats["llm_extract_skipped"] = skipped
+    stats["llm_extract_details"] = [
+        _llm_detail(item) for item in candidates[:LLM_EXTRACT_DETAIL_LIMIT]
+    ]
+    audit = report.get("llm")
+    if isinstance(audit, dict):
+        stats["llm_extract_prompt_tokens"] = int(audit.get("prompt_tokens") or 0)
+        stats["llm_extract_completion_tokens"] = int(audit.get("completion_tokens") or 0)
+        stats["llm_extract_total_tokens"] = int(audit.get("total_tokens") or 0)
+    return candidates, comment_index, stats
+
+
+def _llm_metadata(item: dict) -> dict:
+    return {
+        "source": "llm_extract",
+        "type": str(item.get("type") or "词"),
+        "meaning": str(item.get("meaning") or ""),
+        "origin_quote": str(item.get("origin_quote") or ""),
+        "evidence_ids": _evidence_id_list(item.get("evidence_ids")),
+        "confidence": round(_float(item.get("confidence"), 0.0), 3),
+        "known": bool(item.get("known")),
+        "prompt_version": str(item.get("prompt_version") or ""),
+    }
+
+
+def _merge_llm_metadata(metas: list[dict]) -> dict:
+    ordered = sorted(metas, key=lambda meta: _float(meta.get("confidence"), 0.0),
+                     reverse=True)
+    base = dict(ordered[0])
+    base["source"] = (
+        "n-gram+llm_extract"
+        if any(meta.get("source") == "n-gram+llm_extract" for meta in ordered)
+        else "llm_extract"
+    )
+    base["known"] = any(bool(meta.get("known")) for meta in ordered)
+    base["confidence"] = max(_float(meta.get("confidence"), 0.0) for meta in ordered)
+    for key in ("meaning", "origin_quote"):
+        if not base.get(key):
+            base[key] = next(
+                (str(meta.get(key) or "") for meta in ordered if meta.get(key)), ""
+            )
+    evidence_ids: list[str] = []
+    for meta in ordered:
+        for eid in meta.get("evidence_ids") or []:
+            value = str(eid)
+            if value and value not in evidence_ids:
+                evidence_ids.append(value)
+    base["evidence_ids"] = evidence_ids[:5]
+    base["type"] = str(base.get("type") or "词")
+    return base
+
+
+def merge_llm_candidates(candidates: list[Candidate], llm_items: list[dict],
+                         comment_index: dict[str, dict]
+                         ) -> tuple[list[Candidate], dict]:
+    """把 LLM 候选按 normalize_surface(canonical) 合并进 discover 候选池。
+
+    - 已存在（n-gram/种子）：只补 metadata，**不重复计数**；
+    - 不存在：新增 Candidate，`count/df_video/df_zone` 由 evidence_ids 回映射评论计算；
+    - 缺字段用默认值，任何坏项只跳过、不抛。
+    """
+    stats = {"merged": 0, "added": 0, "known": 0, "skipped": 0}
+    index: dict[str, Candidate] = {}
+    for candidate in candidates:
+        key = normalize_surface(candidate.norm or candidate.surface)
+        if key:
+            index.setdefault(key, candidate)
+
+    seen: set[str] = set()
+    for item in llm_items or ():
+        if not isinstance(item, dict):
+            stats["skipped"] += 1
+            continue
+        surface = str(item.get("surface") or "").strip()
+        canonical = str(item.get("canonical") or surface).strip() or surface
+        key = normalize_surface(canonical) or normalize_surface(surface)
+        if not surface or not key or key in seen or len(surface) > 20:
+            stats["skipped"] += 1
+            continue
+        seen.add(key)
+        meta = _llm_metadata(item)
+        if meta["known"]:
+            stats["known"] += 1
+
+        existing = index.get(key)
+        if existing is not None:
+            old = getattr(existing, "metadata", None)
+            if isinstance(old, dict):
+                old["source"] = "n-gram+llm_extract"
+                for field, value in meta.items():
+                    if field == "source":
+                        continue
+                    if value not in ("", None, [], 0.0, False) or field not in old:
+                        old[field] = value
+                existing.metadata = old
+            else:
+                meta["source"] = "n-gram+llm_extract"
+                existing.metadata = meta
+            stats["merged"] += 1
+            continue
+
+        evidence = [
+            comment_index[eid]
+            for eid in meta["evidence_ids"]
+            if eid in comment_index
+        ]
+        videos = {comment["bvid"] for comment in evidence if comment.get("bvid")}
+        zones = {comment["zone"] for comment in evidence if comment.get("zone")}
+        candidate = Candidate(
+            surface=surface,
+            norm=key,
+            count=len(evidence),
+            df_video=len(videos),
+            df_zone=len(zones),
+            kinds={"llm_extract"},
+            zones=zones,
+        )
+        candidate.metadata = meta
+        candidates.append(candidate)
+        index[key] = candidate
+        stats["added"] += 1
+    return candidates, stats
+
+
+def attach_llm_metadata(families: list[dict],
+                        candidates: list[Candidate]) -> dict:
+    """把候选 metadata 聚合到梗族（family["llm_extract"] / llm_known）。"""
+    meta_by_key: dict[str, dict] = {}
+    for candidate in candidates:
+        meta = getattr(candidate, "metadata", None)
+        if not isinstance(meta, dict) or not meta.get("source"):
+            continue
+        for value in (candidate.norm, candidate.surface):
+            key = normalize_surface(value or "")
+            if key:
+                meta_by_key[key] = meta
+
+    attached = 0
+    known = 0
+    for family in families:
+        metas: list[dict] = []
+        for member in family.get("members") or []:
+            meta = meta_by_key.get(normalize_surface(str(member)))
+            if meta is not None and meta not in metas:
+                metas.append(meta)
+        if not metas:
+            continue
+        merged = _merge_llm_metadata(metas)
+        family["llm_extract"] = merged
+        family["llm_known"] = bool(merged.get("known"))
+        attached += 1
+        known += 1 if family["llm_known"] else 0
+    return {"attached": attached, "known": known}
+
+
 def run_cycle(conn=None, client: BiliClient | None = None,
-              reviewer=_DEFAULT_REVIEWER) -> dict:
+              reviewer=_DEFAULT_REVIEWER,
+              extractor=DEFAULT_EXTRACTOR) -> dict:
     own_connection = conn is None
     conn = conn or store.connect()
     store.init_db(conn)
     started = time.time()
     cycle_id: int | None = None
-    stats: dict = llm_stats_defaults()
+    stats: dict = {**llm_stats_defaults(), **llm_extract_stats_defaults()}
     status = "done"
 
     try:
@@ -990,16 +1318,34 @@ def run_cycle(conn=None, client: BiliClient | None = None,
             client, conn, cycle_id, videos, comment_targets, danmaku_targets
         )
         stats.update(collect_stats)
+        video_meta = {v["bvid"]: v for v in videos}
+
+        # P5：先抽取（discover 之前），再按 normalize_surface 合并进候选池。
+        # 无 key / HOTMEME_LLM_EXTRACT=0 / 失败 → 空列表 + reason，规则榜照旧。
+        llm_candidates, comment_index, extract_stats = run_llm_extraction(
+            docs, video_meta, extractor=extractor
+        )
+        stats.update(extract_stats)
 
         candidates = discover(docs)
+        if llm_candidates:
+            candidates, merge_stats = merge_llm_candidates(
+                candidates, llm_candidates, comment_index
+            )
+            stats["llm_extract_merged"] = int(merge_stats.get("merged") or 0)
+            stats["llm_extract_added"] = int(merge_stats.get("added") or 0)
+            stats["llm_extract_known"] = int(merge_stats.get("known") or 0)
+            stats["llm_extract_skipped"] = int(stats.get("llm_extract_skipped") or 0) + int(
+                merge_stats.get("skipped") or 0
+            )
         stats["candidates"] = len(candidates)
         if not candidates:
             raise RuntimeError("候选为空，语料不足或抽取失败")
 
         judger = Judger()
         families = merge_families(candidates, judger.seed_map, judger.alias_map)
-
-        video_meta = {v["bvid"]: v for v in videos}
+        attach_stats = attach_llm_metadata(families, candidates)
+        stats["llm_extract_known_families"] = int(attach_stats.get("known") or 0)
         usage = compute_usage(families, docs, video_meta)
         # P0 评论区优先：评论证据健康时才启用「无近 30 天评论证据」门控
         evidence_ready = (
@@ -1086,28 +1432,44 @@ def run_cycle(conn=None, client: BiliClient | None = None,
             item["is_new"] = bool(family.get("is_new"))
             item["judge_reasons"] = family.get("judge_reasons", {})
             evidence = family.get("comment") or {}
+            llm_meta = family.get("llm_extract")
+            llm_known = bool(family.get("llm_known"))
             backed = comment_backed_candidate(item, evidence)
+            # known（种子表命中）不走「评论证据绕过梗性闸门」的新梗旁路：
+            # 它已有种子通道，避免老梗借评论证据挤进 new/observing。
+            bypass = backed and not llm_known
             list_type = classify_list(
                 bool(item.get("seed_hit")), evidence.get("seed_origin_year"),
                 evidence.get("age_days"), evidence.get("comment_7d_count", 0),
             )
             item["comment_backed"] = backed
             item["list"] = list_type
+            if llm_meta:
+                item["llm_extract"] = llm_meta
+                item["llm_known"] = llm_known
             # 评论证据进 components.raw（API 原样透传）：保留 P0 扁平字段，
             # 另加 comment_backed / comment_evidence / list 供 P1 新旧榜使用。
             raw = dict(evidence)
             raw["comment_backed"] = backed
             raw["comment_evidence"] = evidence
             raw["list"] = list_type
+            if llm_meta:
+                raw["llm_extract"] = llm_meta
+                raw["llm_known"] = llm_known
             item.setdefault("raw_signals", {}).update(raw)
             item["components"]["comment"] = evidence
             item["components"]["comment_backed"] = backed
             item["components"]["list"] = list_type
+            if llm_meta:
+                item["components"]["llm_extract"] = llm_meta
+                item["components"]["llm_known"] = llm_known
             meme_ok = passes_meme_gate(
                 item["components"].get("meme", 0.0), item.get("seed_hit")
             )
             # P1 评论证据通道：非种子满足门槛可绕过 MEME_MIN，但只进 observing。
-            if not meme_ok and not backed:
+            if not meme_ok and not bypass:
+                if llm_known and backed:
+                    stats["llm_extract_known_blocked"] += 1
                 item["status"] = "rejected"
                 stats["meme_gate_rejected"] += 1
                 continue

@@ -19,6 +19,25 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    """1/true/yes/on → True；0/false/no/off → False；非法值回 default。"""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off", ""):
+        return False
+    return default
+
+
+def _env_bounded_int(name: str, default: int, low: int, high: int) -> int:
+    """整数 env；非整数或越界（含 0/负数）都回 default。"""
+    value = _env_int(name, default)
+    return value if low <= value <= high else default
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv("HOTMEME_DATA_DIR", str(BASE_DIR / "data")))
 DB_PATH = Path(os.getenv("HOTMEME_DB", str(DATA_DIR / "hotmeme.db")))
@@ -135,6 +154,15 @@ LLM_MAX_CALLS = max(0, _env_int("HOTMEME_LLM_MAX_CALLS", 18))
 LLM_TARGET = max(1, _env_int("HOTMEME_LLM_TARGET", 10))
 LLM_REVIEW_LIMIT = max(1, min(50, _env_int("HOTMEME_LLM_REVIEW_LIMIT", 50)))
 LLM_BUDGET_SECONDS = max(0.0, _env_float("HOTMEME_LLM_BUDGET_SECONDS", 60.0))
+
+# ---- LLM 候选抽取（P5，docs/02 §5.2）----
+# 默认 0：零调用、零行为变化；开=1 时在 discover 之前用近期评论抽候选。
+LLM_EXTRACT_ENABLED = _env_flag("HOTMEME_LLM_EXTRACT", False)
+# 抽取预算：3 批 = 450 条评论（200/批）的默认组合，硬上限 3 批（P4a MAX_BATCHES）。
+LLM_EXTRACT_MAX_CALLS = _env_bounded_int("HOTMEME_LLM_EXTRACT_MAX_CALLS", 3, 1, 3)
+LLM_EXTRACT_MAX_COMMENTS = _env_bounded_int(
+    "HOTMEME_LLM_EXTRACT_MAX_COMMENTS", 450, 1, 2000
+)
 
 # ---- 数据保留 ----
 TEXT_SAMPLE_TTL_DAYS = 30
