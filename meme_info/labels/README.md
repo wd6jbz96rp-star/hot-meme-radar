@@ -20,6 +20,8 @@ P@16 ≥ 0.8` 在当前标签集上数学不可达，需要扩到 50–100 条�
 
 ## 3. 盲标模板 `blind_template_20261114.csv`（60 条）
 
+> 2026-11-14 已由 AI 按网页检索补标（`label/current/heat/confidence/notes` 已填），逐条依据与来源见 [`docs/pm/BLIND-LABEL-REVIEW.md`](../../docs/pm/BLIND-LABEL-REVIEW.md)。该稿是 **AI 初标 + 用户 16 条锚点**，不是用户盲标；P@10 只能作 sanity，不能当独立人工验收。
+
 PM 返工要求「用户盲标 50–100 条，不由梗百科标题生成」。模板由：
 
 ```bash
