@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>网络热梗 · 实时 Top10</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0d12'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%237c9cff'%3E%E6%A2%97%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0b0d12; --panel:#12151d; --panel-2:#171b26; --line:#232838;
@@ -19,24 +20,35 @@
   h1{margin:0;font-size:26px;letter-spacing:.5px}
   h1 span{color:var(--accent)}
   .sub{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6}
-  .status{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .status{display:flex;gap:8px 10px;align-items:center;font-size:12px;color:var(--muted);
+          flex-wrap:wrap;justify-content:flex-end}
+  #cycleMeta::before{content:"· ";color:#333c52}
+  #updatedAt:not(:empty)::before{content:"· ";color:#333c52}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);flex:none}
   .dot.warn{background:var(--gold);box-shadow:0 0 10px var(--gold)}
   .dot.off{background:#555;box-shadow:none}
+  #cycleMeta,#updatedAt{font-variant-numeric:tabular-nums}
+  .notice{margin:0 0 14px;padding:9px 13px;border-radius:10px;border:1px solid #4a3f1f;
+          background:#1f1a10;color:var(--gold);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+  .notice[hidden]{display:none}
+  .notice.bad{border-color:#5a2a2a;background:#221313;color:#ff9b9b}
   .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
          border-radius:16px;padding:18px 20px;margin-bottom:14px;display:grid;
-         grid-template-columns:64px 1fr auto;gap:16px;align-items:center;position:relative;
-         transition:transform .15s ease,border-color .15s ease}
+         grid-template-columns:64px minmax(0,1fr) auto;gap:16px;align-items:center;position:relative;
+         transition:transform .15s ease,border-color .15s ease;cursor:pointer}
   .panel:hover{transform:translateY(-1px);border-color:#33405c}
+  .panel.open{border-color:#33405c}
+  .panel:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   .rank{font-size:34px;font-weight:800;line-height:1;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
   .panel.top1 .rank{color:var(--gold)}
   .panel.top2 .rank{color:#c9d4e6}
   .panel.top3 .rank{color:#d3a06a}
-  .name{font-size:19px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .name{font-size:19px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+  .name .title{min-width:0;overflow-wrap:anywhere}
   .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
   .tag.new{color:var(--green);border-color:#2f5c46;background:#12271d}
   .tag.type{color:var(--accent);border-color:#2b3a63;background:#131a2c}
-  .sample{color:var(--muted);font-size:13px;margin-top:7px;line-height:1.6}
+  .sample{color:var(--muted);font-size:13px;margin-top:7px;line-height:1.6;overflow-wrap:anywhere}
   .sample em{color:#c3cbe0;font-style:normal}
   .score{text-align:right;min-width:92px}
   .score .num{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -44,25 +56,49 @@
   .up{color:var(--green)} .down{color:var(--hot)} .flat{color:var(--muted)}
   .bar{height:4px;border-radius:4px;background:#1e2433;margin-top:10px;overflow:hidden}
   .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:4px}
-  .detail{grid-column:1/-1;margin-top:2px;border-top:1px dashed var(--line);padding-top:12px;display:none}
+  .detail{grid-column:1/-1;margin-top:2px;border-top:1px dashed var(--line);padding-top:12px;display:none;min-width:0}
   .panel.open .detail{display:block}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
   .chip b{color:var(--text);font-weight:600;margin-left:4px}
-  .reasons{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7;word-break:break-all}
-  .toggle{position:absolute;right:16px;bottom:8px;font-size:11px;color:#4d5670;cursor:pointer;user-select:none}
+  .reasons{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7;word-break:break-word;overflow-wrap:anywhere}
+  .hist{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+  .hist-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;
+             font-size:11px;color:var(--muted);margin-bottom:2px}
+  .hist-legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .hist-legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{display:inline-block;width:12px;height:2px;border-radius:2px;background:var(--accent)}
+  .sw.rank{background:var(--purple)}
+  .spark-svg{display:block;width:100%;height:auto;max-height:104px}
+  .spark-empty{font-size:12px;color:var(--muted);padding:8px 0;line-height:1.6}
+  .hist-foot{display:flex;gap:12px 18px;flex-wrap:wrap;font-size:11px;color:#6c7590;margin-top:2px}
+  .hist-foot b{font-weight:600;color:#c3cbe0;font-variant-numeric:tabular-nums}
+  .toggle{position:absolute;right:16px;bottom:8px;font-size:11px;color:#4d5670;user-select:none;pointer-events:none}
+  .panel.open .toggle{color:#6c7590}
   .empty{text-align:center;padding:70px 20px;color:var(--muted)}
   .empty h2{color:var(--text);margin:0 0 10px}
+  .empty p{margin:6px 0;font-size:13px;line-height:1.7}
   .spinner{width:26px;height:26px;border:2px solid #2a3147;border-top-color:var(--accent);
            border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
   @keyframes spin{to{transform:rotate(360deg)}}
   footer{margin-top:26px;color:#5d6680;font-size:12px;line-height:1.8;text-align:center}
   .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;scroll-behavior:auto !important}
+    .panel:hover{transform:none}
+    .spinner{border-top-color:var(--muted);animation:none}
+  }
   @media (max-width:640px){
-    .panel{grid-template-columns:48px 1fr;gap:12px}
-    .score{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px}
+    .wrap{padding:24px 14px 64px}
+    .panel{grid-template-columns:44px minmax(0,1fr);gap:10px 12px;padding:16px 14px}
+    .score{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px;min-width:0}
     .rank{font-size:26px}
     h1{font-size:21px}
+    .status{justify-content:flex-start;font-size:11px}
+    .toggle{right:12px}
+    .chips{gap:6px}
+    .spark-svg{max-height:88px}
   }
 </style>
 </head>
@@ -76,17 +112,20 @@
     </div>
     <div class="status">
       <span class="dot" id="dot"></span>
-      <span id="statusText">连接中…</span>
+      <span id="statusText" aria-live="polite">连接中…</span>
+      <span id="cycleMeta">尚无轮次</span>
       <span id="updatedAt"></span>
     </div>
   </header>
+
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
   <div id="list"><div class="empty"><div class="spinner"></div>正在加载榜单…</div></div>
 
   <footer>
     <div id="meta"></div>
     <div class="legend">
-      <span>点击卡片展开分项得分</span>
+      <span>点击卡片或按 Enter / 空格展开分项与走势</span>
       <span>数据来源：B站公开榜单 / 评论 / 弹幕</span>
       <span>仅统计公开内容，不保存用户身份</span>
     </div>
@@ -131,117 +170,400 @@ function deltaHtml(delta){
   if(delta < 0) return '<span class="delta down">▼ '+Math.abs(delta)+'</span>';
   return '<span class="delta flat">—</span>';
 }
+function fmtInt(v){ const n=Number(v); return Number.isFinite(n) ? Math.round(n) : "-"; }
+function fmtSec(v){ const n=Number(v); return Number.isFinite(n) ? n.toFixed(1) : "-"; }
+function fmt2(v){ const n=Number(v); return v==null || !Number.isFinite(n) ? "-" : n.toFixed(2); }
+function clamp(v,min,max){ return Math.min(max, Math.max(min,v)); }
+
+// 新晋：优先用 API 的 is_new（Wave 2A），字段缺失时回退 first_seen < 36h
 function isNew(item){
-  if(!item.first_seen) return false;
+  if(item && typeof item.is_new === "boolean") return item.is_new;
+  if(item && item.is_new !== null && item.is_new !== undefined) return !!item.is_new;
+  if(!item || !item.first_seen) return false;
   const t = new Date(item.first_seen).getTime();
   return !Number.isNaN(t) && Date.now()-t < 36*3600*1000;
 }
-function render(data){
-  const list = document.getElementById("list");
+
+/* ---------- 历史走势：展开时懒加载 + 同 key 缓存 ---------- */
+const historyCache = new Map(); // family_key -> {cycleId, state:"loading"|"ok"|"err", points:[]}
+let currentCycleId = null;
+
+function histEmpty(text){
+  return '<div class="spark-empty">'+esc(text || "暂无历史")+'</div>';
+}
+
+function sparkHtml(points){
+  if(!points || !points.length) return histEmpty("暂无历史");
+  const W = 340, H = 76, L = 30, R = W - 10, T = 8, B = H - 8;
+  const n = points.length;
+  const x = i => n === 1 ? (L + R) / 2 : L + i * (R - L) / (n - 1);
+  const sVal = p => clamp(Number(p && p.score) || 0, 0, 100);
+  // 分数轴自适应区间（最小跨度 2 分），避免微小变化被画成直线
+  const scores = points.map(sVal);
+  let lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+  if(hi - lo < 2){ const mid = (hi + lo) / 2; lo = mid - 1; hi = mid + 1; }
+  lo = clamp(lo - 0.5, 0, 100); hi = clamp(hi + 0.5, 0, 100);
+  if(hi - lo < 1){ hi = Math.min(100, lo + 1); }
+  const sy = v => B - ((clamp(v, lo, hi) - lo) / (hi - lo)) * (B - T);
+  const rankVals = points.map(p => Number(p && p.rank) || 0).filter(r => r > 0);
+  const rankMax = Math.max(10, rankVals.length ? Math.max.apply(null, rankVals) : 10);
+  const ry = r => T + ((clamp(r, 1, rankMax) - 1) / (rankMax - 1)) * (B - T);
+
+  let grid = "";
+  [hi, (hi + lo) / 2, lo].forEach((v, idx) => {
+    const y = sy(v).toFixed(1);
+    grid += '<line x1="'+L+'" y1="'+y+'" x2="'+R+'" y2="'+y+'" stroke="'+(idx === 2 ? "#2a3147" : "#1b2130")+'" stroke-width="1"></line>';
+    grid += '<text x="0" y="'+(Number(y) + 3)+'" font-size="8" fill="#5d6680">'+esc(v.toFixed(1))+'</text>';
+  });
+  const scorePoints = points.map((p, i) => x(i).toFixed(1)+","+sy(sVal(p)).toFixed(1)).join(" ");
+  let seg = [], rankPath = "";
+  points.forEach((p, i) => {
+    const r = Number(p && p.rank) || 0;
+    if(r > 0){ seg.push(x(i).toFixed(1)+","+ry(r).toFixed(1)); }
+    else if(seg.length){ rankPath += "M" + seg.join(" L"); seg = []; }
+  });
+  if(seg.length) rankPath += "M" + seg.join(" L");
+
+  const last = points[n - 1];
+  const lastRank = Number(last && last.rank) || 0;
+  const firstRankPoint = points.find(p => Number(p && p.rank) > 0);
+  const firstRank = firstRankPoint ? Number(firstRankPoint.rank) : 0;
+  const firstScore = sVal(points[0]);
+  const lastScore = sVal(last);
+  const dScore = lastScore - firstScore;
+  const dRank = (firstRank && lastRank) ? firstRank - lastRank : 0;
+  const aria = "分数 " + firstScore.toFixed(1) + " 到 " + lastScore.toFixed(1) +
+               "，名次 " + (firstRank || "-") + " 到 " + (lastRank || "-") + "，共 " + n + " 轮";
+  const arrow = (d, integer) => {
+    if(!d) return '<span class="flat">—</span>';
+    const v = Math.abs(d).toFixed(integer ? 0 : 1);
+    return d > 0 ? '<span class="up">▲'+v+'</span>' : '<span class="down">▼'+v+'</span>';
+  };
+  return '<div class="hist-head"><span>最近 '+n+' 轮走势</span>'+
+      '<span class="hist-legend"><span><i class="sw"></i>分数</span>'+
+      '<span><i class="sw rank"></i>名次（越靠上越前）</span></span></div>'+
+    '<svg class="spark-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+esc(aria)+'">'+
+      grid+
+      '<polyline points="'+scorePoints+'" fill="none" stroke="#7c9cff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>'+
+      (rankPath ? '<path d="'+rankPath+'" fill="none" stroke="#b48cff" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"></path>' : "")+
+      '<circle cx="'+x(n-1).toFixed(1)+'" cy="'+sy(lastScore).toFixed(1)+'" r="2.6" fill="#7c9cff"></circle>'+
+      (lastRank ? '<circle cx="'+x(n-1).toFixed(1)+'" cy="'+ry(lastRank).toFixed(1)+'" r="2.4" fill="#b48cff"></circle>' : "")+
+    '</svg>'+
+    '<div class="hist-foot"><span>分数 <b>'+firstScore.toFixed(1)+'</b> → <b>'+lastScore.toFixed(1)+'</b> '+arrow(dScore)+'</span>'+
+    (lastRank
+      ? '<span>名次 <b>'+firstRank+'</b> → <b>'+lastRank+'</b> '+arrow(dRank, true)+'</span>'
+      : '<span>名次（无排名记录）</span>')+
+    '</div>';
+}
+
+function paintHistory(key){
+  const entry = historyCache.get(key);
+  if(!entry) return;
+  document.querySelectorAll(".panel.open").forEach(card => {
+    if(card.dataset.key !== key) return;
+    const box = card.querySelector(".hist");
+    if(!box) return;
+    if(entry.state === "ok") box.innerHTML = sparkHtml(entry.points);
+    else if(entry.state === "loading") box.innerHTML = histEmpty("加载历史…");
+    else box.innerHTML = histEmpty("暂无历史");
+  });
+}
+
+function ensureHistory(card){
+  const key = card.dataset.key;
+  if(!key) return;
+  const cached = historyCache.get(key);
+  if(cached && cached.cycleId === currentCycleId){ paintHistory(key); return; }
+  historyCache.set(key, {cycleId: currentCycleId, state: "loading", points: []});
+  paintHistory(key);
+  fetch("/api/meme/"+encodeURIComponent(key)+"/history?limit=60", {cache: "no-store"})
+    .then(res => { if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
+    .then(data => {
+      const raw = data && Array.isArray(data.history) ? data.history : [];
+      const points = raw.filter(p => p && Number.isFinite(Number(p.score)) && Number(p.rank) >= 0);
+      historyCache.set(key, {cycleId: currentCycleId, state: "ok", points: points});
+      paintHistory(key);
+    })
+    .catch(() => {
+      historyCache.set(key, {cycleId: currentCycleId, state: "err", points: []});
+      paintHistory(key);
+    });
+}
+
+/* ---------- 展开状态 + 键盘操作 ---------- */
+const openKeys = new Set();
+function toggleCard(card, next){
+  const open = typeof next === "boolean" ? next : !card.classList.contains("open");
+  card.classList.toggle("open", open);
+  card.setAttribute("aria-expanded", open ? "true" : "false");
+  const key = card.dataset.key;
+  if(key){ if(open) openKeys.add(key); else openKeys.delete(key); }
+  if(open) ensureHistory(card);
+}
+
+const listEl = document.getElementById("list");
+listEl.addEventListener("click", ev => {
+  const card = ev.target.closest(".panel");
+  if(!card || ev.target.closest("a")) return;
+  toggleCard(card);
+});
+listEl.addEventListener("keydown", ev => {
+  if(ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
+  const card = ev.target.closest(".panel");
+  if(!card || ev.target !== card) return;
+  ev.preventDefault();
+  toggleCard(card);
+});
+
+let lastSig = "";
+let dataMsg = "", dataBad = false;
+let connMode = "";        // ""=SSE 正常 | "poll"=轮询兜底 | "offline"=服务不可达
+let pollTimer = null;
+let sseOpen = false;
+
+function paintNotice(){
+  const box = document.getElementById("notice");
+  const connText = connMode === "offline" ? "无法连接服务，正在每 30 秒重试…"
+                 : connMode === "poll" ? "实时推送不可用，已切换为 30 秒轮询"
+                 : "";
+  const parts = [];
+  if(connText) parts.push(connText);
+  if(dataMsg) parts.push(dataMsg);
+  box.hidden = parts.length === 0;
+  box.textContent = parts.join(" · ");
+  box.className = "notice" + (dataBad && !connText ? " bad" : "");
+}
+function setDataNotice(msg, bad){
+  dataMsg = msg || "";
+  dataBad = !!bad;
+  paintNotice();
+}
+
+function updateStatus(data, top){
   const dot = document.getElementById("dot");
-  const statusText = document.getElementById("statusText");
-  const top = (data.top||[]).filter(x=>x.rank>0);
-
-  if(data.error){
+  const st = document.getElementById("statusText");
+  st.removeAttribute("title");
+  if(data && data.error){
     dot.className = "dot warn";
-    statusText.textContent = "采集异常：" + data.error.slice(0,40);
-  }else if(data.running){
-    dot.className = "dot warn";
-    statusText.textContent = "本轮采集中…";
-  }else{
-    dot.className = "dot";
-    statusText.textContent = data.status === "degraded" ? "部分数据源降级" : "数据正常";
-  }
-
-  if(!top.length){
-    list.innerHTML = '<div class="empty"><div class="spinner"></div>首轮采集进行中，约需 1-3 分钟…</div>';
+    st.textContent = "采集异常";
+    st.title = String(data.error);
+    setDataNotice("采集异常：" + String(data.error).slice(0, 120) + "；下一轮会自动重试", true);
     return;
   }
+  if(data && data.running){
+    dot.className = "dot warn";
+    st.textContent = top.length ? "本轮采集中…" : "首轮采集中…";
+    setDataNotice("");
+    return;
+  }
+  if(!data || !data.cycle || data.status === "empty"){
+    dot.className = "dot warn";
+    st.textContent = "首轮采集中…";
+    st.title = "服务已连接，等待第一轮采集完成（约 1–3 分钟）";
+    setDataNotice("");
+    return;
+  }
+  if(data.status === "failed"){
+    dot.className = "dot warn";
+    st.textContent = "采集异常";
+    setDataNotice("上一轮采集失败，等待自动重试", true);
+    return;
+  }
+  const errs = data.health && Array.isArray(data.health.errors) ? data.health.errors : [];
+  if(data.status === "degraded" || errs.length){
+    dot.className = "dot warn";
+    st.textContent = errs.length ? "降级 · " + errs.length + " 个数据源异常" : "部分数据源降级";
+    if(errs.length){
+      st.title = errs.map(e => String((e && e.source) || "未知源") + "：" + String((e && e.error) || "")).join("\n");
+    }
+    setDataNotice(errs.length
+      ? "降级：仅部分数据源可用（" + errs.map(e => String((e && e.source) || "未知源")).join("、") + "），榜单可能不完整"
+      : "部分数据源降级，榜单可能不完整");
+    return;
+  }
+  dot.className = "dot";
+  st.textContent = "数据正常";
+  setDataNotice("");
+}
 
-  list.innerHTML = top.map(item => {
-    const comp = item.components || {};
-    const reasons = comp.reasons || {};
-    const reasonText = Object.entries(reasons)
-      .filter(([k])=>REASON_LABEL[k])
-      .map(([k,v])=>`${REASON_LABEL[k]}${v>0?" +":" "}${v}`)
-      .join(" · ");
-    const score = Number(item.score||0);
-    const width = Math.max(4, Math.min(100, score));
-    const chips = [
-      ["曝光", comp.exposure], ["互动", comp.engagement], ["广度", comp.breadth],
-      ["增速", comp.velocity], ["梗性", comp.meme], ["衰减", comp.decay]
-    ].map(([k,v])=>`<span class="chip">${k}<b>${v==null?"-":Number(v).toFixed(2)}</b></span>`).join("");
-    return `
-    <article class="panel ${item.rank<=3?"top"+item.rank:""}" data-key="${esc(item.family_key)}">
-      <div class="rank">${item.rank}</div>
-      <div>
-        <div class="name">
-          <span>${esc(item.canonical)}</span>
-          <span class="tag type">${esc(item.type||"词")}</span>
-          ${isNew(item)?'<span class="tag new">新晋</span>':''}
-          <span class="tag">${timeAgo(item.first_seen)}</span>
-        </div>
-        <div class="sample">${item.sample?'<em>“'+esc(item.sample)+'”</em>':"暂无代表用法"}</div>
-        <div class="bar"><i style="width:${width}%"></i></div>
-      </div>
-      <div class="score">
-        <div class="num">${score.toFixed(1)}</div>
-        ${deltaHtml(item.delta)}
-      </div>
-      <div class="detail">
-        <div class="chips">${chips}</div>
-        <div class="reasons">判定依据：${reasonText || "仅统计信号"}</div>
-      </div>
-      <span class="toggle">展开/收起</span>
-    </article>`;
-  }).join("");
-
-  document.querySelectorAll(".panel").forEach(card=>{
-    card.addEventListener("click", ev=>{
-      if(ev.target.classList.contains("toggle") || !ev.target.closest("a")){
-        card.classList.toggle("open");
-      }
-    });
-  });
-
-  const cycle = data.cycle || {};
-  document.getElementById("updatedAt").textContent = cycle.finished_at ? "更新于 "+fmtTime(cycle.finished_at) : "";
+function updateMeta(data){
+  const cycle = (data && data.cycle) || {};
   const stats = cycle.stats || {};
-  document.getElementById("meta").innerHTML =
-    `第 ${esc(cycle.id||"-")} 轮 · 视频 ${esc(stats.videos||0)} 条 · 评论 ${esc(stats.comments||0)} 条 · `+
-    `弹幕 ${esc(stats.danmaku||0)} 条 · 候选 ${esc(stats.candidates||0)} 个 · `+
-    `请求 ${esc(stats.requests||0)} 次 · 耗时 ${esc(stats.elapsed||0)} 秒`;
+  const head = [cycle.id != null ? "第 " + fmtInt(cycle.id) + " 轮" : "尚无轮次"];
+  if(stats.elapsed != null) head.push(fmtSec(stats.elapsed) + "s");
+  if(stats.requests != null) head.push("请求 " + fmtInt(stats.requests));
+  document.getElementById("cycleMeta").textContent = head.join(" · ");
+  document.getElementById("updatedAt").textContent = cycle.finished_at ? fmtTime(cycle.finished_at) + " 更新" : "";
+
+  const meta = document.getElementById("meta");
+  if(cycle.id == null){ meta.textContent = ""; return; }
+  meta.innerHTML =
+    "第 " + esc(fmtInt(cycle.id)) + " 轮 · 视频 " + esc(fmtInt(stats.videos)) + " 条 · 评论 " + esc(fmtInt(stats.comments)) + " 条 · " +
+    "弹幕 " + esc(fmtInt(stats.danmaku)) + " 条 · 候选 " + esc(fmtInt(stats.candidates)) + " 个 · " +
+    "请求 " + esc(fmtInt(stats.requests)) + " 次 · 耗时 " + esc(fmtSec(stats.elapsed)) + " 秒" +
+    (cycle.finished_at ? " · 更新于 " + esc(fmtTime(cycle.finished_at)) : "");
+}
+
+function cardHtml(item, idx){
+  const comp = item.components || {};
+  const reasons = comp.reasons || {};
+  const reasonText = Object.entries(reasons)
+    .filter(([k]) => REASON_LABEL[k])
+    .map(([k, v]) => REASON_LABEL[k] + (Number(v) > 0 ? " +" : " ") + fmt2(v))
+    .join(" · ");
+  const score = Number.isFinite(Number(item.score)) ? Number(item.score) : 0;
+  const width = clamp(score, 4, 100);
+  const chips = [
+    ["曝光", comp.exposure], ["互动", comp.engagement], ["广度", comp.breadth],
+    ["增速", comp.velocity], ["梗性", comp.meme], ["衰减", comp.decay]
+  ].map(([k, v]) => '<span class="chip">' + k + '<b>' + esc(fmt2(v)) + '</b></span>').join("");
+  const canonical = item.canonical || item.family_key || "未命名";
+  const seen = timeAgo(item.first_seen);
+  return `
+  <article class="panel ${item.rank <= 3 ? "top" + item.rank : ""}" data-key="${esc(item.family_key)}"
+           tabindex="0" role="button" aria-expanded="false" aria-controls="detail-${idx}"
+           aria-label="${esc("第 " + item.rank + " 名 " + canonical + "，" + score.toFixed(1) + " 分，展开查看分项与走势")}">
+    <div class="rank">${fmtInt(item.rank)}</div>
+    <div>
+      <div class="name">
+        <span class="title">${esc(canonical)}</span>
+        <span class="tag type">${esc(item.type || "词")}</span>
+        ${isNew(item) ? '<span class="tag new">新晋</span>' : ''}
+        ${seen ? '<span class="tag">' + esc(seen) + '</span>' : ''}
+      </div>
+      <div class="sample">${item.sample ? '<em>“' + esc(item.sample) + '”</em>' : "暂无代表用法"}</div>
+      <div class="bar"><i style="width:${width.toFixed(1)}%"></i></div>
+    </div>
+    <div class="score">
+      <div class="num">${score.toFixed(1)}</div>
+      ${deltaHtml(item.delta)}
+    </div>
+    <div class="detail" id="detail-${idx}" role="region" aria-label="分项与走势">
+      <div class="chips">${chips}</div>
+      <div class="hist" data-hist="${esc(item.family_key)}">${histEmpty("展开后加载走势…")}</div>
+      <div class="reasons">判定依据：${esc(reasonText || "仅统计信号")}</div>
+    </div>
+    <span class="toggle" aria-hidden="true">展开 / 收起</span>
+  </article>`;
+}
+
+function listSignature(top){
+  return String(currentCycleId) + "|" + top.map(i =>
+    [i.family_key, i.rank, Math.round(Number(i.score || 0) * 10), isNew(i) ? 1 : 0].join(":")
+  ).join(",");
+}
+
+function renderList(top){
+  const active = document.activeElement;
+  const focusKey = active && active.classList && active.classList.contains("panel") ? active.dataset.key : null;
+  listEl.innerHTML = top.map((item, idx) => cardHtml(item, idx)).join("");
+  listEl.querySelectorAll(".panel").forEach(card => {
+    if(openKeys.has(card.dataset.key)){
+      card.classList.add("open");
+      card.setAttribute("aria-expanded", "true");
+      ensureHistory(card);
+    }
+  });
+  if(focusKey){
+    const again = Array.from(listEl.querySelectorAll(".panel")).find(c => c.dataset.key === focusKey);
+    if(again) again.focus({preventScroll: true});
+  }
+}
+
+function renderEmpty(data){
+  if(data && data.error){
+    listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>' + esc(String(data.error).slice(0, 160)) + '</p><p>下一轮会自动重试</p></div>';
+    return;
+  }
+  if(data && data.status === "failed"){
+    listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>上一轮采集失败，等待自动重试</p></div>';
+    return;
+  }
+  if(data && data.cycle){
+    listEl.innerHTML = '<div class="empty"><h2>本轮暂无上榜</h2><p>语料不足或判定阈值偏高，等待下一轮</p></div>';
+    return;
+  }
+  listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>首轮采集中</h2><p>约需 1–3 分钟，完成后会自动刷新</p></div>';
+}
+
+function renderOffline(){
+  if(listEl.querySelector(".panel")) return;
+  lastSig = "";
+  listEl.innerHTML = '<div class="empty"><h2>服务未连接</h2><p>请确认服务已启动（默认 127.0.0.1:8000）</p><p>连接恢复后会自动更新</p></div>';
+}
+
+function render(data){
+  const top = ((data && data.top) || []).filter(x => x && Number(x.rank) > 0);
+  currentCycleId = data && data.cycle && data.cycle.id != null ? data.cycle.id : null;
+  updateStatus(data, top);
+  updateMeta(data);
+  if(!top.length){ renderEmpty(data); lastSig = ""; return; }
+  const sig = listSignature(top);
+  if(sig !== lastSig){ lastSig = sig; renderList(top); }
+  document.querySelectorAll(".panel.open").forEach(card => ensureHistory(card));
+}
+
+function startPolling(){
+  if(pollTimer) return;
+  pollTimer = setInterval(refresh, 30000);
+}
+function stopPolling(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
 }
 
 async function refresh(){
   try{
-    const res = await fetch("/api/top?limit=10",{cache:"no-store"});
+    const res = await fetch("/api/top?limit=10", {cache: "no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
+    if(connMode === "offline") connMode = sseOpen ? "" : "poll";
     render(data);
-  }catch(err){
-    const dot = document.getElementById("dot");
-    dot.className = "dot off";
-    document.getElementById("statusText").textContent = "服务未连接";
+    paintNotice();
+  }catch(_){
+    document.getElementById("dot").className = "dot off";
+    const st = document.getElementById("statusText");
+    st.textContent = "服务未连接";
+    st.removeAttribute("title");
+    document.getElementById("cycleMeta").textContent = "尚无轮次";
+    document.getElementById("updatedAt").textContent = "";
+    setDataNotice("");
+    connMode = "offline";
+    paintNotice();
+    renderOffline();
+    startPolling();
   }
 }
 
 function subscribe(){
-  if(typeof EventSource === "undefined") return;
-  try{
-    const source = new EventSource("/api/stream");
-    source.onmessage = ev => {
-      try{
-        const data = JSON.parse(ev.data);
-        if(data.top) render(data);
-      }catch(_){}
-    };
-    source.onerror = ()=>{ /* 浏览器会自动重连 */ };
-  }catch(_){}
+  if(typeof EventSource === "undefined"){
+    connMode = "poll"; paintNotice(); startPolling(); return;
+  }
+  let source;
+  try{ source = new EventSource("/api/stream"); }
+  catch(_){ connMode = "poll"; paintNotice(); startPolling(); return; }
+  source.onopen = () => { sseOpen = true; connMode = ""; stopPolling(); paintNotice(); };
+  source.onmessage = ev => {
+    try{
+      const data = JSON.parse(ev.data);
+      if(!data || !Array.isArray(data.top)) return;
+      sseOpen = true;
+      if(connMode === "offline") connMode = "";
+      render(data);
+      paintNotice();
+    }catch(_){}
+  };
+  source.onerror = () => {
+    sseOpen = false;
+    startPolling();
+    if(connMode !== "poll"){ connMode = "poll"; paintNotice(); }
+  };
+  setTimeout(() => {
+    if(!sseOpen && connMode === ""){ connMode = "poll"; startPolling(); paintNotice(); }
+  }, 12000);
 }
 
 refresh();
 subscribe();
-setInterval(refresh, 30000);
 </script>
 </body>
 </html>
