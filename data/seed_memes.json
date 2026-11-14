@@ -1,0 +1,984 @@
+{
+ "version": 1,
+ "updated_at": "2026-11-14",
+ "memes": [
+  {
+   "canonical": "尊嘟假嘟",
+   "aliases": [
+    "尊嘟",
+    "假嘟"
+   ],
+   "type": "谐音",
+   "origin": "2023 谐音卖萌体"
+  },
+  {
+   "canonical": "栓Q",
+   "aliases": [
+    "栓q",
+    "thank you"
+   ],
+   "type": "谐音",
+   "origin": "2022 英语口音梗"
+  },
+  {
+   "canonical": "yyds",
+   "aliases": [
+    "永远的神"
+   ],
+   "type": "缩写",
+   "origin": "2021 拼音缩写"
+  },
+  {
+   "canonical": "绝绝子",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 夸张赞美"
+  },
+  {
+   "canonical": "破防",
+   "aliases": [
+    "破防了",
+    "破大防"
+   ],
+   "type": "词",
+   "origin": "2020 情绪表达"
+  },
+  {
+   "canonical": "内卷",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 竞争焦虑"
+  },
+  {
+   "canonical": "躺平",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 反内卷"
+  },
+  {
+   "canonical": "摆烂",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 放弃挣扎"
+  },
+  {
+   "canonical": "芭比Q",
+   "aliases": [
+    "芭比q",
+    "完了芭比Q"
+   ],
+   "type": "谐音",
+   "origin": "2021 barbecue 谐音"
+  },
+  {
+   "canonical": "退退退",
+   "aliases": [
+    "退!退!退"
+   ],
+   "type": "句式",
+   "origin": "2022 驱赶手势"
+  },
+  {
+   "canonical": "雪糕刺客",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 高价雪糕"
+  },
+  {
+   "canonical": "电子榨菜",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 下饭视频"
+  },
+  {
+   "canonical": "显眼包",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 爱出风头"
+  },
+  {
+   "canonical": "搭子",
+   "aliases": [
+    "饭搭子",
+    "旅游搭子",
+    "搭子文化"
+   ],
+   "type": "词",
+   "origin": "2023 轻社交"
+  },
+  {
+   "canonical": "多巴胺穿搭",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 高饱和穿搭"
+  },
+  {
+   "canonical": "特种兵式旅游",
+   "aliases": [
+    "特种兵旅游"
+   ],
+   "type": "词",
+   "origin": "2023 极限打卡"
+  },
+  {
+   "canonical": "挖呀挖",
+   "aliases": [
+    "挖呀挖呀挖"
+   ],
+   "type": "名场面",
+   "origin": "2023 儿歌翻唱"
+  },
+  {
+   "canonical": "科目三",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2023 舞蹈挑战"
+  },
+  {
+   "canonical": "我姓石",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2024 喊麦式自我介绍"
+  },
+  {
+   "canonical": "恐龙抗狼",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2024 空耳"
+  },
+  {
+   "canonical": "city不city",
+   "aliases": [
+    "city不city啊"
+   ],
+   "type": "句式",
+   "origin": "2024 中英混搭"
+  },
+  {
+   "canonical": "已老实求放过",
+   "aliases": [
+    "已老实"
+   ],
+   "type": "句式",
+   "origin": "2024 自嘲求饶"
+  },
+  {
+   "canonical": "那咋了",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2024 反问怼人"
+  },
+  {
+   "canonical": "包的",
+   "aliases": [],
+   "type": "词",
+   "origin": "2024 肯定语气"
+  },
+  {
+   "canonical": "偷感",
+   "aliases": [
+    "偷感很重"
+   ],
+   "type": "词",
+   "origin": "2024 拘谨感"
+  },
+  {
+   "canonical": "松弛感",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 从容状态"
+  },
+  {
+   "canonical": "抽象",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 离谱好笑"
+  },
+  {
+   "canonical": "整活",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 整蛊表演"
+  },
+  {
+   "canonical": "上号",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 开黑"
+  },
+  {
+   "canonical": "我勒个豆",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2024 惊讶感叹"
+  },
+  {
+   "canonical": "老六",
+   "aliases": [
+    "你个老六"
+   ],
+   "type": "词",
+   "origin": "2022 阴人玩家"
+  },
+  {
+   "canonical": "社死",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 社会性死亡"
+  },
+  {
+   "canonical": "干饭",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 吃饭"
+  },
+  {
+   "canonical": "爷青回",
+   "aliases": [
+    "爷青结"
+   ],
+   "type": "句式",
+   "origin": "2020 怀旧"
+  },
+  {
+   "canonical": "凡尔赛",
+   "aliases": [
+    "凡尔赛文学"
+   ],
+   "type": "词",
+   "origin": "2020 炫耀体"
+  },
+  {
+   "canonical": "柠檬精",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 酸"
+  },
+  {
+   "canonical": "打工人",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 自嘲"
+  },
+  {
+   "canonical": "尾款人",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 双十一"
+  },
+  {
+   "canonical": "干饭人",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 干饭"
+  },
+  {
+   "canonical": "工具人",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 被利用"
+  },
+  {
+   "canonical": "小丑竟是我自己",
+   "aliases": [
+    "小丑"
+   ],
+   "type": "句式",
+   "origin": "2021 自嘲"
+  },
+  {
+   "canonical": "不会吧不会吧",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2021 阴阳"
+  },
+  {
+   "canonical": "你礼貌吗",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 反问"
+  },
+  {
+   "canonical": "真的会谢",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 无语"
+  },
+  {
+   "canonical": "大无语",
+   "aliases": [
+    "一整个大无语",
+    "大无语事件"
+   ],
+   "type": "词",
+   "origin": "2021 无语"
+  },
+  {
+   "canonical": "无语子",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 无语"
+  },
+  {
+   "canonical": "麻了",
+   "aliases": [
+    "我麻了"
+   ],
+   "type": "词",
+   "origin": "2021 麻木"
+  },
+  {
+   "canonical": "蚌埠住了",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2021 绷不住"
+  },
+  {
+   "canonical": "芜湖起飞",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2021 起飞"
+  },
+  {
+   "canonical": "雨女无瓜",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2019 与你无关"
+  },
+  {
+   "canonical": "集美",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2020 姐妹"
+  },
+  {
+   "canonical": "夺笋",
+   "aliases": [
+    "多损"
+   ],
+   "type": "谐音",
+   "origin": "2021 多损"
+  },
+  {
+   "canonical": "耗子尾汁",
+   "aliases": [
+    "好自为之"
+   ],
+   "type": "谐音",
+   "origin": "2020 马保国"
+  },
+  {
+   "canonical": "不讲武德",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2020 马保国"
+  },
+  {
+   "canonical": "我太难了",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2019 自嘲"
+  },
+  {
+   "canonical": "奥利给",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 加油"
+  },
+  {
+   "canonical": "盘它",
+   "aliases": [],
+   "type": "词",
+   "origin": "2019 盘"
+  },
+  {
+   "canonical": "真香",
+   "aliases": [],
+   "type": "词",
+   "origin": "2018 打脸"
+  },
+  {
+   "canonical": "摸鱼",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 偷懒"
+  },
+  {
+   "canonical": "薅羊毛",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 占便宜"
+  },
+  {
+   "canonical": "割韭菜",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 收割"
+  },
+  {
+   "canonical": "智商税",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 智商税"
+  },
+  {
+   "canonical": "社畜",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 打工人"
+  },
+  {
+   "canonical": "键盘侠",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 网络喷子"
+  },
+  {
+   "canonical": "杠精",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 抬杠"
+  },
+  {
+   "canonical": "吃瓜",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 围观"
+  },
+  {
+   "canonical": "塌房",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 偶像翻车"
+  },
+  {
+   "canonical": "人设",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 人设"
+  },
+  {
+   "canonical": "顶流",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 顶流"
+  },
+  {
+   "canonical": "出圈",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 破圈"
+  },
+  {
+   "canonical": "上头",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 上瘾"
+  },
+  {
+   "canonical": "下头",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 扫兴"
+  },
+  {
+   "canonical": "你人还怪好嘞",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2023 反讽"
+  },
+  {
+   "canonical": "泰裤辣",
+   "aliases": [
+    "太酷啦"
+   ],
+   "type": "谐音",
+   "origin": "2023 太酷啦"
+  },
+  {
+   "canonical": "我谢谢你啊",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 反讽"
+  },
+  {
+   "canonical": "听我说谢谢你",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2022 幼儿园手势舞"
+  },
+  {
+   "canonical": "有没有一种可能",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 委婉"
+  },
+  {
+   "canonical": "这是可以说的吗",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 阴阳"
+  },
+  {
+   "canonical": "你不对劲",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2021 调侃"
+  },
+  {
+   "canonical": "我不理解",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2021 不解"
+  },
+  {
+   "canonical": "我不李姐",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2021 不理解"
+  },
+  {
+   "canonical": "格局打开",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 大度"
+  },
+  {
+   "canonical": "降维打击",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 碾压"
+  },
+  {
+   "canonical": "典中典",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 经典"
+  },
+  {
+   "canonical": "急急国王",
+   "aliases": [
+    "急了"
+   ],
+   "type": "词",
+   "origin": "2022 嘲讽"
+  },
+  {
+   "canonical": "小卡拉米",
+   "aliases": [],
+   "type": "词",
+   "origin": "2024 小角色"
+  },
+  {
+   "canonical": "乐子人",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 看乐子"
+  },
+  {
+   "canonical": "发疯文学",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 发疯式表达"
+  },
+  {
+   "canonical": "废话文学",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2021 废话"
+  },
+  {
+   "canonical": "阴阳怪气",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 阴阳"
+  },
+  {
+   "canonical": "嘴替",
+   "aliases": [
+    "互联网嘴替"
+   ],
+   "type": "词",
+   "origin": "2023 替我说"
+  },
+  {
+   "canonical": "电子宠物",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 云养"
+  },
+  {
+   "canonical": "大冤种",
+   "aliases": [
+    "冤种"
+   ],
+   "type": "词",
+   "origin": "2022 冤大头"
+  },
+  {
+   "canonical": "笑不活了",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2021 大笑"
+  },
+  {
+   "canonical": "离谱",
+   "aliases": [
+    "离大谱"
+   ],
+   "type": "词",
+   "origin": "2021 离谱"
+  },
+  {
+   "canonical": "主打一个",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2023 主旨"
+  },
+  {
+   "canonical": "咱就是说",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 口头禅"
+  },
+  {
+   "canonical": "家人们谁懂啊",
+   "aliases": [
+    "谁懂啊"
+   ],
+   "type": "句式",
+   "origin": "2023 吐槽"
+  },
+  {
+   "canonical": "硬控",
+   "aliases": [
+    "被硬控"
+   ],
+   "type": "词",
+   "origin": "2024 控制住"
+  },
+  {
+   "canonical": "拿捏",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 掌握"
+  },
+  {
+   "canonical": "情绪价值",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 情绪价值"
+  },
+  {
+   "canonical": "边界感",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 边界"
+  },
+  {
+   "canonical": "纯爱战神",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 纯爱"
+  },
+  {
+   "canonical": "恋爱脑",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 恋爱脑"
+  },
+  {
+   "canonical": "舔狗",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 舔狗"
+  },
+  {
+   "canonical": "海王",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 海王"
+  },
+  {
+   "canonical": "绿茶",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 绿茶"
+  },
+  {
+   "canonical": "白莲花",
+   "aliases": [],
+   "type": "词",
+   "origin": "2020 白莲花"
+  },
+  {
+   "canonical": "社恐",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 社恐"
+  },
+  {
+   "canonical": "社牛",
+   "aliases": [],
+   "type": "词",
+   "origin": "2022 社牛"
+  },
+  {
+   "canonical": "i人",
+   "aliases": [
+    "e人"
+   ],
+   "type": "词",
+   "origin": "2023 MBTI"
+  },
+  {
+   "canonical": "MBTI",
+   "aliases": [],
+   "type": "缩写",
+   "origin": "2022 人格测试"
+  },
+  {
+   "canonical": "泼天的富贵",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2023 暴富"
+  },
+  {
+   "canonical": "命运的齿轮开始转动",
+   "aliases": [
+    "命运的齿轮"
+   ],
+   "type": "句式",
+   "origin": "2023 转折"
+  },
+  {
+   "canonical": "配享太庙",
+   "aliases": [
+    "你配享太庙"
+   ],
+   "type": "句式",
+   "origin": "2023 夸赞"
+  },
+  {
+   "canonical": "遥遥领先",
+   "aliases": [],
+   "type": "词",
+   "origin": "2023 领先"
+  },
+  {
+   "canonical": "班味",
+   "aliases": [
+    "班味很重"
+   ],
+   "type": "词",
+   "origin": "2024 上班感"
+  },
+  {
+   "canonical": "牛马",
+   "aliases": [],
+   "type": "词",
+   "origin": "2024 打工人"
+  },
+  {
+   "canonical": "窝囊废",
+   "aliases": [
+    "窝囊费",
+    "窝囊"
+   ],
+   "type": "词",
+   "origin": "2024 自嘲"
+  },
+  {
+   "canonical": "吗喽",
+   "aliases": [],
+   "type": "词",
+   "origin": "2024 猴子"
+  },
+  {
+   "canonical": "卡皮巴拉",
+   "aliases": [
+    "水豚"
+   ],
+   "type": "词",
+   "origin": "2024 水豚"
+  },
+  {
+   "canonical": "踢到棉花",
+   "aliases": [
+    "你算是踢到棉花啦"
+   ],
+   "type": "句式",
+   "origin": "2024 软钉子"
+  },
+  {
+   "canonical": "没苦硬吃",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2024 自找苦吃"
+  },
+  {
+   "canonical": "没福硬享",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2024 自找享受"
+  },
+  {
+   "canonical": "赢麻了",
+   "aliases": [],
+   "type": "词",
+   "origin": "2021 赢"
+  },
+  {
+   "canonical": "上大分",
+   "aliases": [
+    "上分"
+   ],
+   "type": "词",
+   "origin": "2022 加分"
+  },
+  {
+   "canonical": "轻舟已过万重山",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2023 释然"
+  },
+  {
+   "canonical": "我悟了",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 顿悟"
+  },
+  {
+   "canonical": "已读乱回",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2024 乱回复"
+  },
+  {
+   "canonical": "草台班子",
+   "aliases": [
+    "世界是个巨大的草台班子"
+   ],
+   "type": "词",
+   "origin": "2024 草台班子"
+  },
+  {
+   "canonical": "淡人",
+   "aliases": [
+    "浓人"
+   ],
+   "type": "词",
+   "origin": "2024 淡"
+  },
+  {
+   "canonical": "你是懂xx的",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2022 你是懂的"
+  },
+  {
+   "canonical": "哈基米",
+   "aliases": [
+    "哈基米德"
+   ],
+   "type": "谐音",
+   "origin": "2024 猫咪空耳"
+  },
+  {
+   "canonical": "大东北",
+   "aliases": [
+    "我的家在东北"
+   ],
+   "type": "名场面",
+   "origin": "2024 歌曲梗"
+  },
+  {
+   "canonical": "丹尼尔",
+   "aliases": [],
+   "type": "词",
+   "origin": "2025 游戏梗"
+  },
+  {
+   "canonical": "库里之歌",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2025 歌曲梗"
+  },
+  {
+   "canonical": "跳楼机",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2025 歌曲梗"
+  },
+  {
+   "canonical": "蒸蚌",
+   "aliases": [
+    "真棒"
+   ],
+   "type": "谐音",
+   "origin": "2025 谐音"
+  },
+  {
+   "canonical": "刘德华解冻",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "春节 年度梗"
+  },
+  {
+   "canonical": "阿米嘎蒂朵喵喵",
+   "aliases": [
+    "阿米噶蒂朵喵喵"
+   ],
+   "type": "谐音",
+   "origin": "2025 空耳"
+  },
+  {
+   "canonical": "刀马刀马",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2025 舞蹈"
+  },
+  {
+   "canonical": "如何呢又能怎",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2025 反问"
+  },
+  {
+   "canonical": "科秒",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2025 空耳"
+  },
+  {
+   "canonical": "瓦瓦",
+   "aliases": [],
+   "type": "词",
+   "origin": "2025 歌曲梗"
+  },
+  {
+   "canonical": "咕咕嘎嘎",
+   "aliases": [],
+   "type": "谐音",
+   "origin": "2025 空耳"
+  },
+  {
+   "canonical": "嘉豪",
+   "aliases": [],
+   "type": "词",
+   "origin": "2025 校园梗"
+  },
+  {
+   "canonical": "我的刀盾",
+   "aliases": [],
+   "type": "名场面",
+   "origin": "2026 游戏梗"
+  },
+  {
+   "canonical": "今夕是何年",
+   "aliases": [],
+   "type": "句式",
+   "origin": "2023 怀旧"
+  }
+ ]
+}

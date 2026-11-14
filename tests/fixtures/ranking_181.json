@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114252086051725,
+    "bvid": "BV1L8Z6YZEDS",
+    "cid": 29154150666,
+    "title": "“鲁智深：林冲？好吧那我输的不冤”",
+    "desc": "“鲁智深：林冲？好吧那我输的不冤”",
+    "pubdate": 1743348829,
+    "duration": 143,
+    "tid": 183,
+    "tname": "影视剪辑",
+    "owner": {
+     "mid": 670433402,
+     "name": "小祥燃剪",
+     "face": "https://i2.hdslb.com/bfs/face/917fec45ffb32e982423863cbe6055929711c66e.jpg"
+    },
+    "stat": {
+     "aid": 114252086051725,
+     "view": 10163486,
+     "danmaku": 43009,
+     "reply": 6351,
+     "favorite": 72065,
+     "coin": 16647,
+     "share": 3468,
+     "now_rank": 0,
+     "his_rank": 6,
+     "like": 549604,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 10163486,
+     "fav_g": 13312,
+     "like_g": 612
+    },
+    "score": 0
+   },
+   {
+    "aid": 114262471153989,
+    "bvid": "BV1eBZhYhEa9",
+    "cid": 25779181173,
+    "title": "模仿不同国家的气象主播，差别真的很大！！当然最经典的还是在最后～",
+    "desc": "-",
+    "pubdate": 1743507238,
+    "duration": 123,
+    "tid": 85,
+    "tname": "小剧场",
+    "owner": {
+     "mid": 474853499,
+     "name": "李如儒也是李蠕蠕",
+     "face": "https://i2.hdslb.com/bfs/face/8da8eac46ef637b771efeabf4b7b4b093d34dea5.jpg"
+    },
+    "stat": {
+     "aid": 114262471153989,
+     "view": 4301513,
+     "danmaku": 28944,
+     "reply": 1931,
+     "favorite": 36347,
+     "coin": 9099,
+     "share": 1398,
+     "now_rank": 0,
+     "his_rank": 17,
+     "like": 350417,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 4301513,
+     "fav_g": 13953,
+     "like_g": 819
+    },
+    "score": 0
+   },
+   {
+    "aid": 114256531952518,
+    "bvid": "BV1xoZJYUEFD",
+    "cid": 29165029774,
+    "title": "热烈欢迎武艺！分享他的男生清爽好物！真的好干净！好实用！好好笑！",
+    "desc": "",
+    "pubdate": 1743480000,
+    "duration": 1627,
+    "tid": 85,
+    "tname": "小剧场",
+    "owner": {
+     "mid": 1532165,
+     "name": "papi酱",
+     "face": "https://i2.hdslb.com/bfs/face/e45a7b248f496fad8b32d3b9cfa0335339331798.jpg"
+    },
+    "stat": {
+     "aid": 114256531952518,
+     "view": 2424649,
+     "danmaku": 14143,
+     "reply": 3965,
+     "favorite": 17361,
+     "coin": 43434,
+     "share": 14539,
+     "now_rank": 0,
+     "his_rank": 39,
+     "like": 166143,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 2424649,
+     "fav_g": 93,
+     "like_g": 10
+    },
+    "score": 0
+   },
+   {
+    "aid": 114256112522312,
+    "bvid": "BV1L7ZnYNEuH",
+    "cid": 29163521488,
+    "title": "为救同学身中八刀，她说：“因为我是军人的女儿！”",
+    "desc": "（剪辑：杨建烨 、陈泓霏）",
+    "pubdate": 1743410024,
+    "duration": 26,
+    "tid": 256,
+    "tname": "短片",
+    "owner": {
+     "mid": 419166970,
+     "name": "吉林共青团",
+     "face": "https://i1.hdslb.com/bfs/face/89f878ec56b589bcd7458347f913b400d7214da8.jpg"
+    },
+    "stat": {
+     "aid": 114256112522312,
+     "view": 2661693,
+     "danmaku": 18402,
+     "reply": 3650,
+     "favorite": 14126,
+     "coin": 36931,
+     "share": 946,
+     "now_rank": 0,
+     "his_rank": 52,
+     "like": 456906,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 2661693,
+     "fav_g": 349,
+     "like_g": 6
+    },
+    "score": 0
+   }
+  ]
+ }
+}

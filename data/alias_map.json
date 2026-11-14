@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-14",
+  "comment": "人工维护的别名映射：norm(surface) -> 梗族 canonical。命中后优先于自动归并。",
+  "map": {}
+}

@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114245006003082,
+    "bvid": "BV1JhZcY9EFN",
+    "cid": 29139667446,
+    "title": "需要喝自己胆汁的小女孩珍珍，希望以后的生活苦味追不上你",
+    "desc": "-",
+    "pubdate": 1743241253,
+    "duration": 334,
+    "tid": 254,
+    "tname": "亲子",
+    "owner": {
+     "mid": 508752914,
+     "name": "爱画画的子衿",
+     "face": "https://i2.hdslb.com/bfs/face/14a67baac6b1e1a6e7cb08b0664ee3dacef6ff4b.jpg"
+    },
+    "stat": {
+     "aid": 114245006003082,
+     "view": 7596408,
+     "danmaku": 57975,
+     "reply": 20978,
+     "favorite": 155084,
+     "coin": 1412338,
+     "share": 23098,
+     "now_rank": 0,
+     "his_rank": 1,
+     "like": 1209089,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 7596408,
+     "fav_g": 14816,
+     "like_g": 1995
+    },
+    "score": 0
+   },
+   {
+    "aid": 114254703302392,
+    "bvid": "BV1DtZCYdEH8",
+    "cid": 29158344263,
+    "title": "你不知道美国人其实有多爱中餐…",
+    "desc": "-",
+    "pubdate": 1743415200,
+    "duration": 356,
+    "tid": 21,
+    "tname": "日常",
+    "owner": {
+     "mid": 1711522882,
+     "name": "KerryDowdle",
+     "face": "https://i1.hdslb.com/bfs/face/394117ea25e0c267ec167d5c4a435951b56534f2.jpg"
+    },
+    "stat": {
+     "aid": 114254703302392,
+     "view": 4317974,
+     "danmaku": 12933,
+     "reply": 6608,
+     "favorite": 50696,
+     "coin": 38543,
+     "share": 2549,
+     "now_rank": 0,
+     "his_rank": 13,
+     "like": 272149,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 4317974,
+     "fav_g": 25763,
+     "like_g": 2191
+    },
+    "score": 0
+   },
+   {
+    "aid": 114252102763594,
+    "bvid": "BV1fpZ6YaE47",
+    "cid": 29154215488,
+    "title": "女儿：爸爸妈妈要结婚啦？",
+    "desc": "-",
+    "pubdate": 1743348988,
+    "duration": 202,
+    "tid": 21,
+    "tname": "日常",
+    "owner": {
+     "mid": 5386520,
+     "name": "肥娟小吃",
+     "face": "https://i2.hdslb.com/bfs/face/5c103e2feeb4c05dc7389cf0cc6b869a07194076.jpg"
+    },
+    "stat": {
+     "aid": 114252102763594,
+     "view": 1852174,
+     "danmaku": 5257,
+     "reply": 3770,
+     "favorite": 11474,
+     "coin": 228653,
+     "share": 1133,
+     "now_rank": 0,
+     "his_rank": 9,
+     "like": 303683,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 1852174,
+     "fav_g": 4,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114255005222587,
+    "bvid": "BV1AiZEY5Etd",
+    "cid": 29159653934,
+    "title": "《虎门抽烟》",
+    "desc": "-",
+    "pubdate": 1743400800,
+    "duration": 132,
+    "tid": 138,
+    "tname": "搞笑",
+    "owner": {
+     "mid": 3493260618106936,
+     "name": "伤心欲茄222",
+     "face": "https://i1.hdslb.com/bfs/face/1f0cb64d9b62da7db7e6e020b78b6872dbffe55c.jpg"
+    },
+    "stat": {
+     "aid": 114255005222587,
+     "view": 4941896,
+     "danmaku": 9998,
+     "reply": 5739,
+     "favorite": 41821,
+     "coin": 23258,
+     "share": 18662,
+     "now_rank": 0,
+     "his_rank": 13,
+     "like": 403201,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 4941896,
+     "fav_g": 2,
+     "like_g": 0
+    },
+    "score": 0
+   }
+  ]
+ }
+}

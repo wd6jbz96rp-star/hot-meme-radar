@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114256984934434,
+    "bvid": "BV17VZpY1ENA",
+    "cid": 29167322421,
+    "title": "给我们的组合起个名！",
+    "desc": "-",
+    "pubdate": 1743423401,
+    "duration": 15,
+    "tid": 31,
+    "tname": "翻唱",
+    "owner": {
+     "mid": 477676711,
+     "name": "田一名sir",
+     "face": "https://i1.hdslb.com/bfs/face/4e30dae85d2e529924322aa328b20ee0e98427e1.jpg"
+    },
+    "stat": {
+     "aid": 114256984934434,
+     "view": 17885933,
+     "danmaku": 125869,
+     "reply": 42859,
+     "favorite": 201703,
+     "coin": 241957,
+     "share": 117883,
+     "now_rank": 0,
+     "his_rank": 21,
+     "like": 1535810,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 17885933,
+     "fav_g": 4440,
+     "like_g": 1140
+    },
+    "score": 0
+   },
+   {
+    "aid": 114251901441504,
+    "bvid": "BV1zKZrYAEi8",
+    "cid": 29153362694,
+    "title": "20世纪美国乡村经典民谣《阳光彩虹小白马》",
+    "desc": "找不到无伴奏人声素材所以只有纯音乐版\np2原曲：Uncle Pen - Bill Monroe & The Blue Grass Boys",
+    "pubdate": 1743346017,
+    "duration": 60,
+    "tid": 59,
+    "tname": "演奏",
+    "owner": {
+     "mid": 28454359,
+     "name": "我太高兴了",
+     "face": "https://i1.hdslb.com/bfs/face/971d9edd7cf9ffa96cf4c286c631564d12bab147.jpg"
+    },
+    "stat": {
+     "aid": 114251901441504,
+     "view": 5690626,
+     "danmaku": 7527,
+     "reply": 4547,
+     "favorite": 86072,
+     "coin": 35720,
+     "share": 29247,
+     "now_rank": 0,
+     "his_rank": 33,
+     "like": 312535,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 5690626,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114262840187262,
+    "bvid": "BV11eZ8Y5EVi",
+    "cid": 29185150054,
+    "title": "循环歌单|【八方来财】|“【来财の小曲】谁懂憋佬仔出来时的救赎感”",
+    "desc": "木偶制作：怪shou",
+    "pubdate": 1743552000,
+    "duration": 3619,
+    "tid": 243,
+    "tname": "乐评盘点",
+    "owner": {
+     "mid": 423517587,
+     "name": "蛋某人音乐",
+     "face": "https://i0.hdslb.com/bfs/face/b76dbca1c8077ec91b14f73c237f49ae816f835b.jpg"
+    },
+    "stat": {
+     "aid": 114262840187262,
+     "view": 10061015,
+     "danmaku": 7693,
+     "reply": 814,
+     "favorite": 345187,
+     "coin": 20527,
+     "share": 3048,
+     "now_rank": 0,
+     "his_rank": 9,
+     "like": 69109,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 10061015,
+     "fav_g": 309673,
+     "like_g": 4140
+    },
+    "score": 0
+   },
+   {
+    "aid": 114257236660991,
+    "bvid": "BV1DDZHYhE59",
+    "cid": 29168633532,
+    "title": "盘点男组合那些神级翻唱，你最喜欢哪个组合呢？",
+    "desc": "-",
+    "pubdate": 1743427360,
+    "duration": 324,
+    "tid": 243,
+    "tname": "乐评盘点",
+    "owner": {
+     "mid": 1511710379,
+     "name": "小王音乐盘点",
+     "face": "https://i2.hdslb.com/bfs/face/9221b4903da064c375dae6eb653838468d1c1662.jpg"
+    },
+    "stat": {
+     "aid": 114257236660991,
+     "view": 8595264,
+     "danmaku": 914,
+     "reply": 446,
+     "favorite": 274865,
+     "coin": 8468,
+     "share": 533,
+     "now_rank": 0,
+     "his_rank": 46,
+     "like": 42614,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 8595264,
+     "fav_g": 254617,
+     "like_g": 411
+    },
+    "score": 0
+   }
+  ]
+ }
+}

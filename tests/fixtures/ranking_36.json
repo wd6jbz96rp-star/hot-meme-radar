@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114256531955521,
+    "bvid": "BV1soZJYUEKd",
+    "cid": 29165290941,
+    "title": "前8天：穿越罗布泊无人区  第9天：主角突然换人",
+    "desc": "",
+    "pubdate": 1743422419,
+    "duration": 45,
+    "tid": 124,
+    "tname": "社科·法律·心理",
+    "owner": {
+     "mid": 456664753,
+     "name": "央视新闻",
+     "face": "https://i1.hdslb.com/bfs/face/58a736c94a78f4dd46309f6818d7c8de0566ca6a.jpg"
+    },
+    "stat": {
+     "aid": 114256531955521,
+     "view": 5164301,
+     "danmaku": 21598,
+     "reply": 12606,
+     "favorite": 33593,
+     "coin": 17683,
+     "share": 27803,
+     "now_rank": 0,
+     "his_rank": 4,
+     "like": 707465,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 5164301,
+     "fav_g": 214,
+     "like_g": 4
+    },
+    "score": 0
+   },
+   {
+    "aid": 114256649388967,
+    "bvid": "BV1BtZJYBE4G",
+    "cid": 29167521372,
+    "title": "震撼世界的72天：巴黎公社为何爆发？又为何失败？【历史调研室71】",
+    "desc": "参考资料、视频素材、BGM在视频结尾",
+    "pubdate": 1743419058,
+    "duration": 3081,
+    "tid": 228,
+    "tname": "人文历史",
+    "owner": {
+     "mid": 519872016,
+     "name": "历史调研室",
+     "face": "https://i0.hdslb.com/bfs/face/5e687a2a90670e6b8e14b4f635ec38eb99f7e5eb.jpg"
+    },
+    "stat": {
+     "aid": 114256649388967,
+     "view": 3794250,
+     "danmaku": 26804,
+     "reply": 3644,
+     "favorite": 93031,
+     "coin": 111074,
+     "share": 14298,
+     "now_rank": 0,
+     "his_rank": 11,
+     "like": 168810,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 3794250,
+     "fav_g": 8666,
+     "like_g": 756
+    },
+    "score": 0
+   },
+   {
+    "aid": 114255022003231,
+    "bvid": "BV1w6ZEYrEsb",
+    "cid": 29158869842,
+    "title": "为什么中国人对一道菜的最高评价是\"下饭\"?",
+    "desc": "为什么中国人对一道菜的最高评价是\"下饭\"?\n其背后又蕴含了怎样独特的饮食思维呢？",
+    "pubdate": 1743397103,
+    "duration": 793,
+    "tid": 201,
+    "tname": "科学科普",
+    "owner": {
+     "mid": 1937308559,
+     "name": "赛博食录",
+     "face": "https://i2.hdslb.com/bfs/face/e29ed4db04b3eb522239c91c4cb0fbe78a792fc6.jpg"
+    },
+    "stat": {
+     "aid": 114255022003231,
+     "view": 3754094,
+     "danmaku": 9025,
+     "reply": 8014,
+     "favorite": 26873,
+     "coin": 14039,
+     "share": 4144,
+     "now_rank": 0,
+     "his_rank": 43,
+     "like": 113085,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 3754094,
+     "fav_g": 2061,
+     "like_g": 317
+    },
+    "score": 0
+   },
+   {
+    "aid": 114260927584113,
+    "bvid": "BV1twZ4YzEmv",
+    "cid": 29177547035,
+    "title": "深度|| 香火之战，车迟国的教皇实验",
+    "desc": "1、作者安排大力王菩萨出场有什么用意？\n2、作者是怎样不动声色的嘲讽了两个宗教？\n3、取经直播摄像组为什么要轮流当值？\n4、车迟国和乌鸡国的剧本究竟有多像？\n5、作者安排三清观事件有什么写作目的？\n6、五雷法的排面究竟有多么高？\n7、国师求雨时为什么不能像悟空那样马上停雨？\n8、三个国师有多么的小把戏？\n9、三个国师为什么疯了一样的要赌命？",
+    "pubdate": 1743562800,
+    "duration": 2619,
+    "tid": 228,
+    "tname": "人文历史",
+    "owner": {
+     "mid": 504934876,
+     "name": "渤海小吏",
+     "face": "https://i1.hdslb.com/bfs/face/60d7ec1a95e5f85e8e5b2c1d49656cbcff176604.jpg"
+    },
+    "stat": {
+     "aid": 114260927584113,
+     "view": 2675716,
+     "danmaku": 11748,
+     "reply": 3327,
+     "favorite": 15978,
+     "coin": 57934,
+     "share": 2245,
+     "now_rank": 0,
+     "his_rank": 70,
+     "like": 76467,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 2675716,
+     "fav_g": 60,
+     "like_g": 0
+    },
+    "score": 0
+   }
+  ]
+ }
+}

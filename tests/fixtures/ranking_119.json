@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114255709868796,
+    "bvid": "BV1nwZEYqE2B",
+    "cid": 29161884085,
+    "title": "90后这辈子第一次接受到的鼓励式教育",
+    "desc": "不是只有伟大的艺术家才能做出好作品的！",
+    "pubdate": 1743411600,
+    "duration": 129,
+    "tid": 22,
+    "tname": "鬼畜调教",
+    "owner": {
+     "mid": 250648682,
+     "name": "红豆稀饭中",
+     "face": "https://i2.hdslb.com/bfs/face/3dc6737d4ab6e8d0390409af88e9d24c3056a53b.jpg"
+    },
+    "stat": {
+     "aid": 114255709868796,
+     "view": 6328456,
+     "danmaku": 3642,
+     "reply": 13831,
+     "favorite": 249929,
+     "coin": 210792,
+     "share": 23007,
+     "now_rank": 0,
+     "his_rank": 1,
+     "like": 924781,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 6328456,
+     "fav_g": 2,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114255844087664,
+    "bvid": "BV1ArZnYUE9a",
+    "cid": 29162342607,
+    "title": "《晓艳天气预报》",
+    "desc": "",
+    "pubdate": 1743405968,
+    "duration": 85,
+    "tid": 216,
+    "tname": "鬼畜剧场",
+    "owner": {
+     "mid": 3546850034452584,
+     "name": "张飞的小迷弟",
+     "face": "https://i0.hdslb.com/bfs/face/55749a6ec6e1267e0e8b38d6718fb272805a3a62.jpg"
+    },
+    "stat": {
+     "aid": 114255844087664,
+     "view": 1936283,
+     "danmaku": 2016,
+     "reply": 4287,
+     "favorite": 63149,
+     "coin": 37278,
+     "share": 60968,
+     "now_rank": 0,
+     "his_rank": 34,
+     "like": 218272,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 1936283,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114255256950221,
+    "bvid": "BV1vVZEYFEDq",
+    "cid": 29160377666,
+    "title": "“那一天我终于参悟，什么是功夫”",
+    "desc": "视频制作不易，求个点赞\nBGM：Now, we are strangers-Noblesse\n填词、制作：@卡拉肖克金 ",
+    "pubdate": 1743397159,
+    "duration": 109,
+    "tid": 216,
+    "tname": "鬼畜剧场",
+    "owner": {
+     "mid": 258925884,
+     "name": "卡拉肖克金",
+     "face": "https://i0.hdslb.com/bfs/face/bec9e2015dc0c409351a17b31832dfb2863d5238.jpg"
+    },
+    "stat": {
+     "aid": 114255256950221,
+     "view": 3192193,
+     "danmaku": 974,
+     "reply": 1998,
+     "favorite": 23136,
+     "coin": 16488,
+     "share": 2591,
+     "now_rank": 0,
+     "his_rank": 64,
+     "like": 173051,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 3192193,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114262152320727,
+    "bvid": "BV1vDZtYRE6d",
+    "cid": 29182525554,
+    "title": "鬼知道甲亢哥看了几遍",
+    "desc": "bgm:阳光彩虹小白马",
+    "pubdate": 1743502403,
+    "duration": 68,
+    "tid": 126,
+    "tname": "人力VOCALOID",
+    "owner": {
+     "mid": 27501480,
+     "name": "怠惰的一休",
+     "face": "https://i0.hdslb.com/bfs/face/542bff8a6d26dbf1ff8fe2cb4856a124bfafebd2.jpg"
+    },
+    "stat": {
+     "aid": 114262152320727,
+     "view": 4713324,
+     "danmaku": 8970,
+     "reply": 4173,
+     "favorite": 122631,
+     "coin": 109863,
+     "share": 21808,
+     "now_rank": 0,
+     "his_rank": 19,
+     "like": 428825,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 4713324,
+     "fav_g": 1,
+     "like_g": 0
+    },
+    "score": 0
+   }
+  ]
+ }
+}

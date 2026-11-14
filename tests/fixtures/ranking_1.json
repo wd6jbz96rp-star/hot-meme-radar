@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114256632618805,
+    "bvid": "BV1B8ZJYTEPg",
+    "cid": 29165686089,
+    "title": "现代修仙，没钱纯靠自律【自律狠人】【第一季超长电影版】",
+    "desc": "",
+    "pubdate": 1743418022,
+    "duration": 2960,
+    "tid": 47,
+    "tname": "同人·手书",
+    "owner": {
+     "mid": 654552,
+     "name": "圆桌动漫",
+     "face": "https://i0.hdslb.com/bfs/face/6c1421573d214809ca86aef25bdd23670e00128a.jpg"
+    },
+    "stat": {
+     "aid": 114256632618805,
+     "view": 9401240,
+     "danmaku": 4527,
+     "reply": 1684,
+     "favorite": 129142,
+     "coin": 23220,
+     "share": 2807,
+     "now_rank": 0,
+     "his_rank": 49,
+     "like": 79934,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 9401240,
+     "fav_g": 109611,
+     "like_g": 13888
+    },
+    "score": 0
+   },
+   {
+    "aid": 114263226061418,
+    "bvid": "BV1UbZ8YmEP8",
+    "cid": 29187048542,
+    "title": "【大鸣王潮1566】死告者",
+    "desc": "画稿协助：@阿诺筱筱筱 @Li_歌 @黑崎墨 @小V-VCD @衫山浣 @麻酥油卷masu @铅笔盒中 @混茫0017 @沃克Joseph \n\n3d制作：@叫花鲲 \n\n动图制作：@ques秦 \n\n配音：配音统筹：@DKK就是DKK \n卡提希娅：@名前桑 \n\n描改参考：BV1ui421S7U7",
+    "pubdate": 1743518627,
+    "duration": 194,
+    "tid": 47,
+    "tname": "同人·手书",
+    "owner": {
+     "mid": 293187959,
+     "name": "寞桀緣才",
+     "face": "https://i2.hdslb.com/bfs/face/6b4baaf04d1ba4f5e36368c14a3315833b54e481.jpg"
+    },
+    "stat": {
+     "aid": 114263226061418,
+     "view": 1693778,
+     "danmaku": 9062,
+     "reply": 3453,
+     "favorite": 14728,
+     "coin": 31002,
+     "share": 6567,
+     "now_rank": 0,
+     "his_rank": 56,
+     "like": 121841,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 1693778,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114252639635458,
+    "bvid": "BV1mSZkYQEGf",
+    "cid": 29155721373,
+    "title": "《穷鬼的上下两千年》第一集：老夫，秦国白起",
+    "desc": "",
+    "pubdate": 1743356961,
+    "duration": 350,
+    "tid": 47,
+    "tname": "同人·手书",
+    "owner": {
+     "mid": 3546879103077047,
+     "name": "吃顾楠的豆饭",
+     "face": "https://i2.hdslb.com/bfs/face/745bd7427c3369fd4475ee2fee5d8e95eab182e9.jpg"
+    },
+    "stat": {
+     "aid": 114252639635458,
+     "view": 1343771,
+     "danmaku": 1551,
+     "reply": 3323,
+     "favorite": 49293,
+     "coin": 14042,
+     "share": 1879,
+     "now_rank": 0,
+     "his_rank": 90,
+     "like": 91093,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 1343771,
+     "fav_g": 6,
+     "like_g": 0
+    },
+    "score": 0
+   },
+   {
+    "aid": 114262202652694,
+    "bvid": "BV1q2ZtYtExy",
+    "cid": 29182657080,
+    "title": "“把怪兽叫来，我让你把怪兽叫来！”",
+    "desc": "-",
+    "pubdate": 1743503275,
+    "duration": 151,
+    "tid": 86,
+    "tname": "特摄",
+    "owner": {
+     "mid": 451572777,
+     "name": "思瑞弟",
+     "face": "https://i0.hdslb.com/bfs/face/f729271d2375dd4905aa77a01fa31ae10d715ea9.jpg"
+    },
+    "stat": {
+     "aid": 114262202652694,
+     "view": 4126273,
+     "danmaku": 2228,
+     "reply": 1982,
+     "favorite": 201617,
+     "coin": 26789,
+     "share": 3921,
+     "now_rank": 0,
+     "his_rank": 30,
+     "like": 186746,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 4126273,
+     "fav_g": 125605,
+     "like_g": 9392
+    },
+    "score": 0
+   }
+  ]
+ }
+}

@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 117608468712175,
+    "bvid": "BV1nuWq6NENC",
+    "cid": 43569710896,
+    "title": "⚡️黄仁勋 辞职巡演⚡️【AI MV大赛】",
+    "desc": "歌词和画面没有任何敏感内容，仅仅是对黄仁勋辞职的娱乐化演绎。",
+    "pubdate": 1794563219,
+    "duration": 86,
+    "tid": 216,
+    "tname": "鬼畜剧场",
+    "owner": {
+     "mid": 474213246,
+     "name": "王与也行",
+     "face": "https://i0.hdslb.com/bfs/face/9b663251e7844d32f9c22d8beca1e3f0e7c63c81.jpg"
+    },
+    "stat": {
+     "aid": 117608468712175,
+     "view": 1058861,
+     "danmaku": 686,
+     "reply": 3005,
+     "favorite": 6870,
+     "coin": 4718,
+     "share": 7843,
+     "now_rank": 0,
+     "his_rank": 0,
+     "like": 40469,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 1058861,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": null
+   },
+   {
+    "aid": 117609240528143,
+    "bvid": "BV1kMWz6CESY",
+    "cid": 43574824686,
+    "title": "辞职后的黄仁勋......【AI全民制作人】",
+    "desc": "",
+    "pubdate": 1794574644,
+    "duration": 64,
+    "tid": 216,
+    "tname": "鬼畜剧场",
+    "owner": {
+     "mid": 2075871844,
+     "name": "Lucky鱼乐",
+     "face": "https://i1.hdslb.com/bfs/face/bb6997057fd5934f115ae69918b43de68f3f5e8d.jpg"
+    },
+    "stat": {
+     "aid": 117609240528143,
+     "view": 663356,
+     "danmaku": 361,
+     "reply": 3884,
+     "favorite": 7201,
+     "coin": 2678,
+     "share": 8765,
+     "now_rank": 0,
+     "his_rank": 0,
+     "like": 39425,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 663356,
+     "fav_g": 0,
+     "like_g": 0
+    },
+    "score": null
+   },
+   {
+    "aid": 117597379168115,
+    "bvid": "BV1aNWm6UEeC",
+    "cid": 43526981085,
+    "title": "他真的太优雅了！灰太狼&红太狼【非凡之爱】【AI MV大赛】",
+    "desc": "参考自X的antrofrog的AI生成作品《No Ordinary Love-非凡之爱》",
+    "pubdate": 1794456000,
+    "duration": 88,
+    "tid": 168,
+    "tname": "国产原创相关",
+    "owner": {
+     "mid": 384576131,
+     "name": "可口的红糖",
+     "face": "https://i2.hdslb.com/bfs/face/597f3db9c83c473812352c48d3496dea95bbac20.jpg"
+    },
+    "stat": {
+     "aid": 117597379168115,
+     "view": 9793237,
+     "danmaku": 1517,
+     "reply": 9630,
+     "favorite": 163836,
+     "coin": 84985,
+     "share": 24556,
+     "now_rank": 0,
+     "his_rank": 2,
+     "like": 516874,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 9793237,
+     "fav_g": 19362,
+     "like_g": 11152
+    },
+    "score": null
+   },
+   {
+    "aid": 117591976774105,
+    "bvid": "BV1hrW367Emp",
+    "cid": 43574887684,
+    "title": "辽阔的土地生不出狭隘的爱",
+    "desc": "-本作品在Tapnow@TapNow  中使用可灵完成！",
+    "pubdate": 1794311473,
+    "duration": 42,
+    "tid": 25,
+    "tname": "MMD·3D",
+    "owner": {
+     "mid": 3691007608621812,
+     "name": "小王不爱干正事",
+     "face": "https://i0.hdslb.com/bfs/face/996657e0118675bfc3fef72c3bffd5bda10081aa.jpg"
+    },
+    "stat": {
+     "aid": 117591976774105,
+     "view": 3855517,
+     "danmaku": 583,
+     "reply": 6433,
+     "favorite": 151487,
+     "coin": 38333,
+     "share": 13875,
+     "now_rank": 0,
+     "his_rank": 2,
+     "like": 325024,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 3855517,
+     "fav_g": 2,
+     "like_g": 1
+    },
+    "score": null
+   }
+  ]
+ }
+}

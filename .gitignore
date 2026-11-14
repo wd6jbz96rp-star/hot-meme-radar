@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+data/hotmeme.db
+data/hotmeme.db-*
+.pytest_cache/
+.DS_Store

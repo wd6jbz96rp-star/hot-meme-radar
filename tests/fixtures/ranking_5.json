@@ -1,0 +1,144 @@
+{
+ "code": 0,
+ "message": "OK",
+ "data": {
+  "list": [
+   {
+    "aid": 114256246735797,
+    "bvid": "BV1MbZnYoEk1",
+    "cid": 29165486316,
+    "title": "【苏新皓】自制MV cover NCT U 《Make A Wish》，堪比专业制作，难道他真的是天才？",
+    "desc": "ALL FOR SXH",
+    "pubdate": 1743412310,
+    "duration": 100,
+    "tid": 137,
+    "tname": "明星综合",
+    "owner": {
+     "mid": 1210409821,
+     "name": "苏新皓的时光胶囊",
+     "face": "https://i1.hdslb.com/bfs/face/b479aabf62eeb2399bdb44c88da212157cb7fc79.jpg"
+    },
+    "stat": {
+     "aid": 114256246735797,
+     "view": 5228897,
+     "danmaku": 571000,
+     "reply": 390346,
+     "favorite": 124696,
+     "coin": 116105,
+     "share": 211860,
+     "now_rank": 0,
+     "his_rank": 1,
+     "like": 169687,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 5228897,
+     "fav_g": 4186,
+     "like_g": 673
+    },
+    "score": 0
+   },
+   {
+    "aid": 114249015756852,
+    "bvid": "BV1L6ZvY1EEU",
+    "cid": 29191439128,
+    "title": "美美洗白变史诗翻车，赵露思的灾难性公关太炸裂了【小小的勇气】",
+    "desc": "",
+    "pubdate": 1743304141,
+    "duration": 617,
+    "tid": 241,
+    "tname": "娱乐杂谈",
+    "owner": {
+     "mid": 20457232,
+     "name": "一只吐槽圆",
+     "face": "https://i1.hdslb.com/bfs/face/bc2f05efa553aa28def1cc1198bb7920993730bd.jpg"
+    },
+    "stat": {
+     "aid": 114249015756852,
+     "view": 9852001,
+     "danmaku": 126075,
+     "reply": 20616,
+     "favorite": 48987,
+     "coin": 101204,
+     "share": 131351,
+     "now_rank": 0,
+     "his_rank": 5,
+     "like": 320463,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 9852001,
+     "fav_g": 13438,
+     "like_g": 1
+    },
+    "score": 0
+   },
+   {
+    "aid": 114255424784566,
+    "bvid": "BV12tZEYSEeU",
+    "cid": 29160902085,
+    "title": "徐明浩 THE 8 in SUZHOU 一起干个杯吧",
+    "desc": "徐明浩 THE 8 in SUZHOU 一起干个杯吧\n\n#THE8_in_SUZHOU #徐明浩_in_苏州",
+    "pubdate": 1743408000,
+    "duration": 210,
+    "tid": 137,
+    "tname": "明星综合",
+    "owner": {
+     "mid": 1642708031,
+     "name": "徐明浩",
+     "face": "https://i2.hdslb.com/bfs/face/07f536c94cf03e5123cce842d3fa4a4446ef3600.jpg"
+    },
+    "stat": {
+     "aid": 114255424784566,
+     "view": 283152,
+     "danmaku": 2719,
+     "reply": 3047,
+     "favorite": 13107,
+     "coin": 27489,
+     "share": 2693,
+     "now_rank": 0,
+     "his_rank": 0,
+     "like": 65239,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 283152,
+     "fav_g": 1099,
+     "like_g": 119
+    },
+    "score": 0
+   },
+   {
+    "aid": 114259635737238,
+    "bvid": "BV1uBZsYTE8L",
+    "cid": 29173943916,
+    "title": "【曹璐】中国绿卡VS 韩娱生存 曹璐带着“一腔热血”杀回Fiestar",
+    "desc": "37岁 的年纪 正是奋斗的年纪 再次重新出发 记录未来我在韩国 再次当爱豆的点点滴滴～也希望通过自己的一些经历过程 能够给正在困境或者迷茫状态的你 一点点小力量～我们一起加油 一起通过自己的努力 创造奇迹 实现自己的梦想～",
+    "pubdate": 1743494400,
+    "duration": 633,
+    "tid": 137,
+    "tname": "明星综合",
+    "owner": {
+     "mid": 670737085,
+     "name": "曹璐LuLu",
+     "face": "https://i1.hdslb.com/bfs/face/1b76765f0458c4d52577aea7da978a1b0cbd007e.jpg"
+    },
+    "stat": {
+     "aid": 114259635737238,
+     "view": 531122,
+     "danmaku": 2377,
+     "reply": 2076,
+     "favorite": 4347,
+     "coin": 23906,
+     "share": 1043,
+     "now_rank": 0,
+     "his_rank": 0,
+     "like": 41047,
+     "dislike": 0,
+     "vt": 0,
+     "vv": 531122,
+     "fav_g": 702,
+     "like_g": 58
+    },
+    "score": 0
+   }
+  ]
+ }
+}
