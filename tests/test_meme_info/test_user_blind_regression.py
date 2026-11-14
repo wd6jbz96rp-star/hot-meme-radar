@@ -12,7 +12,7 @@ BLIND = REPO / "meme_info" / "labels" / "blind_20261114_user.json"
 def test_user_blind_file_contract():
     payload = json.loads(BLIND.read_text(encoding="utf-8"))
     items = payload["items"]
-    assert len(items) == 16
+    assert len(items) >= 16
     labels = {item["canonical"]: item["label"] for item in items}
     assert labels["扎啤"] == "current_meme"
     assert labels["吴家村"] == "current_meme"
@@ -20,6 +20,7 @@ def test_user_blind_file_contract():
     assert labels["非凡之爱"] == "non_meme"
     assert labels["腋毛攻击"] == "non_meme"
     assert labels["明码标价"] == "non_meme"
+    assert labels["闪身步"] == "non_meme"  # 2026-11-15 用户确认
 
 
 def test_correction_does_not_kill_user_confirmed_memes():
@@ -30,3 +31,4 @@ def test_correction_does_not_kill_user_confirmed_memes():
     assert knowledge.is_proper_like("吴家村") is True
     # 仍保留用户/PM 确认的普通短语过滤。
     assert knowledge.blocked_reason("明码标价") == "common_phrase"
+    assert knowledge.blocked_reason("闪身步") == "common_phrase"

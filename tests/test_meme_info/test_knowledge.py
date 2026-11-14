@@ -32,6 +32,7 @@ def test_rework_generic_proper_and_common_phrase_filter():
     assert knowledge.blocked_reason("音乐") == "lexicon"
     assert knowledge.blocked_reason("扎啤") == ""        # 用户盲标 ✅，不得误杀
     assert knowledge.blocked_reason("明码标价") == "common_phrase"
+    assert knowledge.blocked_reason("闪身步") == "common_phrase"  # 2026-11-15 用户确认非梗
     assert knowledge.blocked_reason("吴家村") == ""      # 用户盲标 ✅，proper 只做审计
     assert knowledge.is_proper_like("吴家村")
     assert knowledge.blocked_reason("吃瓜") == ""   # 已知种子豁免

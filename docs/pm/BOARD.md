@@ -486,3 +486,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 3. 旧 `list=new` 从 UI/API 下线或标 shadow；
 4. 1 轮 LLM 冷缓存 gate 复验；
 5. 完成后 `/api/meme-info?only=publishable&limit=8` 作为新梗榜，保留 `/api/top` + JSON 回滚。
+
+## 27. 用户确认闪身步非梗 + 冷缓存复验（01:08）
+
+- 用户 2026-11-15 确认：`闪身步` ❌；已加入 `blind_20261114_user.json`（17 条）与 `REVIEW_STOPWORDS`，补回归测试；全仓 300 passed。
+- 冷缓存 module 跑（`/tmp/cold-cache-1`，`/tmp/gate_cold.json`）：212.5s / 198 请求 / 40 审 / 20 rejected / gate=true；Top10 **无闪身步、无用户 ❌**；publishable 7/10；`灭建国`/`蓝色大肥鱼`/`不小心惹了上帝` 因 2×2=false 不在 publishable。
+- 决定：按用户同意切新梗榜——UI `新梗榜` 改读 `/api/meme-info?only=publishable&limit=8`；旧 `/api/top?list=new` 从 UI 下线（API 暂留）；模块 shadow tab 保留全量。
+- 注意：新榜只发 7 条左右；meta-only/2×2 未过项进「模块 shadow」观察，不 top-up。

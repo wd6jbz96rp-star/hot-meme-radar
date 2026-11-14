@@ -26,7 +26,7 @@ PROPER_SUFFIXES = (
 )
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # PM 复核明确判定为普通名词/普通短语的负例；除非进入种子表，否则不作为梗。
-REVIEW_STOPWORDS = {"明码标价"}
+REVIEW_STOPWORDS = {"明码标价", "闪身步"}  # 闪身步：2026-11-15 用户确认非梗
 
 
 @dataclass(frozen=True)
