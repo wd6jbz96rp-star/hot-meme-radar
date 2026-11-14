@@ -1,0 +1,152 @@
+{
+  "k": 16,
+  "n": 16,
+  "precision_at_k": 0.6875,
+  "current_precision_at_k": 0.6875,
+  "new_precision_at_k": 0.0,
+  "labeled_precision_at_k": 0.9167,
+  "labeled_current_precision_at_k": 0.9167,
+  "mrr": 1.0,
+  "ndcg_at_k": 0.9313,
+  "recall_labels": 1.0,
+  "recall_current": 1.0,
+  "label_coverage": 0.75,
+  "unmatched_rate": 0.25,
+  "unmatched": [
+    "闪身步",
+    "心生爱慕",
+    "不小心惹了上帝",
+    "老牧师"
+  ],
+  "evidence_rate_2x2": 0.375,
+  "meta_rate": 1.0,
+  "freshness_7d_rate": 0.75,
+  "label_counts": {
+    "current_meme": 11,
+    "unclear": 1
+  },
+  "calibration": {
+    "n": 0,
+    "spearman": 0.0,
+    "mae_100": null
+  },
+  "total_labels": 16,
+  "generated_from": {
+    "predictions": 26,
+    "labels": 16
+  },
+  "baselines": {
+    "meta_views": {
+      "k": 16,
+      "n": 16,
+      "precision_at_k": 0.625,
+      "current_precision_at_k": 0.625,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_k": 0.8836,
+      "recall_labels": 0.9091,
+      "recall_current": 0.9091,
+      "label_coverage": 0.625,
+      "unmatched_rate": 0.375,
+      "unmatched": [
+        "结过婚我也认",
+        "蓝色大肥鱼",
+        "闪身步",
+        "我画地为牢厉娜",
+        "心生爱慕",
+        "不小心惹了上帝"
+      ],
+      "evidence_rate_2x2": 0.3125,
+      "meta_rate": 1.0,
+      "freshness_7d_rate": 0.6875,
+      "label_counts": {
+        "current_meme": 10
+      },
+      "calibration": {
+        "n": 0,
+        "spearman": 0.0,
+        "mae_100": null
+      },
+      "total_labels": 16
+    },
+    "usage_docs": {
+      "k": 16,
+      "n": 16,
+      "precision_at_k": 0.375,
+      "current_precision_at_k": 0.375,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_k": 0.7732,
+      "recall_labels": 0.5455,
+      "recall_current": 0.5455,
+      "label_coverage": 0.375,
+      "unmatched_rate": 0.625,
+      "unmatched": [
+        "给",
+        "闪身步",
+        "练武术",
+        "学功夫",
+        "绷住",
+        "吃瓜",
+        "鬼畜",
+        "嘉豪",
+        "老牧师",
+        "心生爱慕"
+      ],
+      "evidence_rate_2x2": 0.8125,
+      "meta_rate": 0.625,
+      "freshness_7d_rate": 1.0,
+      "label_counts": {
+        "current_meme": 6
+      },
+      "calibration": {
+        "n": 0,
+        "spearman": 0.0,
+        "mae_100": null
+      },
+      "total_labels": 16
+    },
+    "recency": {
+      "k": 16,
+      "n": 16,
+      "precision_at_k": 0.4375,
+      "current_precision_at_k": 0.4375,
+      "new_precision_at_k": 0.0,
+      "labeled_precision_at_k": 1.0,
+      "labeled_current_precision_at_k": 1.0,
+      "mrr": 0.3333,
+      "ndcg_at_k": 0.6185,
+      "recall_labels": 0.6364,
+      "recall_current": 0.6364,
+      "label_coverage": 0.4375,
+      "unmatched_rate": 0.5625,
+      "unmatched": [
+        "给",
+        "吃瓜",
+        "绷住",
+        "不小心惹了上帝",
+        "鬼畜",
+        "练武术",
+        "学功夫",
+        "闪身步",
+        "嘉豪"
+      ],
+      "evidence_rate_2x2": 0.75,
+      "meta_rate": 0.625,
+      "freshness_7d_rate": 0.875,
+      "label_counts": {
+        "current_meme": 7
+      },
+      "calibration": {
+        "n": 0,
+        "spearman": 0.0,
+        "mae_100": null
+      },
+      "total_labels": 16
+    }
+  }
+}
