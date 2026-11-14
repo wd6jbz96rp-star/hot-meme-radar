@@ -412,6 +412,7 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 用户 16 条盲标（`meme_info/labels/blind_20261114_user.json`）：**11 真 / 4 假 / 1 不确定**；P@5 **1.00**、P@10 **0.80**、P@16 **0.688**；**Top8 全部为真**。
 - 假阳性集中在 9/10/14/16：`最怕BLG夺冠之人`、`非凡之爱`、`腋毛攻击`、`明码标价`（均被 LLM gate 放行）。
 - 独立重跑还发现：规则版 `音乐` #4（`is_generic` 未接入 `blocked_reason`）；单条 signals 缺 `evidence_rate_2x2`；银标 71 条与查询同通道（P@10 1.0 不可复现，独立银标 run 0.70）。
-- 判定：**架构/工程通过；质量条件性通过**——Top8 全对、P@10 0.80 够做 shadow，但 4 条假阳性 + P@16 0.688，**不能自动发布**。
-- 复核报告：`docs/pm/MEME-INFO-REVIEW.md`。
-- 下一步：工程师修 generic/proper 过滤 + LLM gate 对 4 条假阳性回归 + 盲标纳入 eval；通过 P@10 ≥0.9、P@16 ≥0.8 后做 shadow adapter。
+- 返工 v3（`3cbceb3`/`294f159`/`cc18ef5`）：59 module tests / 273 full；扎啤/吴家村保留，4 条假阳性已拦，Top8 仍在；62 条（16 用户锚点+46 AI 网页）P@10 1.0 / P@16 0.875，但**不是纯人工盲标**。
+- 判定：**架构/工程通过；质量条件性通过，可做 shadow，不能自动发布**。用户 16 锚点 raw P@10=0.80（labeled 1.0）；报告写 1.0 是口径错误，需改。
+- 复核报告：`docs/pm/MEME-INFO-REVIEW.md` §8。
+- 下一步：shadow adapter（模块报告只读落新表/新 endpoint），用户复核 2–3 轮后再谈切换。
