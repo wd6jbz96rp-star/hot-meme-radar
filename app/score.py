@@ -54,6 +54,10 @@ def score_families(families: list[dict], prev_scores: dict[str, float],
     breadth_zone = [float(f.get("df_zone", 0)) for f in entries]
     breadth_up = [float(f.get("df_up", 0)) for f in entries]
     velocity = [min(20.0, float(f["signals"].get("velocity", 1.0))) for f in entries]
+    # novelty 本身已按 0-1 设计（评论活跃度 × 年龄新鲜度），不再做分位归一：
+    # 大量无评论族并列 0 时，分位会把「0」抬到约 0.5，反而给老梗送分。
+    novelty = [max(0.0, min(1.0, float(f["signals"].get("novelty", 0.0))))
+               for f in entries]
 
     p_exposure = percentiles(exposure)
     p_engagement = percentiles(engagement)
@@ -72,11 +76,12 @@ def score_families(families: list[dict], prev_scores: dict[str, float],
             + config.WEIGHTS["breadth"] * breadth
             + config.WEIGHTS["velocity"] * p_velocity[index]
             + config.WEIGHTS["meme"] * meme
+            + config.WEIGHTS["novelty"] * novelty[index]
         )
         age = _age_hours(family.get("first_seen"), now)
         decay = math.pow(0.5, age / config.HALF_LIFE_HOURS)
-        novelty = 1.0 if age < 72 else 0.0
-        raw_score = 100.0 * base * decay * (0.9 + 0.1 * novelty)
+        first_seen_boost = 1.0 if age < 72 else 0.0
+        raw_score = 100.0 * base * decay * (0.9 + 0.1 * first_seen_boost)
 
         concentration = float(family["signals"].get("concentration", 0.0))
         if concentration > 0.8:
@@ -99,6 +104,7 @@ def score_families(families: list[dict], prev_scores: dict[str, float],
                     "breadth": round(breadth, 3),
                     "velocity": round(p_velocity[index], 3),
                     "meme": round(meme, 3),
+                    "novelty": round(novelty[index], 3),
                     "decay": round(decay, 3),
                     "concentration": round(concentration, 3),
                     "raw": round(raw_score, 2),
@@ -108,6 +114,7 @@ def score_families(families: list[dict], prev_scores: dict[str, float],
                     "exposure": round(exposure[index], 1),
                     "engagement": round(engagement[index], 1),
                     "lift": round(velocity[index], 2),
+                    "novelty": round(novelty[index], 3),
                 },
             }
         )

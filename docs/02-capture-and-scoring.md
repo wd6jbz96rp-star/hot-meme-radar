@@ -39,15 +39,18 @@
 | 项 | 口径 |
 |---|---|
 | 评论视频 | 30 个（分区榜按 `reply` 取 + 10 个梗搜索视频），`COMMENT_VIDEOS=30` |
-| 评论接口 | `/x/v2/reply/main`，每视频 `mode=3`（热度）+ `mode=2`（时间）各 1 页，`ps=20`，`COMMENT_MODES=(3,2)`、`COMMENT_PAGES=1` |
+| 评论接口 | `/x/v2/reply/main`，每视频 `mode=3`（热度）1 页 + `mode=2`（时间）3 页，`ps=20`，`COMMENT_PAGES={3:1, 2:3}`；30 视频共 120 评论请求 |
 | 每视频保留 | 两种 mode 合并去重后 ≤40 条（`COMMENT_MAX_PER_VIDEO=40`）：热度评论按赞、时间评论按 `ctime` 各取一半，再按赞补齐 |
 | 评论窗口 | 只收 `ctime` ≤30 天（`COMMENT_WINDOW_DAYS=30`）；≤7 天单独计数用于增速（`COMMENT_RECENT_DAYS=7`） |
 | 评论去重 | 先按 `rpid`，再按归一化文本；同一评论同时出现在两个 mode 只留一条 |
 | 评论落库 | `text_sample.raw_time = ctime`（Unix 秒）；`TextDoc` 以动态属性携带 `ctime/mode/rpid`，不改 `extract.TextDoc` 字段 |
-| 弹幕视频 | 10 个（`DANMAKU_VIDEOS=10`），每视频随机采样 ≤200 条（`MAX_DANMAKU_PER_VIDEO=200`） |
+| 弹幕视频 | 7 个（`DANMAKU_VIDEOS=7`），每视频随机采样 ≤200 条（`MAX_DANMAKU_PER_VIDEO=200`）；为 120 评论请求让出预算 |
 | 弹幕定位 | 只作整句扩散旁证与「老梗刷屏」识别，不参与评论证据门控 |
+| 请求预算 | 冷轮 ≈160（评论 120 + 排行榜 8 + 热门 1 + 搜索 20 + spi/nav 2 + pagelist ≤2 + 弹幕 7），P1 验收上限 160 |
 
-旧 `/x/v2/reply` 实测匿名仅返回 3 条 → 一轮 90 条评论；`reply/main` 单页 ~19–20 条，30 视频 ×2 mode ≈ 1200 条。旧 fixture 结构（只有 `data.replies`）仍可解析。
+翻页必须把上一页返回的 `cursor.next` 原样传给下一页（实测是 1682 这类 opaque 游标，不是 20/40 偏移量：传 20 会翻到 2024 年旧页并 `is_end`）。翻页停止只认 `cursor.next == 0`（`is_end`），不能按「短页」提前停。缓存键 `(aid, mode, page)` 并持久化 `next_cursor`，warm 轮命中缓存即可判断是否还有下一页，命中不产生请求。
+
+旧 `/x/v2/reply` 实测匿名仅返回 3 条 → 一轮 90 条评论；`reply/main` 单页 ~19–20 条，30 视频 ×（mode3 1 页 + mode2 3 页）≈ 单轮 600–800 条候选。旧 fixture 结构（只有 `data.replies`）仍可解析。
 
 ## 3. 候选发现
 
@@ -77,6 +80,7 @@
 | 增速 V | (本轮频次+1) / (过去 7 天日均+1) |
 | 梗性 P | 判定分 0–1（含「梗源覆盖」：出现在热梗类搜索视频中的条数） |
 | 评论证据 | 见 §4.1：窗口计数、年龄归一赞、7 天增速、弹幕刷屏标记 |
+| novelty N | 见 §4.2：评论活跃度 × 年龄新鲜度（0–1），旧梗/空口碑不奖励 |
 
 ### 4.1 评论证据（P0）
 
@@ -90,19 +94,41 @@
 | `comment_like_weighted` | `Σ log1p(like) × 0.5^(age_days / 14)`（`COMMENT_LIKE_HALF_LIFE_DAYS=14`），点赞按年龄归一 |
 | `comment_df_video` | 命中该族的评论视频数 |
 | `earliest_comment_at` / `age_days` | 窗口内最早评论时间（ISO）/ 距今天数 |
+| `seed_origin_year` / `known_age_years` | 种子表 `origin` 解析出的年份 / 已知梗年龄（按 7/1 中点，年）；非种子为 `null` |
+| `novelty` | §4.2 的 0–1 新意分，同时写入打分组件 |
 | `danmaku_only` | 弹幕命中 ≥3 且 `comment_df_video<2`、`comment_7d_count<2` → 老梗刷屏旁证 |
 
 **P0 门控**：当本轮 `comments_recent ≥ COMMENT_GATE_MIN_DOCS=200`（评论采集健康）时，非种子候选若 `comment_count_recent == 0` → `rejected`（原因 `no_recent_comment`）。种子仍走原有规则；评论采集不健康时整体跳过门控，避免单源失败清空候选池。
+
+**P1 评论证据通道 `comment_backed`**：非种子候选同时满足 `comment_count_recent ≥ 3`、`comment_df_video ≥ 2`、`comment_7d_count ≥ 1` → `comment_backed=True`，可绕过 `MEME_MIN=0.45` 进入 `observing`（**不直接 hot、不占主榜名次**，只在 `list=new` 曝光；种子不走该通道）。同时写入 `components.raw.comment_backed`、`components.raw.comment_evidence` 与 `cycle.stats.comment_backed_count`（标记数）/`comment_backed_admitted`（实际经该通道入池数）。
+
+### 4.2 novelty 与年龄
+
+`novelty = 新鲜度 × 活跃度`（0–1）：
+
+- **有效年龄**：种子取种子表 `origin` 年份（已知梗年龄，7/1 中点）；非种子取最早评论 `age_days`；两者都有时取较大值（老梗不能靠窗口内最早的近期评论装年轻）。
+- **新鲜度** `= 0.5^(有效年龄年数 / 2)`：2 年半衰。2024 梗≈0.44、2022 梗≈0.22、2020 梗≈0.11；非种子（最早评论 ≤30 天）≈0.97。
+- **活跃度** `= 0.5×量 + 0.3×扩散 + 0.2×加速度`：
+  - 量 `= min(1, log1p(comment_7d_count) / log1p(20))`（20 条封顶，压缩刷屏）；
+  - 扩散 `= min(1, comment_df_video / 5)`；
+  - 加速度 `= clip((comment_growth_7d − 1) / 4, 0, 1)`。
+- 没有任何评论证据 → 活跃度 0 → `novelty=0`，不奖励只有弹幕/曝光的老梗。
+
+**新旧榜 `list`**：`seed_origin_year >= 2024` 的种子，或「非种子且 `age_days <= 90` 且有 ≤7 天评论」→ `new`，否则 `classic`。种子无 origin 年份、非种子无 7 天评论一律 `classic`（不为凑数把老梗标 new）。
 
 归一化：每个信号在本轮候选池内取百分位，避免量纲与轮次波动。
 
 综合分：
 
 ```
-base  = 0.30E + 0.22G + 0.18B + 0.18V + 0.12P
-score = 100 × base × 0.5^(age_hours / 48) × (0.9 + 0.1×novelty)
+base  = 0.25E + 0.22G + 0.18B + 0.18V + 0.12P + 0.05N
+score = 100 × base × 0.5^(age_hours / 48) × (0.9 + 0.1×first_seen_boost)
 S     = 0.6 × score + 0.4 × 上一轮      # 首轮无历史时直接使用 score
 ```
+
+- `N` 是 §4.2 的 novelty（直接使用 0–1 原值，不做分位归一：大量无评论族并列 0 时分位会把 0 抬到约 0.5，反而给老梗送分）。
+- P1 权重调整：exposure 0.30→0.25、新增 novelty 0.05，合计仍为 1.0。旧梗/常青梗（novelty 低）分数略降，近两年或评论活跃的新梗/回锅梗（novelty 高）略升；变化幅度上限 5 个百分点 × 新鲜度，不足以单独翻榜，主要作用是让评论证据从「只看门控」变成「参与排序」。
+- `first_seen_boost` 仍是「本系统首次观测 <72h」的 0.9/1.0 系数，与 novelty 不是同一个概念。
 
 约束：
 
@@ -117,6 +143,16 @@ S     = 0.6 × score + 0.4 × 上一轮      # 首轮无历史时直接使用 sc
 ## 5. 榜单输出
 
 Top10 以梗族为单位，每条包含：热度分、名次变化、类型、首次发现时间、代表弹幕/评论、分项得分、判定依据。
+
+P1 起 `store.top_items` 与每条榜单条目新增 `list` 字段（`new` / `classic`，规则见 §4.2），排行池落 `RANK_N=30` 条（Top10 展示不变）。API：
+
+```
+GET /api/top?list=new|classic|all   # 默认 all，保持旧行为；limit 默认 10（钳位 1–50）
+```
+
+- `list=all`：返回 Top10（与旧版一致）；
+- `list=new|classic`：读本轮全部可用信号（含 rank=0 的 `comment_backed` 观察项）按 `list` 过滤后按分数取 `limit` 条；非法值返回 400；
+- 响应里新增回显字段 `list`。
 
 ## 6. 验证
 
@@ -138,10 +174,10 @@ Top10 以梗族为单位，每条包含：热度分、名次变化、类型、�
 ### 7.1 采集缓存与请求指标
 
 - **弹幕缓存**：24h（`CACHE_TTL_SECONDS`），按 cid 命中。
-- **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, mode, page)` 命中（旧库启动时幂等迁移，历史行补 `mode=3`）；缓存内容带 `ctime`。命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变。
+- **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, mode, page)` 命中（旧库启动时幂等迁移，历史行补 `mode=3`、`next_cursor=0`）；缓存内容带 `ctime` 与 `next_cursor`。命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变；warm 轮靠缓存的 `next_cursor` 判断是否继续翻页。
 - **cid 持久化**：搜索视频首轮补 `x/player/pagelist` 后回写 `video.cid`；后续轮 `upsert_videos` 用 `COALESCE` 保留，warm 轮 `pagelist_requests=0`。
 - `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav，`reply/main` 计入 `comments`）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
-- 评论语料指标：`comments`（本轮保留条数）、`comments_recent`（≤30 天）、`comments_7d`（≤7 天）、`comment_modes`（各 mode 保留条数）、`comment_dupes`（rpid/文本去重数）、`comment_filtered_old`（窗口外丢弃数）、`danmaku`/`danmaku_docs`（弹幕文档数）、`comment_evidence_ready`、`comment_gate_checked`（通过梗性门控、进入评论门控的候选数）、`comment_gate_rejected`（被 P0 门控拒绝的候选数）、`meme_gate_rejected`（被梗性门控拒绝的候选数）。
+- 评论语料指标：`comments`（本轮保留条数）、`comments_recent`（≤30 天）、`comments_7d`（≤7 天）、`comment_modes`（各 mode 保留条数）、`comment_dupes`（rpid/文本去重数）、`comment_filtered_old`（窗口外丢弃数）、`danmaku`/`danmaku_docs`（弹幕文档数）、`comment_evidence_ready`、`comment_gate_checked`（通过梗性门控、进入评论门控的候选数）、`comment_gate_rejected`（被 P0 门控拒绝的候选数）、`meme_gate_rejected`（被梗性门控拒绝的候选数）、`comment_backed_count`（满足评论证据通道门槛的候选数）、`comment_backed_admitted`（实际经该通道绕过 `MEME_MIN` 入池数）。
 
 ## 8. 扩展点
 

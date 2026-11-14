@@ -198,3 +198,39 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - `text_sample.raw_time` 非 0；canonical 能带 `earliest_comment_at`、`comment_7d_count`、`comment_like_weighted`。
 - pytest 全绿；真机只用 `/tmp/p0.db`，不写生产库、不重启 8000。
 - 产出「评论区版 Top10 vs 当前 Top10」对比与 origin 年代分布。
+
+## 14. v2 P1/P2：评论影响排序 + LLM 审核模块（16:25）
+
+### 14.1 P0 结果（已提交 `ced1024`）
+
+| 项 | 结果 |
+|---|---|
+| 测试 | 63 passed |
+| 评论量 | 90 → **222–237 条/轮**（30 视频 × mode3 1 页 + mode2 1 页） |
+| 关键 bug | `buvid3` 使 `reply/main` 只回 3 条；评论请求临时摘除 buvid3 后回 20 条 |
+| 时间戳 | `text_sample.raw_time` 432/432 非 0；真实 ctime 可查 |
+| Top10 | **仍 100% 种子**（P0 不改 judge/score，评论证据只做门控） |
+| 差距 | 评论目标 800 未达：60 请求拉 958 条，76% 因 >30 天被丢；mode=2 单页仅 3–9 条但可用 `next=20/40` 翻页（实测 4 页 60 条不重复） |
+| 基线 | eval：seed 10/10、常青 60%、平均 origin 3.87 年、严格新梗 0/10、种子表 classic 75.7% |
+
+### 14.2 P1 决策
+
+- 评论 **mode=2 翻 3 页（next=0/20/40）**，mode=3 1 页；评论请求 120/轮，总请求预算 ~150。
+- 评论证据从“只做门控”升级为“能进候选池”：`comment_backed`（近期评论 ≥3、覆盖 ≥2 视频、7 天有量）可绕过 `MEME_MIN` 进入 observing。
+- 增加 `novelty`：`age_days` + `comment_7d_count` + `comment_like_weighted`；输出 `list=new|classic`。
+- 不改 judge 的种子先验；只给非种子一条评论证据通道。
+
+### 14.3 P2 决策
+
+- 先做**独立 LLM 审核模块**（不直接改 pipeline）：`app/llm.py` + `app/review.py` + 假客户端测试。
+- Provider 走 OpenAI 兼容接口，env：`HOTMEME_LLM_BASE_URL / API_KEY / MODEL`；无 key 时用 fake，不阻塞。
+- 审核 rubric 四项：像不像梗 / 出处可追溯 / 语义增量 / 是否在扩散（只用证据，不用模型记忆）。
+- 有界循环 ≤3 轮，从 top 50 递补；失败降级沿用上一版/观察版；输出结构化 JSON + 审计。
+- 集成（P3）等 P1 的证据字段就绪后再做。
+
+### 14.4 分工
+
+| 会话 | 所有权 | 任务 |
+|---|---|---|
+| novelty-core | `app/bili.py`、`pipeline.py`、`store.py`、`config.py`、`judge.py`、`score.py`、`api.py`、`tests/*`、`docs/02` | 评论 3 页、comment_backed、novelty/list、真机对比 |
+| llm-review | 新建 `app/llm.py`、`app/review.py`、`tests/test_llm_review.py`、`docs/pm/P2-LLM-DESIGN.md` | 客户端、rubric、状态机、假客户端测试 |

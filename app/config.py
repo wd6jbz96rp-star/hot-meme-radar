@@ -37,13 +37,15 @@ MIN_VIDEOS_FOR_RANK = 2   # 至少出现在 2 个视频中才进稳定榜
 
 # ---- 采集量 ----
 VIDEOS_PER_ZONE = 25
-# P0 评论区优先（docs/pm/BOARD.md §13）：评论 30 视频 ×2 mode 各 1 页 ≈1200 条，
-# 弹幕降到 10 视频、每视频 ≤200 条，只作「梗句扩散」旁证。
+# v2 P1（docs/pm/BOARD.md §14）：评论 30 视频 ×（mode3 1 页 + mode2 3 页）=120 请求，
+# 弹幕降到 7 视频、每视频 ≤200 条，只作「梗句扩散」旁证；总请求预算 ≤160。
 COMMENT_VIDEOS = 30
-DANMAKU_VIDEOS = 10
+DANMAKU_VIDEOS = 7
 SEARCH_DANMAKU_VIDEOS = 2
 SEARCH_COMMENT_VIDEOS = 10
-COMMENT_PAGES = 1
+# mode=2 单页只回 3–9 条但可用 next=0/20/40 翻页（P0 实测 4 页 60 条不重复），
+# 因此按 mode 配页数；缓存键 (aid, mode, page) 已含页号，命中不请求。
+COMMENT_PAGES = {3: 1, 2: 3}
 # 热度评论 mode=3 / 时间序评论 mode=2（`/x/v2/reply/main`）
 COMMENT_MODES = (3, 2)
 COMMENT_PAGE_SIZE = 20
@@ -52,6 +54,22 @@ COMMENT_RECENT_DAYS = 7         # 增速窗口（≤7 天）
 COMMENT_MAX_PER_VIDEO = 40      # 合并两种 mode 后每视频保留条数
 COMMENT_GATE_MIN_DOCS = 200     # 本轮评论文档 ≥ 此值才启用评论证据门控
 COMMENT_LIKE_HALF_LIFE_DAYS = 14.0  # 评论点赞按年龄衰减的半衰期
+
+# ---- 评论证据入池（P1）----
+# 非种子候选满足「≤30 天评论 ≥3、覆盖 ≥2 视频、≤7 天 ≥1」可绕过 MEME_MIN，
+# 但只进 observing（不直接 hot）；种子仍走原规则。
+COMMENT_BACKED_MIN_RECENT = 3
+COMMENT_BACKED_MIN_VIDEOS = 2
+COMMENT_BACKED_MIN_7D = 1
+
+# ---- novelty / 新旧榜（P1）----
+# novelty：评论活跃度 × 年龄新鲜度（0-1）；种子年代用「已知梗年龄」，非种子用最早评论。
+NOVELTY_HALF_LIFE_YEARS = 2.0   # 年龄新鲜度半衰期：2 年后 novelty 打五折
+NOVELTY_VOLUME_CAP = 20         # ≤7 天评论 20 条即视为满量（log1p 压缩）
+NOVELTY_SPREAD_CAP = 5          # 覆盖 5 个视频即视为满分扩散
+SEED_ORIGIN_NEW_YEAR = 2024     # 种子 origin >= 此年份算 new
+NON_SEED_NEW_MAX_AGE_DAYS = 90  # 非种子 age_days <= 90 且有 7 天评论才算 new
+RANK_N = 30                     # 落库排行池（Top10 展示，列表过滤可读 30 条）
 MAX_CORPUS_CHARS = 160_000
 MAX_DANMAKU_PER_VIDEO = 200
 SEARCH_QUERIES = [
@@ -73,12 +91,14 @@ MAX_CANDIDATES = 1500
 MAX_SURFACE_LEN = 12
 
 # ---- 打分权重（合计 1.0）----
+# P1：从 exposure 挪 0.05 给 novelty（评论活跃 × 年龄新鲜度），老梗不再只靠曝光。
 WEIGHTS = {
-    "exposure": 0.30,
+    "exposure": 0.25,
     "engagement": 0.22,
     "breadth": 0.18,
     "velocity": 0.18,
     "meme": 0.12,
+    "novelty": 0.05,
 }
 
 # ---- 数据保留 ----

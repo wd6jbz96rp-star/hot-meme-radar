@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from . import config, store
 from .bili import BiliClient, parse_danmaku
 from .extract import TextDoc, discover, merge_families, sample_text
-from .judge import Judger, passes_meme_gate
+from .judge import Judger, parse_origin_year, passes_meme_gate
 from .normalize import normalize_surface
 from .score import score_families
 from .zones import ZONES
@@ -150,19 +150,24 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
         seen_rpid: set = set()
         seen_text: set = set()
         for mode in config.COMMENT_MODES:
+            # P1：按 mode 配页数（mode3 1 页 / mode2 3 页）。
+            # 游标必须用上一页返回的 cursor.next（实测不是 20/40 偏移量：
+            # 传 20 会翻到 2024 年旧页并 is_end，正确值是如 1682 的 opaque 游标）。
+            pages = int(config.COMMENT_PAGES.get(mode, 1))
             cursor = 0
-            for page in range(1, config.COMMENT_PAGES + 1):
-                cached = store.get_comment_cache(conn, int(aid), mode, page)
+            for page in range(1, pages + 1):
+                cached = store.get_comment_page_cache(conn, int(aid), mode, page)
                 if cached is not None:
                     # 命中缓存也按当前 cycle 落 text_sample，统计口径不变
-                    items = cached
+                    items, cursor = cached
                     stats["comment_cached"] += 1
                 else:
                     items, cursor = client.comment_page(
                         int(aid), page=page, mode=mode, cursor=cursor
                     )
                     stats["comment_requests"] += 1
-                    store.put_comment_cache(conn, int(aid), mode, page, items)
+                    store.put_comment_cache(conn, int(aid), mode, page, items,
+                                            next_cursor=cursor)
                 for item in items:
                     text = (item.get("text") or "").strip()
                     if not text:
@@ -191,7 +196,9 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
                          "ctime": ctime, "rpid": rpid, "_mode": mode,
                          "_recent": (now_ts - ctime) <= recent_seconds}
                     )
-                if len(items) < config.COMMENT_PAGE_SIZE:
+                # 翻页停止只认 is_end（cursor=0）；短页不代表没有下一页
+                # （实测 mode=2 首页条数少，但 cursor.next 仍可继续）。
+                if cursor == 0:
                     break
 
         # 热度评论按赞、时间评论按时间各取一半，再合并补齐，保留两种证据。
@@ -376,6 +383,77 @@ def comment_gate(item: dict, evidence: dict, evidence_ready: bool) -> str:
     return "no_recent_comment"
 
 
+def comment_backed_candidate(item: dict, evidence: dict) -> bool:
+    """P1 评论证据通道：非种子候选满足近期评论门槛即可绕过 `MEME_MIN` 进池。
+
+    门槛：≤30 天评论 ≥3 条、覆盖 ≥2 个视频、≤7 天评论 ≥1 条。
+    种子不走该通道（仍按原梗性规则），避免种子再拿一条旁路。
+    """
+    if item.get("seed_hit"):
+        return False
+    return (
+        int(evidence.get("comment_count_recent", 0)) >= config.COMMENT_BACKED_MIN_RECENT
+        and int(evidence.get("comment_df_video", 0)) >= config.COMMENT_BACKED_MIN_VIDEOS
+        and int(evidence.get("comment_7d_count", 0)) >= config.COMMENT_BACKED_MIN_7D
+    )
+
+
+def known_age_years(origin_year: int | None, now: datetime) -> float | None:
+    """种子 origin 年份 → 已知梗年龄（年，按 7/1 中点；未来年份归 0）。"""
+    if not origin_year:
+        return None
+    midpoint = datetime(origin_year, 7, 1, tzinfo=now.tzinfo)
+    return round(max(0.0, (now - midpoint).total_seconds() / (365.25 * 86400)), 2)
+
+
+def novelty_score(evidence: dict, origin_year: int | None, now: datetime) -> float:
+    """0-1 novelty：年龄新鲜度 × 评论活跃度。
+
+    - 年龄：种子取种子表 `origin` 年份（已知梗年龄），非种子取最早评论 `age_days`，
+      两者都有时取较大值（老梗不能靠窗口内最早的近期评论装年轻）；
+    - 新鲜度 `0.5^(年龄年数 / 2)`：2 年半衰，2024 梗 ≈0.44、2022 梗 ≈0.22；
+    - 活跃度 `0.5×量 + 0.3×扩散 + 0.2×加速度`：
+      `量 = min(1, log1p(c7)/log1p(20))`、`扩散 = min(1, df_video/5)`、
+      `加速度 = clip((growth_7d-1)/4, 0, 1)`；
+    - 无评论时活跃度为 0 → novelty=0，不奖励只有弹幕/曝光的老梗。
+    """
+    c7 = max(0, int(evidence.get("comment_7d_count", 0) or 0))
+    growth = float(evidence.get("comment_growth_7d", 1.0) or 1.0)
+    df_video = max(0, int(evidence.get("comment_df_video", 0) or 0))
+    age_days = evidence.get("age_days")
+    age_days = float(age_days) if age_days is not None else 0.0
+    if origin_year:
+        age_days = max(age_days, (known_age_years(origin_year, now) or 0.0) * 365.25)
+    elif evidence.get("age_days") is None:
+        # 没有评论证据时按窗口上限计算（活跃度为 0，最终 novelty 仍为 0）
+        age_days = float(config.COMMENT_WINDOW_DAYS)
+    age_days = max(0.0, age_days)
+    freshness = math.pow(0.5, (age_days / 365.25) / config.NOVELTY_HALF_LIFE_YEARS)
+    volume = min(1.0, math.log1p(c7) / math.log1p(config.NOVELTY_VOLUME_CAP))
+    spread = min(1.0, df_video / float(config.NOVELTY_SPREAD_CAP))
+    accel = min(1.0, max(0.0, (growth - 1.0) / 4.0))
+    novelty = freshness * (0.5 * volume + 0.3 * spread + 0.2 * accel)
+    return round(max(0.0, min(1.0, novelty)), 3)
+
+
+def classify_list(seed_hit: bool, seed_origin_year: int | None,
+                  age_days: float | None, comment_7d_count: int) -> str:
+    """新旧榜：种子按 origin 年（>=2024 新）；非种子按最早评论年龄（<=90 天且 7 天有量）。
+
+    不为了凑数把老梗标 new：种子无 origin 年份、非种子无 7 天评论一律 classic。
+    """
+    if seed_hit and seed_origin_year:
+        return "new" if seed_origin_year >= config.SEED_ORIGIN_NEW_YEAR else "classic"
+    if (
+        not seed_hit
+        and age_days is not None
+        and float(age_days) <= config.NON_SEED_NEW_MAX_AGE_DAYS
+        and int(comment_7d_count or 0) >= 1
+    ):
+        return "new"
+    return "classic"
+
+
 def confirm_rounds() -> int:
     """`hype_streak` 只查已落库的历史轮次（当前轮尚未写入），故减 1。"""
     return max(1, config.CONFIRM_ROUNDS - 1)
@@ -441,7 +519,10 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
         stats["comment_gate_checked"] = 0
         stats["comment_gate_rejected"] = 0
         stats["meme_gate_rejected"] = 0
+        stats["comment_backed_count"] = 0
+        stats["comment_backed_admitted"] = 0
         evidence_now = _now().timestamp()
+        evidence_dt = datetime.fromtimestamp(evidence_now).astimezone()
 
         week_ago = (datetime.now().astimezone() - timedelta(days=config.WINDOW_DAYS)).isoformat(
             timespec="seconds"
@@ -453,7 +534,17 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
         for family in families:
             key = family["family_key"]
             bucket = usage.get(key) or {"videos": set(), "count": 0, "per_video": Counter()}
-            family["comment"] = comment_evidence(usage.get(key), evidence_now)
+            evidence = comment_evidence(usage.get(key), evidence_now)
+            # P1 novelty 与年龄：种子优先用种子表 origin 年份（已知梗年龄），
+            # 非种子用窗口内最早评论；两者都进 components.raw 供 API/看板取用。
+            origin_year = (
+                parse_origin_year(family.get("origin", ""))
+                if family.get("seed_hit") else None
+            )
+            evidence["seed_origin_year"] = origin_year
+            evidence["known_age_years"] = known_age_years(origin_year, evidence_dt)
+            evidence["novelty"] = novelty_score(evidence, origin_year, evidence_dt)
+            family["comment"] = evidence
             video_ids = bucket["videos"]
             exposure = sum(
                 math.log1p(max(0, video_meta[b].get("view", 0)))
@@ -483,6 +574,7 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
                 "velocity": velocity,
                 "concentration": concentration,
                 "meme": 0.0,
+                "novelty": evidence["novelty"],
             }
             family["first_seen"] = first_seen.get(key)
             family["is_new"] = key not in first_seen
@@ -504,13 +596,32 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             item["is_new"] = bool(family.get("is_new"))
             item["judge_reasons"] = family.get("judge_reasons", {})
             evidence = family.get("comment") or {}
-            # 评论证据进 components.raw（API 原样透传），同时留一份顶层便于看板取用
-            item.setdefault("raw_signals", {}).update(evidence)
+            backed = comment_backed_candidate(item, evidence)
+            list_type = classify_list(
+                bool(item.get("seed_hit")), evidence.get("seed_origin_year"),
+                evidence.get("age_days"), evidence.get("comment_7d_count", 0),
+            )
+            item["comment_backed"] = backed
+            item["list"] = list_type
+            # 评论证据进 components.raw（API 原样透传）：保留 P0 扁平字段，
+            # 另加 comment_backed / comment_evidence / list 供 P1 新旧榜使用。
+            raw = dict(evidence)
+            raw["comment_backed"] = backed
+            raw["comment_evidence"] = evidence
+            raw["list"] = list_type
+            item.setdefault("raw_signals", {}).update(raw)
             item["components"]["comment"] = evidence
-            if not passes_meme_gate(item["components"].get("meme", 0.0), item.get("seed_hit")):
+            item["components"]["comment_backed"] = backed
+            item["components"]["list"] = list_type
+            meme_ok = passes_meme_gate(
+                item["components"].get("meme", 0.0), item.get("seed_hit")
+            )
+            # P1 评论证据通道：非种子满足门槛可绕过 MEME_MIN，但只进 observing。
+            if not meme_ok and not backed:
                 item["status"] = "rejected"
                 stats["meme_gate_rejected"] += 1
                 continue
+            stats["comment_backed_count"] += 1 if backed else 0
             stats["comment_gate_checked"] += 1
             gate_reason = comment_gate(item, evidence, evidence_ready)
             if gate_reason:
@@ -518,20 +629,32 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
                 item["comment_gate"] = gate_reason
                 stats["comment_gate_rejected"] += 1
                 continue
+            if not meme_ok:
+                # 评论证据通道只给 observing，且不占主榜名次（只在 new 榜曝光），
+                # 避免高频子串/常见短语借评论证据挤掉已过梗性闸门的条目。
+                item["status"] = "observing"
+                item["comment_admitted"] = True
+                stats["comment_backed_admitted"] += 1
+                continue
             streak = store.hype_streak(conn, key, config.MIN_SCORE, rounds=confirm_rounds())
             item["status"] = status_for(item, family, streak)
 
-        display = [item for item in items if item["status"] in ("hot", "observing")][
-            : config.TOP_N
-        ]
+        # 排行池落 RANK_N 条（Top10 展示不变），供 /api/top?list=new|classic 过滤。
+        ranked = [
+            item for item in items
+            if item["status"] in ("hot", "observing") and not item.get("comment_admitted")
+        ][: config.RANK_N]
         for item in items:
             item["rank"] = 0
-        for position, item in enumerate(display, start=1):
+        for position, item in enumerate(ranked, start=1):
             item["rank"] = position
+            if position > config.TOP_N:
+                continue
             family = by_key.get(item["family_key"], {})
             item["sample"] = sample_text(item["canonical"], docs)
             if not item["sample"] and family.get("members"):
                 item["sample"] = sample_text(family["members"][0], docs)
+        display = ranked[: config.TOP_N]
 
         usable = [item for item in items if item["status"] != "rejected"]
         store.upsert_candidates(

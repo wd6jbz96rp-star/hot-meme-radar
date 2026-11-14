@@ -5,7 +5,7 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from . import config, pipeline, store
@@ -15,6 +15,24 @@ SUBSCRIBERS: set[asyncio.Queue] = set()
 RUN_LOCK = asyncio.Lock()
 _COLLECT_TASK: asyncio.Task | None = None
 _SCHEDULER_TASK: asyncio.Task | None = None
+TOP_LISTS = ("all", "new", "classic")
+
+
+def _clamp_limit(limit: int) -> int:
+    return max(1, min(limit, 50))
+
+
+def _list_items(snapshot: dict, list_type: str, limit: int) -> list[dict]:
+    """按需读该轮的新/旧榜条目（含不占主榜名次的 comment_backed 观察项）。"""
+    cycle = snapshot.get("cycle") or {}
+    cycle_id = cycle.get("id")
+    if not cycle_id:
+        return []
+    connection = store.connect()
+    try:
+        return store.list_items(connection, int(cycle_id), list_type, limit)
+    finally:
+        connection.close()
 
 
 async def _broadcast(payload: dict) -> None:
@@ -105,16 +123,26 @@ async def index() -> HTMLResponse:
 
 
 @app.get("/api/top")
-async def api_top(limit: int = config.TOP_N) -> dict:
+async def api_top(limit: int = config.TOP_N,
+                  list_filter: str = Query("all", alias="list")) -> dict:
+    """榜单 API：`?list=new|classic|all`（默认 all，保持旧行为兼容）。"""
+    if list_filter not in TOP_LISTS:
+        raise HTTPException(status_code=400, detail="list 仅支持 new|classic|all")
     snapshot = STATE["snapshot"]
     if not snapshot or not snapshot.get("top"):
         snapshot = await asyncio.to_thread(pipeline.snapshot)
         STATE["snapshot"] = snapshot
-    top = [item for item in snapshot.get("top", []) if item.get("rank", 0) > 0]
+    if list_filter == "all":
+        top = [item for item in snapshot.get("top", []) if item.get("rank", 0) > 0]
+    else:
+        top = await asyncio.to_thread(
+            _list_items, snapshot, list_filter, _clamp_limit(limit)
+        )
     return {
         "status": snapshot.get("status", "empty"),
         "cycle": snapshot.get("cycle"),
-        "top": top[: max(1, min(limit, 50))],
+        "list": list_filter,
+        "top": top[: _clamp_limit(limit)],
         "health": snapshot.get("health", {}),
         "running": STATE["running"],
         "error": STATE["error"],

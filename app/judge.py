@@ -12,6 +12,23 @@ SUFFIXES = ("文学", "圣体", "判官", "圣经", "定律", "行为", "发言"
 EDGE_CHARS = set("的了是在我你他她它这那就都也还又很太真不没有会能要把被给让从到和与或而但才只个些什么怎样如此对说看着过很再请别更最")
 PROPER_SUFFIXES = ("人", "国", "省", "市", "县", "区", "公司", "大学", "医院", "政府", "局", "部", "集团", "平台")
 DATE_RE = re.compile(r"(20\d{2}|19\d{2})年?|\d{1,2}月\d{1,2}日|\d{1,2}:\d{2}")
+ORIGIN_YEAR_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+MIN_ORIGIN_YEAR, MAX_ORIGIN_YEAR = 1990, 2100
+
+
+def parse_origin_year(origin: str) -> int | None:
+    """从种子表 origin 文本解析梗的起源年份（如「2020 围观」→ 2020）。
+
+    没有年份（如「春节 年度梗」）或年份明显越界时回 None，不猜。
+    """
+    match = ORIGIN_YEAR_RE.search(origin or "")
+    if not match:
+        return None
+    year = int(match.group(1))
+    if not (MIN_ORIGIN_YEAR <= year <= MAX_ORIGIN_YEAR):
+        return None
+    return year
+
 
 
 def _read_json(path: Path, default):

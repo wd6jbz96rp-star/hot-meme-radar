@@ -295,10 +295,11 @@ def test_comment_gate_rejects_non_seed_without_recent_evidence():
 
 def test_p0_quotas_comment_first():
     assert config.COMMENT_MODES == (3, 2)
-    assert config.COMMENT_PAGES == 1
+    # P1：mode2 翻 3 页（next=0/20/40），mode3 1 页；弹幕降为 7 视频保住 ≤160 请求预算
+    assert config.COMMENT_PAGES == {3: 1, 2: 3}
     assert config.COMMENT_WINDOW_DAYS == 30
     assert config.COMMENT_MAX_PER_VIDEO == 40
-    assert config.DANMAKU_VIDEOS == 10
+    assert config.DANMAKU_VIDEOS == 7
     assert config.MAX_DANMAKU_PER_VIDEO == 200
     assert config.COMMENT_VIDEOS == 30
 

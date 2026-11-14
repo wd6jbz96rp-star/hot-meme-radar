@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS comment_cache(
     aid INTEGER NOT NULL,
     mode INTEGER NOT NULL DEFAULT 3,
     page INTEGER NOT NULL,
+    next_cursor INTEGER NOT NULL DEFAULT 0,
     fetched_at TEXT NOT NULL,
     payload TEXT NOT NULL,
     PRIMARY KEY(aid, mode, page)
@@ -136,6 +137,7 @@ COMMENT_CACHE_DDL = """CREATE TABLE IF NOT EXISTS comment_cache(
     aid INTEGER NOT NULL,
     mode INTEGER NOT NULL DEFAULT 3,
     page INTEGER NOT NULL,
+    next_cursor INTEGER NOT NULL DEFAULT 0,
     fetched_at TEXT NOT NULL,
     payload TEXT NOT NULL,
     PRIMARY KEY(aid, mode, page)
@@ -159,15 +161,22 @@ def _migrate_comment_cache(conn: sqlite3.Connection) -> None:
     先 rename 再建新表再搬运；已迁移的库检测到 mode 列直接返回，可重复执行。
     """
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(comment_cache)")}
-    if not columns or "mode" in columns:
+    if not columns:
         return
-    conn.execute("ALTER TABLE comment_cache RENAME TO comment_cache_legacy")
-    conn.executescript(COMMENT_CACHE_DDL)
-    conn.execute(
-        """INSERT OR IGNORE INTO comment_cache(aid, mode, page, fetched_at, payload)
-           SELECT aid, 3, page, fetched_at, payload FROM comment_cache_legacy"""
-    )
-    conn.execute("DROP TABLE comment_cache_legacy")
+    if "mode" not in columns:
+        conn.execute("ALTER TABLE comment_cache RENAME TO comment_cache_legacy")
+        conn.executescript(COMMENT_CACHE_DDL)
+        conn.execute(
+            """INSERT OR IGNORE INTO comment_cache(aid, mode, page, fetched_at, payload)
+               SELECT aid, 3, page, fetched_at, payload FROM comment_cache_legacy"""
+        )
+        conn.execute("DROP TABLE comment_cache_legacy")
+        return
+    # P1：缓存页携带 next 游标，warm 轮命中缓存才能正确判断是否继续翻页（0 不请求）。
+    if "next_cursor" not in columns:
+        conn.execute(
+            "ALTER TABLE comment_cache ADD COLUMN next_cursor INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -379,14 +388,15 @@ def _normalize_comment_items(items: Iterable[dict] | None) -> list[dict]:
     return rows
 
 
-def get_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
-                      ttl_seconds: int | None = None) -> list[dict] | None:
-    """返回 TTL 内的评论页；`None` = 未命中/已过期/缓存关闭。键 = (aid,mode,page)。"""
+def _comment_cache_entry(conn: sqlite3.Connection, aid: int, mode: int, page: int,
+                         ttl_seconds: int | None) -> tuple[list[dict], int] | None:
+    """返回 (评论页, next 游标)；`None` = 未命中/已过期/缓存关闭。键 = (aid,mode,page)。"""
     ttl = config.COMMENT_CACHE_SECONDS if ttl_seconds is None else ttl_seconds
     if ttl <= 0:
         return None
     row = conn.execute(
-        "SELECT payload, fetched_at FROM comment_cache WHERE aid=? AND mode=? AND page=?",
+        "SELECT payload, next_cursor, fetched_at FROM comment_cache "
+        "WHERE aid=? AND mode=? AND page=?",
         (aid, mode, page),
     ).fetchone()
     if not row or not _fresh(row["fetched_at"], ttl):
@@ -395,17 +405,37 @@ def get_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: i
         data = json.loads(row["payload"])
     except (TypeError, json.JSONDecodeError):
         return None
-    return _normalize_comment_items(data) if isinstance(data, list) else None
+    if not isinstance(data, list):
+        return None
+    return _normalize_comment_items(data), int(row["next_cursor"] or 0)
+
+
+def get_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
+                      ttl_seconds: int | None = None) -> list[dict] | None:
+    """返回 TTL 内的评论页；`None` = 未命中/已过期/缓存关闭。"""
+    entry = _comment_cache_entry(conn, aid, mode, page, ttl_seconds)
+    return entry[0] if entry else None
+
+
+def get_comment_page_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
+                           ttl_seconds: int | None = None) -> tuple[list[dict], int] | None:
+    """评论页 + 下一页游标（P1：warm 轮据此决定是否继续翻页，命中即不请求）。"""
+    return _comment_cache_entry(conn, aid, mode, page, ttl_seconds)
 
 
 def put_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
-                      items: list[dict] | None = None) -> None:
+                      items: list[dict] | None = None,
+                      next_cursor: int = 0) -> None:
     if config.COMMENT_CACHE_SECONDS <= 0:
         return
+    try:
+        cursor = max(0, int(next_cursor or 0))
+    except (TypeError, ValueError):
+        cursor = 0
     conn.execute(
-        "INSERT OR REPLACE INTO comment_cache(aid, mode, page, fetched_at, payload) "
-        "VALUES(?,?,?,?,?)",
-        (aid, mode, page, now_iso(),
+        "INSERT OR REPLACE INTO comment_cache"
+        "(aid, mode, page, next_cursor, fetched_at, payload) VALUES(?,?,?,?,?,?)",
+        (aid, mode, page, cursor, now_iso(),
          json.dumps(_normalize_comment_items(items), ensure_ascii=False)),
     )
     conn.commit()
@@ -545,42 +575,73 @@ def hype_streak(conn: sqlite3.Connection, family_key: str, threshold: float, rou
     return all(float(r["score"]) >= threshold for r in rows)
 
 
+def _signal_item(row: sqlite3.Row, prev: dict[str, int]) -> dict:
+    """meme_signal 行 → API/榜单条目（含 P1 的 list 字段）。"""
+    components = {}
+    try:
+        components = json.loads(row["components_json"] or "{}")
+    except json.JSONDecodeError:
+        pass
+    raw = components.get("raw") if isinstance(components.get("raw"), dict) else {}
+    # P1 新旧榜：components.list 优先，旧数据回退 raw.list，再回退 classic（不猜）。
+    list_type = components.get("list") or raw.get("list") or "classic"
+    if list_type not in ("new", "classic"):
+        list_type = "classic"
+    previous_rank = prev.get(row["family_key"])
+    return {
+        "meme_id": row["meme_id"],
+        "family_key": row["family_key"],
+        "canonical": row["canonical"],
+        "type": row["type"],
+        "score": round(float(row["score"]), 1),
+        "rank": int(row["rank"]),
+        "previous_rank": previous_rank,
+        "delta": (previous_rank - int(row["rank"])) if previous_rank else None,
+        "status": row["status"],
+        "list": list_type,
+        "components": components,
+        "sample": row["sample"],
+        "first_seen": row["first_seen"],
+        "is_new": bool(row["is_new"]),
+        "updated_at": row["updated_at"],
+    }
+
+
+_ITEM_COLUMNS = """s.family_key, s.score, s.rank, s.status, s.components_json, s.sample,
+                   s.is_new, s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen"""
+
+
 def top_items(conn: sqlite3.Connection, cycle_id: int, limit: int = 10) -> list[dict]:
     rows = conn.execute(
-        """SELECT s.family_key, s.score, s.rank, s.status, s.components_json, s.sample,
-                  s.is_new, s.updated_at, m.id AS meme_id, m.canonical, m.type, m.first_seen
+        f"""SELECT {_ITEM_COLUMNS}
            FROM meme_signal s JOIN meme m ON m.id=s.meme_id
            WHERE s.cycle_id=? AND s.rank>0 ORDER BY s.rank LIMIT ?""",
         (cycle_id, limit),
     ).fetchall()
-    items: list[dict] = []
     prev = previous_ranks(conn, cycle_id)
+    return [_signal_item(row, prev) for row in rows]
+
+
+def list_items(conn: sqlite3.Connection, cycle_id: int, list_type: str,
+               limit: int = 10) -> list[dict]:
+    """新旧榜过滤（P1）：`list` = new/classic。
+
+    包含 rank=0 的 comment_backed 观察项（它们不占主榜名次，只在对应列表曝光），
+    按分数排序；经典榜仍以已排名条目为主。
+    """
+    rows = conn.execute(
+        f"""SELECT {_ITEM_COLUMNS}
+           FROM meme_signal s JOIN meme m ON m.id=s.meme_id
+           WHERE s.cycle_id=? ORDER BY s.score DESC""",
+        (cycle_id,),
+    ).fetchall()
+    prev = previous_ranks(conn, cycle_id)
+    items = []
     for row in rows:
-        components = {}
-        try:
-            components = json.loads(row["components_json"] or "{}")
-        except json.JSONDecodeError:
-            pass
-        previous_rank = prev.get(row["family_key"])
-        items.append(
-            {
-                "meme_id": row["meme_id"],
-                "family_key": row["family_key"],
-                "canonical": row["canonical"],
-                "type": row["type"],
-                "score": round(float(row["score"]), 1),
-                "rank": int(row["rank"]),
-                "previous_rank": previous_rank,
-                "delta": (previous_rank - int(row["rank"])) if previous_rank else None,
-                "status": row["status"],
-                "components": components,
-                "sample": row["sample"],
-                "first_seen": row["first_seen"],
-                "is_new": bool(row["is_new"]),
-                "updated_at": row["updated_at"],
-            }
-        )
-    return items
+        item = _signal_item(row, prev)
+        if item["list"] == list_type:
+            items.append(item)
+    return items[:limit]
 
 
 def meme_history(conn: sqlite3.Connection, family_key: str, limit: int = 60) -> list[dict]:
