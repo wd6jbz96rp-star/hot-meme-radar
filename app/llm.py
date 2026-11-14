@@ -29,6 +29,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from .http import build_context
+
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
 DEFAULT_MODEL = "deepseek-chat"
 DEFAULT_TIMEOUT = 30.0
@@ -168,13 +170,21 @@ class LlmStats:
 Transport = Callable[[str, dict[str, Any], dict[str, str], float], tuple[int, bytes]]
 
 
+_SSL_CONTEXT = build_context()
+
+
 def urllib_transport(url: str, payload: dict[str, Any], headers: dict[str, str],
                      timeout: float) -> tuple[int, bytes]:
-    """默认传输层：POST JSON，返回 (status, body)。错误由 ChatClient 分类。"""
+    """默认传输层：POST JSON，返回 (status, body)。错误由 ChatClient 分类。
+
+    显式传入 CA 回退后的 SSLContext：本机 Python 默认 CA 校验会失败（与
+    `app/http.py` 的 B站 请求同一问题），否则 DeepSeek 调用会报
+    `SSLCertVerificationError`。
+    """
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=timeout, context=_SSL_CONTEXT) as response:  # noqa: S310
             return response.status, response.read()
     except urllib.error.HTTPError as exc:  # 4xx/5xx 带 body，便于分类
         return exc.code, exc.read() or b""
