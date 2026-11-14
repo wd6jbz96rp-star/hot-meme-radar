@@ -128,3 +128,22 @@ def test_components_explain_points():
         assert key in scored.components
         assert "points" in scored.components[key]
     assert scored.reasons
+
+
+def test_meta_only_exposes_2x2_badge_but_is_not_hard_dropped():
+    model = HeatModel(HeatConfig())
+    meta_only = make_meme("只有梗视频", meta=3, meta_views=5_000_000, usage=0)
+    scored = model.score_memes([meta_only], now=NOW, knowledge=Knowledge())[0]
+    assert scored.signals["evidence_rate_2x2"] is False
+    # 用户盲标确认部分 explainer-only 是真梗；2×2 只做证据质量徽章，
+    # 是否发布由组装阶段的发布门决定，查询层不硬杀。
+    assert scored.status in ("hot", "rising", "observing")
+
+
+def test_two_comments_two_videos_is_evidence_2x2():
+    model = HeatModel(HeatConfig())
+    meme = make_meme("有使用", meta=1, usage=4, usage_videos=2)
+    scored = model.score_memes([meme], now=NOW, knowledge=Knowledge())[0]
+    assert scored.signals["evidence_docs"] >= 2
+    assert scored.signals["evidence_videos"] >= 2
+    assert scored.signals["evidence_rate_2x2"] is True

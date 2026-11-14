@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 SCHEMA_VERSION = "meme-info/v1"
-PROMPT_VERSION = "meme-info/verify-v2"
+PROMPT_VERSION = "meme-info/verify-v4"
 
 
 # ---------------------------------------------------------------- 基础工具
@@ -341,6 +341,7 @@ class HotMemeReport:
     as_of: str
     window_days: int
     memes: list[Meme] = field(default_factory=list)
+    observing: list[Meme] = field(default_factory=list)
     candidates: list[Meme] = field(default_factory=list)
     stats: dict[str, Any] = field(default_factory=dict)
     config: dict[str, Any] = field(default_factory=dict)

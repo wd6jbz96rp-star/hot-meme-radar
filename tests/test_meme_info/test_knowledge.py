@@ -25,3 +25,14 @@ def test_origin_year_parsing():
     assert parse_origin_year("2023 谐音卖萌体") == 2023
     assert parse_origin_year("无年份") is None
     assert parse_origin_year("1800 古代") is None
+
+
+def test_rework_generic_proper_and_common_phrase_filter():
+    knowledge = Knowledge()
+    assert knowledge.blocked_reason("音乐") == "lexicon"
+    assert knowledge.blocked_reason("扎啤") == ""        # 用户盲标 ✅，不得误杀
+    assert knowledge.blocked_reason("明码标价") == "common_phrase"
+    assert knowledge.blocked_reason("吴家村") == ""      # 用户盲标 ✅，proper 只做审计
+    assert knowledge.is_proper_like("吴家村")
+    assert knowledge.blocked_reason("吃瓜") == ""   # 已知种子豁免
+    assert knowledge.blocked_reason("抽象") == ""

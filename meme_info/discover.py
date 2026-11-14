@@ -99,8 +99,8 @@ def _meta_name_ok(name: str, knowledge: Knowledge) -> bool:
         return False
     if any(word in norm for word in BAD_META_WORDS):
         return False
-    if knowledge.blocked_reason(name):
-        return False
+    # 标题层只做「像不像梗名」的结构判断；通用词/地名/普通短语留给
+    # extract_candidates 统一过滤并记 reject reason（便于返工审计）。
     return True
 
 
@@ -617,6 +617,41 @@ def _attach_meta(
             candidate.type = entry.type
 
 
+def _candidate_filter_reason(candidate: Candidate, knowledge: Knowledge) -> str:
+    """候选入池前的统一过滤；返回空串表示保留。"""
+    if len(candidate.norm) < 2 and not (
+        candidate.known or any(item.kind == "dedicated" for item in candidate.meta)
+    ):
+        return "short"
+    if len(candidate.norm) > 24:
+        return "too_long"
+    if is_numeric_like(candidate.norm):
+        return "numeric"
+    if candidate.norm in GENERIC_WORDS:
+        return "generic_word"
+    if not candidate.known and knowledge.is_generic(candidate.norm):
+        return "lexicon"
+    reason = knowledge.blocked_reason(candidate.surface)
+    if reason and not candidate.known:
+        return reason
+    if not candidate.usage and not candidate.meta:
+        return "no_evidence"
+    return ""
+
+
+def _count_doc_mentions(prepared: list[PreparedDoc], norm: str) -> int:
+    if not norm:
+        return 0
+    count = 0
+    for item in prepared:
+        if norm.isascii():
+            if re.search(r"(?<![a-z0-9])" + re.escape(norm) + r"(?![a-z0-9])", item.norm_text):
+                count += 1
+        elif norm in item.norm_text:
+            count += 1
+    return count
+
+
 def extract_candidates(
     docs: list[Doc],
     knowledge: Knowledge,
@@ -625,6 +660,7 @@ def extract_candidates(
     meta_mentions: list[MetaMention] | None = None,
     config: DiscoveryConfig | None = None,
     llm_candidates: list[dict] | None = None,
+    audit: dict | None = None,
 ) -> list[Candidate]:
     config = config or DiscoveryConfig()
     prepared = prepare_docs(docs)
@@ -647,38 +683,62 @@ def extract_candidates(
             merged[norm] = candidate
         else:
             _merge_duplicate(existing, candidate)
+    audit_names = list((audit or {}).get("names") or [])
+    named_audit: dict[str, dict] = {}
+    for name in audit_names:
+        norm = normalize_surface(name)
+        named_audit[name] = {
+            "norm": norm,
+            "doc_mentions": _count_doc_mentions(prepared, norm),
+            "candidate_before_filter": norm in merged,
+            "proper_like": knowledge.is_proper_like(name),
+            "kept": False,
+            "reason": "",
+        }
+
     result: list[Candidate] = []
+    blocked_counts: Counter[str] = Counter()
     for candidate in merged.values():
-        if len(candidate.norm) < 2 and not (
-            candidate.known or any(item.kind == "dedicated" for item in candidate.meta)
-        ):
-            continue
-        if len(candidate.norm) > 24:
-            continue
-        if is_numeric_like(candidate.norm):
-            continue
-        if candidate.norm in GENERIC_WORDS:
-            continue
-        # 3 字以内纯 ASCII 的新词（shi/bushi/xx）误报极高；只有已知梗、
-        # 元话语或引号模式才保留。
-        if (
+        reason = _candidate_filter_reason(candidate, knowledge)
+        if not reason and (
             candidate.norm.isascii()
             and len(candidate.norm) <= 3
             and not (candidate.known or candidate.meta or candidate.pattern)
         ):
-            continue
-        if not candidate.known and knowledge.is_generic(candidate.norm):
-            continue
-        if knowledge.blocked_reason(candidate.surface) and not candidate.known:
-            continue
-        if not candidate.usage and not candidate.meta:
+            reason = "short_ascii"
+        if reason:
+            blocked_counts[reason] += 1
+            for name, item in named_audit.items():
+                if item["norm"] == candidate.norm:
+                    item["reason"] = reason
             continue
         _finalize_candidate(candidate, now, knowledge)
         result.append(candidate)
+        for name, item in named_audit.items():
+            if item["norm"] == candidate.norm:
+                item["kept"] = True
+                item["reason"] = ""
     result.sort(
-        key=lambda item: (item.known, bool(item.meta), item.confidence, item.count),
-        reverse=True,
+        key=lambda item: (
+            not item.known,
+            not bool(item.meta),
+            -item.confidence,
+            -item.count,
+            item.norm,
+        )
     )
+    if audit is not None:
+        for name, item in named_audit.items():
+            if item["kept"] or item["reason"]:
+                continue
+            if not item["doc_mentions"] and not item["candidate_before_filter"]:
+                item["reason"] = "not_present"
+            else:
+                item["reason"] = knowledge.blocked_reason(name) or "not_extracted"
+        audit["blocked_by_reason"] = dict(blocked_counts)
+        audit["raw_candidates"] = len(merged)
+        audit["kept_candidates"] = len(result)
+        audit["named"] = named_audit
     return result[: config.max_candidates]
 
 
@@ -944,8 +1004,14 @@ def merge_families(
                 if normalize_surface(mention.norm) == norm:
                     meta_by_key.setdefault((mention.bvid, mention.norm), mention)
         usage = list(usage_by_doc.values())
-        evidence = sorted(evidence_by_id.values(), key=lambda item: (item.like, item.ctime), reverse=True)[:8]
-        meta = sorted(meta_by_key.values(), key=lambda item: (item.pubdate, item.view), reverse=True)
+        evidence = sorted(
+            evidence_by_id.values(),
+            key=lambda item: (-item.like, -item.ctime, item.comment_id),
+        )[:8]
+        meta = sorted(
+            meta_by_key.values(),
+            key=lambda item: (-item.pubdate, -item.view, item.bvid, item.title),
+        )
         times = [item.ctime for item in usage if item.ctime] + [item.pubdate for item in meta if item.pubdate]
         first_seen = min(times) if times else 0
         last_seen = max(times) if times else 0
@@ -974,5 +1040,7 @@ def merge_families(
         if not meme.members:
             meme.members = [canonical]
         memes.append(meme)
-    memes.sort(key=lambda item: (item.meme_prob, item.confidence, item.last_seen), reverse=True)
+    memes.sort(
+        key=lambda item: (-item.meme_prob, -item.confidence, -item.last_seen, item.family_key)
+    )
     return memes

@@ -50,6 +50,7 @@ class QueryConfig:
     verify_gate: bool = False
     verify_limit: int = 12
     meta_max_age_days: int = 365
+    audit_names: tuple[str, ...] = ("音乐", "扎啤", "明码标价", "吴家村")
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +71,7 @@ class QueryConfig:
             "verify_gate": self.verify_gate,
             "verify_limit": self.verify_limit,
             "meta_max_age_days": self.meta_max_age_days,
+            "audit_names": list(self.audit_names),
         }
 
 
@@ -80,7 +82,13 @@ def _requests_used(source: Any, baseline: int) -> int:
     return max(0, int(getattr(http, "requests", 0)) - baseline)
 
 
-def _prepare(corpus: Corpus, knowledge: Knowledge, config: QueryConfig, now: int) -> tuple[list, list[Meme]]:
+def _prepare(
+    corpus: Corpus,
+    knowledge: Knowledge,
+    config: QueryConfig,
+    now: int,
+    audit: dict | None = None,
+) -> tuple[list, list[Meme]]:
     mentions = extract_meta_mentions(
         corpus.videos, knowledge, now=now, max_age_days=config.meta_max_age_days
     )
@@ -90,6 +98,7 @@ def _prepare(corpus: Corpus, knowledge: Knowledge, config: QueryConfig, now: int
         now=now,
         meta_mentions=mentions,
         config=config.discovery,
+        audit=audit,
     )
     memes = merge_families(candidates, knowledge, now=now, meta_mentions=mentions)
     return mentions, memes
@@ -298,13 +307,14 @@ def build_report(
     extra_stats: dict[str, Any] | None = None,
     mentions: list[MetaMention] | None = None,
     memes: list[Meme] | None = None,
+    audit: dict[str, Any] | None = None,
 ) -> HotMemeReport:
     knowledge = knowledge or Knowledge()
     config = config or QueryConfig()
     now = now or int(time.time())
     started = time.time()
     if memes is None:
-        mentions, memes = _prepare(corpus, knowledge, config, now)
+        mentions, memes = _prepare(corpus, knowledge, config, now, audit)
     model = HeatModel(config.heat)
     scored = model.score_memes(memes, now=now, history=history, knowledge=knowledge)
     verification_stats: dict[str, Any] = {}
@@ -331,6 +341,10 @@ def build_report(
         meme for meme in scored
         if meme.status in ("hot", "rising", "observing") and meme.signals.get("is_current")
     ]
+    observing = [
+        meme for meme in scored
+        if meme.status == "observing" and meme.signals.get("is_current")
+    ]
     stats = dict(corpus.stats)
     stats.update(
         {
@@ -339,8 +353,11 @@ def build_report(
             "families_with_meta": sum(1 for meme in scored if meme.meta),
             "families_with_usage": sum(1 for meme in scored if meme.usage),
             "current_families": len(current),
+            "observing_families": len(observing),
+            "current_2x2": sum(1 for meme in current if meme.signals.get("evidence_rate_2x2")),
             "rejected_families": sum(1 for meme in scored if meme.status == "rejected"),
             "verification": verification_stats,
+            "discovery_audit": audit or {},
             "report_elapsed": round(time.time() - started, 2),
         }
     )
@@ -351,6 +368,7 @@ def build_report(
         as_of=datetime.fromtimestamp(now).astimezone().isoformat(timespec="seconds"),
         window_days=config.plan.comment_window_days,
         memes=current[: config.limit],
+        observing=observing[: config.limit],
         candidates=scored[: config.include_candidates],
         stats=stats,
         config=config.as_dict(),
@@ -376,12 +394,16 @@ def find_hot_memes(
     now = now or now_ts()
     started = time.time()
     knowledge = knowledge or Knowledge()
+    audit: dict[str, Any] = {
+        "names": list(config.audit_names),
+        "policy": "proper_noun 只做审计标记/LLM 辅助，不单独硬杀（用户盲标确认吴家村）",
+    }
     corpus = collect_corpus(source, config.plan, now=now)
     base_stats = {
         "collection_elapsed": corpus.stats.get("elapsed"),
         "collection_requests": corpus.stats.get("requests"),
     }
-    mentions, memes = _prepare(corpus, knowledge, config, now)
+    mentions, memes = _prepare(corpus, knowledge, config, now, audit)
     if config.expand_queries and config.expand_limit > 0:
         mentions, expansion_stats = _expand_query(
             source,
@@ -399,6 +421,7 @@ def find_hot_memes(
             now=now,
             meta_mentions=mentions,
             config=config.discovery,
+            audit=audit,
         )
         memes = merge_families(
             candidates, knowledge, now=now, meta_mentions=mentions
@@ -419,6 +442,7 @@ def find_hot_memes(
         },
         mentions=mentions,
         memes=memes,
+        audit=audit,
     )
     return report
 
@@ -439,6 +463,7 @@ def query_from_corpus(
         now=now,
         history=history,
         verifier=verifier,
+        audit={"names": list((config or QueryConfig()).audit_names)},
     )
 
 

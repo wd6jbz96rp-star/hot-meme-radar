@@ -158,6 +158,7 @@ def _pick_comment_targets(
             (video.reply + 1) / max(1, video.view) * 1000,
             video.reply,
             video.view,
+            video.bvid,
         ),
         reverse=True,
     )
@@ -190,6 +191,7 @@ def _pick_danmaku_targets(videos: list[Video], plan: CollectionPlan) -> list[Vid
             1 if video.source.startswith("search:") else 0,
             video.danmaku / max(1, video.duration or 1),
             video.danmaku,
+            video.bvid,
         ),
         reverse=True,
     )

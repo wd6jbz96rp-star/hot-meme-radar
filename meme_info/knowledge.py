@@ -18,7 +18,15 @@ from typing import Iterable
 from .text import normalize_surface
 
 ORIGIN_YEAR_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+PROPER_SUFFIXES = (
+    "村", "镇", "县", "市", "省", "区", "路", "街", "山", "河", "湖", "海", "岛",
+    "国", "公司", "集团", "大学", "学院", "医院", "政府", "法院", "检察院",
+    "公安局", "派出所", "局", "部", "厅", "委", "办", "署", "站", "港", "机场",
+    "寺", "庙", "陵", "园", "厂", "店", "馆", "所", "中心", "基地",
+)
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+# PM 复核明确判定为普通名词/普通短语的负例；除非进入种子表，否则不作为梗。
+REVIEW_STOPWORDS = {"明码标价"}
 
 
 @dataclass(frozen=True)
@@ -56,11 +64,18 @@ def _read_json(path: Path, default):
 
 
 def _read_words(path: Path) -> set[str]:
+    """读词表：兼容「一行一个词」与 jieba 的「词 词频」两种格式。"""
     try:
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
     except OSError:
         return set()
-    return {line.strip() for line in lines if line.strip() and not line.startswith("#")}
+    words: set[str] = set()
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        words.add(line.split()[0])
+    return words
 
 
 class Knowledge:
@@ -156,6 +171,13 @@ class Knowledge:
             return True
         return False
 
+    def is_proper_like(self, surface: str) -> bool:
+        """地名/机构名启发式；只对非种子候选使用。"""
+        key = normalize_surface(surface)
+        if len(key) < 2:
+            return False
+        return key.endswith(PROPER_SUFFIXES)
+
     def is_evergreen(self, surface: str) -> bool:
         return normalize_surface(surface) in self.evergreen
 
@@ -164,18 +186,29 @@ class Knowledge:
         return any(word and normalize_surface(word) in key for word in self.sensitive)
 
     def blocked_reason(self, surface: str) -> str:
-        """返回负向过滤原因；空串表示可继续。"""
+        """返回负向过滤原因；空串表示可继续。
+
+        已知种子/别名只保留敏感词过滤（已知梗常是通用词/地名/专名）。
+        """
         key = normalize_surface(surface)
         if not key:
             return "empty"
         if self.is_sensitive(surface):
             return "sensitive"
+        if self.lookup(surface):
+            return ""
         if any(word and normalize_surface(word) in key for word in self.news):
             return "news_like"
         if any(word and normalize_surface(word) in key for word in self.marketing):
             return "marketing"
+        if key in REVIEW_STOPWORDS:
+            return "common_phrase"
         if key in self.common_words:
             return "common_word"
+        if key in self.lexicon:
+            return "lexicon"
+        # 地名/机构名只做审计标记，不单独拦：用户盲标确认「吴家村」是真梗，
+        # 一刀切 proper_noun 会误杀。是否放行交给 LLM gate/证据质量。
         return ""
 
     def prior(self, surface: str) -> tuple[float, bool]:

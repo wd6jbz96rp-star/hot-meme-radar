@@ -43,7 +43,7 @@ _JSON_RETRY_HINT = (
     "上一次输出不是合法 JSON 对象。请只输出一个 JSON 对象，不要 Markdown、不要解释。"
 )
 
-VERIFY_PROMPT_VERSION = "meme-info/verify-v2"
+VERIFY_PROMPT_VERSION = "meme-info/verify-v4"
 EXTRACT_PROMPT_VERSION = "meme-info/extract-v1"
 
 VERIFY_SCHEMA = {
@@ -392,7 +392,16 @@ def _build_verify_messages(meme: Meme, now: int, packet: list[dict]) -> list[dic
         "并且只能依据用户给出的证据，不得用你的记忆补造事实。\n"
         "操作性定义：网络热梗是网络社群中自发产生、以可复制形式被反复模仿使用、"
         "需要出处或语境才能完整理解、且有可观测兴衰曲线的符号单元。\n"
-        "不算梗：新闻事件、政策/赛事、人名/机构/作品名、普通词、营销话题、纯情绪词。\n"
+        "不算梗：新闻事件、政策/赛事口号、人名/机构/作品/AI MV 标题、普通成语/名词、"
+        "营销话题、纯情绪词、一次性描述。\n"
+        "判断顺序：\n"
+        "1) 若是赛事/新闻/政策口号、人名/机构/作品/AI MV/影视/小说标题，即使有人二创，也判 false；\n"
+        "2) 若是普通成语/名词/一次性描述（如「XX攻击」），判 false；\n"
+        "3) 若是固定小曲/句式/缩写/表情包名/名场面，且有至少一个「X 是什么梗/梗百科/梗指南」"
+        "视频或多条相关视频，可判 true（即使评论样本少）；\n"
+        "4) 其余证据不足判 false 或 confidence ≤0.4。\n"
+        "注意：出现一个「X 是什么梗」视频只说明有人解释过它，不等于它是可复制的梗；"
+        "必须结合标题语义与使用证据判断。\n"
         "is_current 要求最近约 90 天仍有证据（视频发布日期或评论时间）。\n"
         "证据不足时 confidence 必须 ≤0.5，不要为了给结论而拔高。\n"
         "只输出一个 JSON 对象，不要 Markdown。"
@@ -433,8 +442,22 @@ class SemanticVerifier:
         if cache_dir is not None:
             self.llm.cache = FileCache(cache_dir)
         self.stats = LlmStats()
+        self.verdict_ttl_seconds = 24 * 3600
 
     def verify_meme(self, meme: Meme, *, now: int) -> Verification:
+        # 同一候选 24h 内复用「梗/非梗」结论：两次同 --now 重跑不因证据
+        # 顺序/评论新增而翻转；这是稳定性要求，不是用分数锚定判断。
+        stable_key = stable_id(
+            "verdict", VERIFY_PROMPT_VERSION, self.llm.config.model, meme.family_key
+        )
+        stable_raw = self.llm.cache.get(stable_key, self.verdict_ttl_seconds)
+        if stable_raw is not None:
+            try:
+                payload = json.loads(stable_raw.decode("utf-8"))
+                payload["cached"] = True
+                return Verification(**payload)
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+                pass
         packet = _evidence_packet(meme)
         messages = _build_verify_messages(meme, now, packet)
         cache_key = stable_id(
@@ -465,7 +488,7 @@ class SemanticVerifier:
         evidence_ids = [str(item) for item in (payload.get("evidence_ids") or [])][:20]
         allowed = {item["id"] for item in packet}
         evidence_ids = [item for item in evidence_ids if item in allowed]
-        return Verification(
+        result = Verification(
             is_meme=bool(payload.get("is_meme")),
             is_current=bool(payload.get("is_current")),
             heat=round(clamp(float(payload.get("heat") or 0), 0, 100), 1),
@@ -476,30 +499,53 @@ class SemanticVerifier:
             prompt_version=VERIFY_PROMPT_VERSION,
             cached=cached,
         )
+        try:
+            self.llm.cache.set(
+                stable_key,
+                json.dumps(result.as_dict(), ensure_ascii=False).encode("utf-8"),
+            )
+        except Exception:
+            pass
+        return result
 
     def __call__(self, meme: Meme, now: int | None = None) -> dict:
         return self.verify_meme(meme, now=now or int(time.time())).as_dict()
 
 
+def _adoption_stats(usage: list, meta: list | None = None) -> tuple[int, int]:
+    meta_bvids = {
+        getattr(item, "bvid", "") for item in (meta or [])
+        if getattr(item, "bvid", "")
+    }
+    items = [
+        item for item in usage
+        if getattr(item, "kind", "comment") in ("comment", "danmaku")
+        and getattr(item, "bvid", "") not in meta_bvids
+    ]
+    return len({item.doc_id for item in items}), len({item.bvid for item in items if item.bvid})
+
+
 def _normalize_candidate(item: Any) -> dict:
     if isinstance(item, Meme):
+        docs, videos = _adoption_stats(item.usage, item.meta)
         return {
             "candidate_id": item.family_key,
             "canonical": item.canonical,
             "surface": item.canonical,
             "members": item.members,
-            "usage_videos": len({usage.bvid for usage in item.usage if usage.bvid}),
-            "usage_docs": len({usage.doc_id for usage in item.usage}),
+            "usage_videos": videos,
+            "usage_docs": docs,
             "meme": item,
         }
     if isinstance(item, Candidate):
+        docs, videos = _adoption_stats(item.usage, item.meta)
         return {
             "candidate_id": item.candidate_id,
             "canonical": item.canonical,
             "surface": item.surface,
             "members": [item.surface],
-            "usage_videos": item.df_video,
-            "usage_docs": len(item.usage),
+            "usage_videos": videos,
+            "usage_docs": docs,
             "meme": None,
         }
     payload = dict(item or {})

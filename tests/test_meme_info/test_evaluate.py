@@ -48,3 +48,23 @@ def test_discovery_metrics():
     assert report["positive_hits"] == 2
     assert report["negative_hits"] == 1
     assert report["recall_at_k"] == pytest.approx(2 / 3, abs=1e-4)
+
+
+def test_compare_reports_stability():
+    from meme_info.evaluate import compare_reports
+    left = {"memes": [
+        {"canonical": "A", "score": 90, "signals": {}},
+        {"canonical": "B", "score": 80, "signals": {}},
+        {"canonical": "C", "score": 70, "signals": {}},
+    ]}
+    right = {"memes": [
+        {"canonical": "A", "score": 91, "signals": {}},
+        {"canonical": "C", "score": 75, "signals": {}},
+        {"canonical": "D", "score": 60, "signals": {}},
+    ]}
+    result = compare_reports(left, right, k=3)
+    assert result["common"] == 2
+    assert result["added"] == ["d"]
+    assert result["removed"] == ["b"]
+    assert result["jaccard"] == pytest.approx(2 / 4)
+    assert result["order_changed"]

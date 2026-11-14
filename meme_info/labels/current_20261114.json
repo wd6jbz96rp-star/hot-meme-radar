@@ -1,7 +1,7 @@
 {
   "version": 1,
   "as_of": "2026-11-14",
-  "source": "silver: B站「梗百科/梗指南/梗学堂/是什么梗」标题与盘点视频 + 人工核对；不是 ground truth",
+  "source": "silver + 用户 16 条盲标优先（2026-11-14）；用户盲标冲突时以 blind_20261114_user.json 为准",
   "notes": "heat 1–5 按可见视频播放/近期活跃度粗标，用于排序校准的弱标签；confidence A=有专门梗视频，B=盘点/多处提及，C=证据不足或不确定。",
   "items": [
     {
@@ -10,7 +10,10 @@
       "current": true,
       "heat": 5,
       "confidence": "A",
-      "notes": "梗指南 2026-10-09，2.09M 播放；另有多条近期相关视频"
+      "notes": "梗指南 2026-10-09，2.09M 播放；另有多条近期相关视频",
+      "aliases": [
+        "司凤"
+      ]
     },
     {
       "canonical": "吃了不烧心",
@@ -45,7 +48,7 @@
       "current": true,
       "heat": 4,
       "confidence": "A",
-      "notes": "梗百科 2026-11-09，648k 播放"
+      "notes": "用户盲标 ✅（2026-11-14）；proper 只做审计，不硬杀"
     },
     {
       "canonical": "老实赚钱很枯燥吧",
@@ -57,11 +60,11 @@
     },
     {
       "canonical": "雪豹眉眉",
-      "label": "new_meme",
-      "current": true,
-      "heat": 3,
+      "label": "unclear",
+      "current": false,
+      "heat": 0,
       "confidence": "B",
-      "notes": "梗百科 2026-11-14，48k 播放；与「冷静点」同视频"
+      "notes": "用户盲标 ❓：不确定；保留 observing"
     },
     {
       "canonical": "冷静点",
@@ -81,11 +84,11 @@
     },
     {
       "canonical": "明码标价",
-      "label": "new_meme",
-      "current": true,
-      "heat": 3,
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
       "confidence": "A",
-      "notes": "梗百科 2026-11-14，13k 播放"
+      "notes": "用户盲标 ❌ + PM：普通成语"
     },
     {
       "canonical": "大禹治水",
@@ -101,7 +104,7 @@
       "current": true,
       "heat": 4,
       "confidence": "A",
-      "notes": "梗学堂 2026-10-22，500k 播放；近期多条相关视频"
+      "notes": "用户盲标 ✅（2026-11-14）；PM 修正误杀"
     },
     {
       "canonical": "老牧师",
@@ -212,11 +215,11 @@
     },
     {
       "canonical": "非凡之爱",
-      "label": "new_meme",
-      "current": true,
-      "heat": 2,
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
       "confidence": "A",
-      "notes": "梗指南 2026-11-??，4k 播放；AI MV 相关"
+      "notes": "用户盲标 ❌：AI MV 作品标题"
     },
     {
       "canonical": "我画地为牢啊",
@@ -231,11 +234,11 @@
     },
     {
       "canonical": "最怕BLG夺冠之人",
-      "label": "new_meme",
-      "current": true,
-      "heat": 2,
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
       "confidence": "C",
-      "notes": "梗指南 619k 播放；赛事语境强，按银标暂记为梗，待人工复核"
+      "notes": "用户盲标 ❌：赛事一次性标题"
     },
     {
       "canonical": "力工",
@@ -271,11 +274,11 @@
     },
     {
       "canonical": "腋毛攻击",
-      "label": "new_meme",
-      "current": true,
-      "heat": 2,
+      "label": "non_meme",
+      "current": false,
+      "heat": 0,
       "confidence": "B",
-      "notes": "同上"
+      "notes": "用户盲标 ❌：一次性说法"
     },
     {
       "canonical": "PiuPiuPiu",
@@ -586,6 +589,14 @@
       "heat": 4,
       "confidence": "A",
       "notes": "梗指南 2026，3.3M 播放；发布日期较久但仍在当前窗口"
+    },
+    {
+      "canonical": "闪身步",
+      "label": "new_meme",
+      "current": true,
+      "heat": 3,
+      "confidence": "B",
+      "notes": "蛋仔派对热梗/小曲，30 条弹幕使用 + 6 条相关视频；2026-11 仍活跃"
     }
   ]
 }

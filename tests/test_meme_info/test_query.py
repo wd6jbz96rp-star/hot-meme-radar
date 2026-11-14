@@ -99,3 +99,17 @@ def test_evidence_quotes_are_original_substrings():
     for meme in report.memes:
         for evidence in meme.evidence:
             assert evidence.quote in by_id[evidence.comment_id]
+
+
+def test_meta_only_meme_is_kept_but_flagged_without_2x2():
+    videos = [
+        make_video("BVA", "【梗百科】只有标题的梗是啥梗？", aid=1, pubdate=NOW - DAY,
+                   view=2_000_000, source="search:梗百科"),
+    ]
+    report = query_from_corpus(
+        make_corpus(videos, []), now=NOW, config=QueryConfig(limit=10, expand_queries=False)
+    )
+    # 用户盲标证明 explainer-only 可能真；查询层保留，发布门用 2×2 徽章决定。
+    assert any(meme.canonical == "只有标题的梗" for meme in report.memes)
+    target = next(meme for meme in report.memes if meme.canonical == "只有标题的梗")
+    assert target.signals["evidence_rate_2x2"] is False

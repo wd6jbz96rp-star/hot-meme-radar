@@ -111,6 +111,9 @@ class HeatSignals:
     usage_docs: int = 0
     usage_videos: int = 0
     usage_zones: int = 0
+    evidence_docs: int = 0
+    evidence_videos: int = 0
+    evidence_rate_2x2: bool = False
     usage_7d: int = 0
     usage_prev: int = 0
     organic_docs: int = 0
@@ -141,6 +144,9 @@ class HeatSignals:
             "usage_docs": self.usage_docs,
             "usage_videos": self.usage_videos,
             "usage_zones": self.usage_zones,
+            "evidence_docs": self.evidence_docs,
+            "evidence_videos": self.evidence_videos,
+            "evidence_rate_2x2": self.evidence_rate_2x2,
             "usage_7d": self.usage_7d,
             "usage_prev": self.usage_prev,
             "organic_docs": self.organic_docs,
@@ -204,6 +210,10 @@ class HeatModel:
         organic_zones = len({item.zone for item in organic if item.zone})
         usage_videos = len({item.bvid for item in usage_recent if item.bvid})
         usage_zones = len({item.zone for item in usage_recent if item.zone})
+        # 2×2 只认「独立使用」：排除该梗自己的梗百科/梗指南视频下的评论。
+        evidence_docs = len({item.doc_id for item in organic})
+        evidence_videos = len({item.bvid for item in organic if item.bvid})
+        evidence_rate_2x2 = evidence_docs >= 2 and evidence_videos >= 2
         per_video: dict[str, int] = {}
         for item in usage_recent:
             if item.bvid:
@@ -278,6 +288,9 @@ class HeatModel:
             usage_docs=len(usage_recent),
             usage_videos=usage_videos,
             usage_zones=usage_zones,
+            evidence_docs=evidence_docs,
+            evidence_videos=evidence_videos,
+            evidence_rate_2x2=evidence_rate_2x2,
             usage_7d=len(usage_7d),
             usage_prev=len(usage_prev),
             organic_docs=len(organic),
@@ -456,6 +469,9 @@ class HeatModel:
         }
         meme.components = components
         meme.reasons = self._reasons(meme, signals, rejection)
+        # 2×2 独立使用是「证据质量徽章」，不是查询硬门槛：用户盲标确认
+        # 部分 explainer-only 条目（吴家村/灭建国/MJ宇宙/狗尾草等）是真梗。
+        # 发布门再用 evidence_rate_2x2 决定是否只发「强证据」。
         return meme
 
     def _reasons(self, meme: Meme, signals: HeatSignals, rejection: str) -> list[str]:
@@ -493,6 +509,14 @@ class HeatModel:
             reasons.append(f"增速偏快（velocity={signals.velocity:.2f}）")
         elif signals.velocity <= 0.35 and signals.usage_prev:
             reasons.append("近 7 天较前期降温")
+        if signals.evidence_rate_2x2:
+            reasons.append(
+                f"独立使用证据 {signals.evidence_docs} 条 / {signals.evidence_videos} 个视频"
+            )
+        else:
+            reasons.append(
+                f"独立使用证据不足：{signals.evidence_docs} 条 / {signals.evidence_videos} 个视频"
+            )
         if signals.days_since_last <= 1:
             reasons.append("最近 24 小时仍有新证据")
         elif signals.days_since_last <= 7:
@@ -519,13 +543,14 @@ class HeatModel:
                 meme for meme in scored
                 if meme.status != "rejected" and meme.signals.get("is_current")
             ]
+        rank = {"hot": 0, "rising": 1, "observing": 2, "weak": 3, "rejected": 4}
         scored.sort(
             key=lambda meme: (
-                meme.status != "rejected",
-                meme.smoothed_score if meme.smoothed_score is not None else meme.score,
-                meme.confidence,
-                meme.last_seen,
-            ),
-            reverse=True,
+                rank.get(meme.status, 9),
+                -(meme.smoothed_score if meme.smoothed_score is not None else meme.score),
+                -meme.confidence,
+                -meme.last_seen,
+                meme.family_key,
+            )
         )
         return scored

@@ -92,18 +92,31 @@ def _label_rows(labels: Any) -> list[dict]:
         if not canonical:
             continue
         label = str(payload.get("label") or payload.get("type") or "unclear").strip()
-        aliases = [str(alias) for alias in (payload.get("aliases") or []) if str(alias).strip()]
-        members = [str(member) for member in (payload.get("members") or []) if str(member).strip()]
+        raw_aliases = payload.get("aliases") or []
+        if isinstance(raw_aliases, str):
+            raw_aliases = [part for part in raw_aliases.replace("|", ",").split(",")]
+        aliases = [str(alias) for alias in raw_aliases if str(alias).strip()]
+        raw_members = payload.get("members") or []
+        if isinstance(raw_members, str):
+            raw_members = raw_members.replace("|", ",").split(",")
+        members = [str(member) for member in raw_members if str(member).strip()]
         current = payload.get("current")
-        if current is None:
+        if isinstance(current, str):
+            current = current.strip().lower() in ("1", "true", "yes", "y", "是", "current")
+        if current is None or current == "":
             current = label in CURRENT_LABELS
         heat = payload.get("heat")
         heat_100 = payload.get("heat_100")
+        try:
+            heat = float(heat) if heat not in (None, "") else None
+        except (TypeError, ValueError):
+            heat = None
+        try:
+            heat_100 = float(heat_100) if heat_100 not in (None, "") else heat_100
+        except (TypeError, ValueError):
+            heat_100 = None
         if heat_100 is None and heat is not None:
-            try:
-                heat_100 = float(heat) * 20.0 if float(heat) <= 5 else float(heat)
-            except (TypeError, ValueError):
-                heat_100 = None
+            heat_100 = float(heat) * 20.0 if float(heat) <= 5 else float(heat)
         rows.append(
             {
                 "canonical": canonical,
@@ -225,11 +238,22 @@ def _metrics_for(
     def current_relevant(item: dict | None) -> bool:
         return bool(item and item["current"])
 
-    precision = sum(1 for item in matched if relevant(item)) / len(top) if top else 0.0
-    current_precision = sum(1 for item in matched if current_relevant(item)) / len(top) if top else 0.0
+    # P@k 的分母固定为 k：预测不足 k 条时，缺位按不相关计，避免 shortfall 把精度抬高。
+    denominator = k if k > 0 else len(top)
+    precision = sum(1 for item in matched if relevant(item)) / denominator if denominator else 0.0
+    current_precision = sum(1 for item in matched if current_relevant(item)) / denominator if denominator else 0.0
+    labeled_denominator = len(labels_found)
+    labeled_precision = (
+        sum(1 for item in labels_found if relevant(item)) / labeled_denominator
+        if labeled_denominator else 0.0
+    )
+    labeled_current_precision = (
+        sum(1 for item in labels_found if current_relevant(item)) / labeled_denominator
+        if labeled_denominator else 0.0
+    )
     new_precision = sum(
         1 for item in matched if item and item["label"] in {"new_meme", "recent_meme"}
-    ) / len(top) if top else 0.0
+    ) / denominator if denominator else 0.0
     first_relevant = next(
         (position + 1 for position, item in enumerate(matched) if relevant(item)), None
     )
@@ -243,6 +267,8 @@ def _metrics_for(
             relevances.append(1.0 if item["current"] else 0.5)
         else:
             relevances.append(0.0)
+    while len(relevances) < denominator:
+        relevances.append(0.0)
     evidence = [_row_evidence(row) for row in top]
     score_heat_pairs = [
         (float(row["score"]), float(item["heat_100"]))
@@ -257,20 +283,22 @@ def _metrics_for(
         "precision_at_k": round(precision, 4),
         "current_precision_at_k": round(current_precision, 4),
         "new_precision_at_k": round(new_precision, 4),
+        "labeled_precision_at_k": round(labeled_precision, 4),
+        "labeled_current_precision_at_k": round(labeled_current_precision, 4),
         "mrr": round(1.0 / first_relevant, 4) if first_relevant else 0.0,
         "ndcg_at_k": ndcg_at_k(relevances, k),
         "recall_labels": round(hit_positives / len(positives), 4) if positives else None,
         "recall_current": round(hit_current / len(current), 4) if current else None,
-        "label_coverage": round(len(labels_found) / len(top), 4) if top else 0.0,
+        "label_coverage": round(len(labels_found) / denominator, 4) if denominator else 0.0,
         "unmatched_rate": round(len(unmatched) / len(top), 4) if top else 0.0,
         "unmatched": unmatched[:10],
         "evidence_rate_2x2": round(
-            sum(1 for docs, videos, _meta in evidence if docs >= 2 and videos >= 2) / len(top), 4
-        ) if top else 0.0,
-        "meta_rate": round(sum(1 for _docs, _videos, meta in evidence if meta) / len(top), 4) if top else 0.0,
+            sum(1 for docs, videos, _meta in evidence if docs >= 2 and videos >= 2) / denominator, 4
+        ) if denominator else 0.0,
+        "meta_rate": round(sum(1 for _docs, _videos, meta in evidence if meta) / denominator, 4) if denominator else 0.0,
         "freshness_7d_rate": round(
-            sum(1 for row in top if (row.get("signals") or {}).get("usage_7d")) / len(top), 4
-        ) if top else 0.0,
+            sum(1 for row in top if (row.get("signals") or {}).get("usage_7d")) / denominator, 4
+        ) if denominator else 0.0,
         "label_counts": dict(sorted(label_counts.items())),
         "calibration": {
             "n": len(score_heat_pairs),
@@ -368,3 +396,39 @@ def render_markdown(report: dict) -> str:
                 f"{item.get('current_precision_at_k')} | {item.get('ndcg_at_k')} |"
             )
     return "\n".join(lines)
+
+
+def compare_reports(left: Any, right: Any, *, k: int = 20) -> dict:
+    """比较两次查询的 TopK，供稳定性验收（同 --now、同缓存）。"""
+    left_rows = _prediction_rows(left)[:k]
+    right_rows = _prediction_rows(right)[:k]
+
+    def key(row: dict) -> str:
+        return row.get("family_key") or normalize_surface(row.get("canonical") or "")
+
+    left_order = [key(row) for row in left_rows]
+    right_order = [key(row) for row in right_rows]
+    left_set, right_set = set(left_order), set(right_order)
+    union = left_set | right_set
+    common = left_set & right_set
+    left_scores = {key(row): row.get("score") for row in left_rows}
+    right_scores = {key(row): row.get("score") for row in right_rows}
+    moved = [
+        {"key": item, "left_rank": left_order.index(item) + 1, "right_rank": right_order.index(item) + 1}
+        for item in sorted(common)
+        if left_order.index(item) != right_order.index(item)
+    ]
+    return {
+        "k": k,
+        "left_n": len(left_rows),
+        "right_n": len(right_rows),
+        "jaccard": round(len(common) / len(union), 4) if union else 1.0,
+        "common": len(common),
+        "added": [item for item in right_order if item not in left_set],
+        "removed": [item for item in left_order if item not in right_set],
+        "order_changed": moved,
+        "score_deltas": {
+            item: round(float(right_scores.get(item) or 0) - float(left_scores.get(item) or 0), 2)
+            for item in sorted(common)
+        },
+    }

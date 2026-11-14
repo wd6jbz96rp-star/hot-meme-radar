@@ -138,3 +138,14 @@ def test_budget_exhausted_does_not_crash():
     extraction = extract_candidates([{"id": "1", "text": "测试梗", "ctime": NOW}], client, now=NOW)
     assert extraction["candidates"] == []
     assert extraction["reason"] == "budget"
+
+
+def test_verdict_cache_makes_same_family_stable(tmp_path):
+    client = FakeClient([verify_payload()])
+    verifier = SemanticVerifier(client, cache_dir=tmp_path)
+    first = verifier.verify_meme(make_meme(), now=NOW)
+    calls_after_first = client.calls_seen
+    second = verifier.verify_meme(make_meme(), now=NOW + 60)
+    assert first.is_meme is True
+    assert second.cached is True
+    assert client.calls_seen == calls_after_first

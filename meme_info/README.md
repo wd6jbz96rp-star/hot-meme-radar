@@ -132,7 +132,9 @@ comments/danmaku        ─┤
 - 2 字词不做「差一个字」归并（`上头` 不会并 `上课`，`出圈` 不会并 `出道`）；
 - 梗族的 canonical 依次取：种子 > 最高置信元话语 > 最高频候选；
 - `is_current`：近 60 天有梗视频/搜索关注，或近 7 天有使用，或近 30 天 ≥2 条使用；
-- 无近 30 天证据 → `stale`，不进入当前榜；只有旧梗百科、没有近期使用/关注 → 不算当前。
+- 无近 30 天证据 → `stale`，不进入当前榜；只有旧梗百科、没有近期使用/关注 → 不算当前；
+- **2×2 证据徽章**：`signals.evidence_docs ≥ 2` 且 `evidence_videos ≥ 2`（只数评论/弹幕，且排除该梗自己的梗视频下的评论）。它**不是查询硬门槛**——用户盲标确认 `吴家村/灭建国/MJ宇宙/狗尾草` 等 explainer-only 条目也是真梗；发布门再用该字段决定是否只发「强证据」；
+- **过滤规则**：`Knowledge.blocked_reason` 接入 lexicon/common words/proper noun（地名/机构后缀）与 PM 复核普通短语；被过滤项写入 `stats.discovery_audit`，可看到 `doc_mentions → candidate_before_filter → kept/reason`。
 
 ---
 
@@ -170,7 +172,8 @@ score      = 100 × base × recency × (0.7 + 0.3×confidence) × penalty
 
 - `days_since_last` 取最近一条元话语/使用证据；没有近期证据自然掉分。
 - `penalty`：单视频占比 >0.7 → 最多 ×0.7；只有 1 个梗视频且无使用 → ×0.9；常青词且无专门梗视频 → ×0.75。
-- 分数 0–100；`hot` ≥50，`rising/observing` ≥15，低于 15 为 `weak`；无证据/旧证据/单视频/低梗性 → `rejected`。
+- 分数 0–100；`hot` ≥50，`rising/observing` ≥15，低于 15 为 `weak`；无证据/旧证据/单视频/低梗性 → `rejected`；
+- `HotMemeReport.memes` 放入本轮 `hot/rising/observing` 的当前项（查询不因 2×2 硬杀掉 explainer-only 真梗）；`report.observing` 是其中 `status=observing` 的子集，供发布门/UI 标「观察」。发布门应只发 `hot/rising` 且 `evidence_rate_2x2=true` 的强证据项。
 - 每次输出 `components`（raw/weight/points）与 `reasons`（中文），可逐项核对。
 - 历史平滑：传入 `history` 时输出 `smoothed_score = 0.65×本轮 + 0.35×上轮`，排序优先用平滑分；`score` 保留本轮原始值。
 
@@ -232,11 +235,12 @@ Candidate = {"candidate_id": "sha1(norm)", "surface": "...", "canonical": "...",
 
 Meme = {"family_key": "...", "canonical": "...", "members": [...],
         "score": 0.0, "status": "hot|rising|observing|weak|rejected",
-        "components": {...}, "signals": {...}, "reasons": [...], ...}
+        "components": {...}, "signals": {"evidence_docs": 0, "evidence_videos": 0,
+        "evidence_rate_2x2": false, ...}, "reasons": [...], ...}
 
 HotMemeReport = {"schema_version": "meme-info/v1", "generated_at": "...",
-                 "memes": [...], "candidates": [...], "stats": {...},
-                 "config": {...}, "notes": [...]}
+                 "memes": [...], "observing": [...], "candidates": [...],
+                 "stats": {...}, "config": {...}, "notes": [...]}
 ```
 
 ---
@@ -266,8 +270,8 @@ HotMemeReport = {"schema_version": "meme-info/v1", "generated_at": "...",
 ## 8. 测试与评测
 
 ```bash
-pytest -q tests/test_meme_info          # 49 passed
-pytest -q tests                         # 全仓 263 passed
+pytest -q tests/test_meme_info          # 59 passed
+pytest -q tests                         # 全仓 273 passed
 ```
 
 测试覆盖：
@@ -275,7 +279,7 @@ pytest -q tests                         # 全仓 263 passed
 - 文本归一化、原文定位（找不到返回空，不编造）；
 - 短词不误归并（上头/上课、出圈/出道、野生/野生狗奶）；
 - 标题元话语/盘点抽取；不把《原神》《循环歌单》当梗；
-- 2 条评论 + 2 个视频证据门槛、同族合并；
+- 2 条评论 + 2 个视频的独立使用徽章、同族合并；
 - 热度单调性/时间衰减/单视频/常青惩罚/历史平滑；
 - 端到端 JSON、离线 fixture、CLI exit code；
 - LLM 坏 JSON/预算/未配置/证据白名单；
@@ -284,8 +288,11 @@ pytest -q tests                         # 全仓 263 passed
 评测口径：
 
 - `meme_info/labels/current_20261114.json` 是**银标**（来自梗百科/梗指南/盘点标题 + 人工核对），不是 ground truth；
-- `eval` 输出 precision@k、current precision@k、new precision@k、nDCG@k、recall、evidence/freshness 率、Spearman/MAE 校准；
-- 单信号基线（meta_views / usage_docs / recency）在同一批候选上对比，避免只报绝对值。
+- `meme_info/labels/blind_20261114_user.json` 是**用户 16 条盲标**（2026-11-14），冲突时**以用户盲标为准**；`扎啤/吴家村` 不得误杀；
+- `eval` 输出 precision@k、current precision@k、new precision@k、labeled precision@k、nDCG@k、recall、evidence/freshness 率、Spearman/MAE 校准；P@k 分母固定为 k，预测不足 k 条时按缺位计，不抬高 shortfall 的精度；`labeled_*` 只对有标签的预测算，必须与标准 P@k 分栏报告；
+- 单信号基线（meta_views / usage_docs / recency）在同一批候选上对比，避免只报绝对值；
+- `stability --left a.json --right b.json --k 20`：比较两次同 `--now` 查询的 Top20（Jaccard/added/removed/order_changed/score_delta）；
+- `blind --pred report.json --out labels.csv --n 100 --top 8`：生成盲标模板（只给 canonical + 评论/弹幕证据，隐藏分数/元话语）；用户填好后 `eval --labels labels.csv` 直接读 CSV。
 
 ---
 
@@ -305,7 +312,8 @@ pytest -q tests                         # 全仓 263 passed
 - 只覆盖 B站；微博/抖音/小红书未实现。
 - 文本可检测：图像梗、表情包梗、BGM/空耳梗不在范围内（`↑↓←→` 这类符号梗例外）。
 - 谐音变体依赖种子/别名和字符相似度，不能自动发现同音不同字。
-- 评论/弹幕是采样：证据深度不均，meta-only 条目仍可能出现；报告里用 `evidence_rate_2x2` 明示。
+- 评论/弹幕是采样：证据深度不均，meta-only 条目仍可能出现；它们会标 `status=observing`、进入 `report.observing` 子集，`signals.evidence_rate_2x2` 明示，发布门不得当强证据。
+- 2×2 徽章会让强证据发布列表出现 shortfall；模块查询不 top-up，也不因徽章误杀用户确认的 explainer-only 梗；需要更多强证据时扩评论/弹幕采样。
 - 搜索接口会触发 `v_voucher`/风控；单条失败只记账，不影响整轮，但会降低个别梗的召回。
 - 热度是「当前页面的可见热度」，不是全网真实热度；平台采样、推荐偏差都会影响。
 - 银标评测存在循环性：标签来自同一搜索通道，precision 偏高；不要对外宣称 ground-truth 准确率。

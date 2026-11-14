@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -17,7 +19,7 @@ from typing import Any
 from .bili import BiliSource
 from .collect import CollectionPlan, collect_corpus
 from .discover import DiscoveryConfig, extract_candidates, extract_meta_mentions, merge_families
-from .evaluate import evaluate, render_markdown
+from .evaluate import compare_reports, evaluate, render_markdown
 from .heat import HeatConfig, HeatModel
 from .knowledge import Knowledge
 from .models import Corpus, HotMemeReport, as_jsonable, iso, now_ts
@@ -28,6 +30,13 @@ from .verify import review_candidates as llm_review
 
 def _read_json(path: str | Path) -> Any:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _read_labels(path: str | Path) -> Any:
+    target = Path(path)
+    if target.suffix.lower() == ".csv":
+        return list(csv.DictReader(target.read_text(encoding="utf-8").splitlines()))
+    return _read_json(target)
 
 
 def _write_json(path: str | None, payload: Any) -> None:
@@ -125,11 +134,14 @@ def _print_query_summary(report: HotMemeReport) -> None:
     print(
         f"热点查询完成：{stats.get('videos', 0)} 视频 / {stats.get('comments', 0)} 评论 / "
         f"{stats.get('danmaku', 0)} 弹幕；候选 {stats.get('discovery_candidates', 0)}，"
-        f"梗族 {stats.get('families', 0)}，当前 {stats.get('current_families', 0)}；"
+        f"梗族 {stats.get('families', 0)}，当前 {stats.get('current_families', 0)}，"
+        f"观察 {stats.get('observing_families', 0)}；"
         f"请求 {stats.get('requests_total', stats.get('requests', 0))}，耗时 {stats.get('elapsed_total', stats.get('elapsed', '?'))}s"
     )
     if not report.memes:
-        print("没有达到证据门槛的当前热梗。")
+        print("没有达到 2×2 独立使用证据门槛的当前热梗。")
+        if report.observing:
+            print("观察池：" + "、".join(item.canonical for item in report.observing[:8]))
         return
     print(f"{'#':>2}  {'梗':<18} {'分':>6}  {'状态':<10} {'证据':<20} 理由")
     for index, meme in enumerate(report.memes, start=1):
@@ -255,7 +267,7 @@ def cmd_eval(args) -> int:
         predictions = payload["candidates"]
     else:
         predictions = payload
-    labels = _read_json(args.labels)
+    labels = _read_labels(args.labels)
     report = evaluate(predictions, labels, k=args.k)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if args.markdown:
@@ -308,6 +320,73 @@ def cmd_extract(args) -> int:
     _write_json(args.out, result)
     if not args.quiet:
         print(f"抽取：{len(result['candidates'])} 候选，calls={result['calls']}，reason={result['reason']}")
+    return 0
+
+
+def cmd_stability(args) -> int:
+    left = _read_json(args.left)
+    right = _read_json(args.right)
+    result = compare_reports(left, right, k=args.k)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.out:
+        _write_json(args.out, result)
+    return 0 if result["jaccard"] >= args.min_jaccard else 3
+
+
+def cmd_blind(args) -> int:
+    payload = _read_json(args.pred)
+    rows = payload.get("candidates") if isinstance(payload, dict) and payload.get("candidates") else []
+    top = payload.get("memes") if isinstance(payload, dict) else []
+    if not rows and isinstance(payload, dict):
+        rows = payload.get("memes") or []
+    if not rows:
+        print("输入没有 candidates/memes", file=sys.stderr)
+        return 1
+    top_n = min(args.top, len(top))
+    top_rows = list(top[:top_n])
+    top_ids = {item.get("family_key") or item.get("canonical") for item in top_rows}
+    rest = [
+        item for item in rows
+        if (item.get("family_key") or item.get("canonical")) not in top_ids
+    ]
+    rng = random.Random(args.seed)
+    rng.shuffle(rest)
+    selected = top_rows + rest[: max(0, args.n - len(top_rows))]
+    rng.shuffle(selected)
+    output = []
+    for index, item in enumerate(selected, start=1):
+        quotes = []
+        for usage in item.get("usage") or []:
+            if usage.get("kind") not in ("comment", "danmaku"):
+                continue
+            text = (usage.get("text") or "").strip()
+            if text and text not in quotes:
+                quotes.append(text[:80])
+            if len(quotes) >= 3:
+                break
+        output.append({
+            "id": f"blind-{index:03d}",
+            "canonical": item.get("canonical") or item.get("family_key") or "",
+            "type": item.get("type") or "",
+            "evidence": " | ".join(quotes)[:300],
+            "label": "",
+            "current": "",
+            "heat": "",
+            "confidence": "",
+            "notes": "",
+        })
+    target = Path(args.out)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["id", "canonical", "type", "evidence", "label", "current", "heat", "confidence", "notes"],
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(output)
+    if not args.quiet:
+        print(f"已生成盲标模板：{len(output)} 行 -> {target}（label/current/heat 留空）")
     return 0
 
 
@@ -395,6 +474,23 @@ def build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--max-calls", type=int, default=3)
     extract.add_argument("--max-comments", type=int, default=450)
     extract.set_defaults(func=cmd_extract)
+
+    stability = sub.add_parser("stability", help="比较两次查询的 TopK 稳定性")
+    stability.add_argument("--left", required=True)
+    stability.add_argument("--right", required=True)
+    stability.add_argument("--k", type=int, default=20)
+    stability.add_argument("--min-jaccard", type=float, default=0.8)
+    stability.add_argument("--out", default=None)
+    stability.set_defaults(func=cmd_stability)
+
+    blind = sub.add_parser("blind", help="生成盲标 CSV（隐藏分数/元话语，只给评论证据）")
+    blind.add_argument("--pred", required=True)
+    blind.add_argument("--out", required=True)
+    blind.add_argument("--n", type=int, default=60)
+    blind.add_argument("--top", type=int, default=20)
+    blind.add_argument("--seed", type=int, default=20261114)
+    blind.add_argument("--quiet", action="store_true")
+    blind.set_defaults(func=cmd_blind)
     return parser
 
 

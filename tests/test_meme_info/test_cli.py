@@ -99,3 +99,39 @@ def test_module_does_not_import_app():
         text = path.read_text(encoding="utf-8")
         assert "import app" not in text, path
         assert "from app" not in text, path
+
+
+def test_blind_template_and_csv_eval(tmp_path):
+    pred = {
+        "memes": [
+            {"canonical": "真梗", "score": 90, "type": "词", "usage": [
+                {"kind": "comment", "text": "真梗好笑", "doc_id": "1", "bvid": "B1"},
+            ]},
+            {"canonical": "新闻", "score": 80, "type": "词", "usage": []},
+        ],
+        "candidates": [
+            {"canonical": "真梗", "score": 90, "type": "词", "usage": []},
+            {"canonical": "新闻", "score": 80, "type": "词", "usage": []},
+        ],
+    }
+    pred_path = tmp_path / "pred.json"
+    blind_path = tmp_path / "blind.csv"
+    pred_path.write_text(json.dumps(pred), encoding="utf-8")
+    assert cli.main(["blind", "--pred", str(pred_path), "--out", str(blind_path), "--n", "2", "--top", "1", "--quiet"]) == 0
+    rows = list(__import__("csv").DictReader(blind_path.read_text(encoding="utf-8").splitlines()))
+    assert len(rows) == 2
+    assert "score" not in rows[0]
+    assert all(row["label"] == "" for row in rows)
+
+    for row in rows:
+        row["label"] = "new_meme" if row["canonical"] == "真梗" else "news_event"
+        row["current"] = "true" if row["canonical"] == "真梗" else "false"
+        row["heat"] = "5" if row["canonical"] == "真梗" else "0"
+    with blind_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = __import__("csv").DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    out = tmp_path / "eval.json"
+    assert cli.main(["eval", "--pred", str(pred_path), "--labels", str(blind_path), "--k", "2", "--out", str(out)]) == 0
+    metrics = json.loads(out.read_text(encoding="utf-8"))
+    assert metrics["precision_at_k"] == 0.5

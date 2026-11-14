@@ -1,0 +1,4994 @@
+{
+ "schema_version": "meme-info/v1",
+ "generated_at": "2026-11-14T22:30:00+08:00",
+ "as_of": "2026-11-14T22:30:00+08:00",
+ "window_days": 30,
+ "config": {
+  "plan": {
+   "zones": [
+    119,
+    160,
+    1,
+    4,
+    181,
+    3,
+    5,
+    36
+   ],
+   "popular_size": 50,
+   "search_queries": [
+    "热梗",
+    "近期热梗",
+    "{year}热梗",
+    "梗百科",
+    "梗指南",
+    "什么梗",
+    "爆火热梗",
+    "网络热梗",
+    "盘点热梗",
+    "梗学堂"
+   ],
+   "search_limit": 20,
+   "comment_videos": 45,
+   "comment_modes": [
+    3,
+    2
+   ],
+   "comment_pages": {
+    "3": 1,
+    "2": 2
+   },
+   "comment_window_days": 30,
+   "comment_recent_days": 7,
+   "comment_max_per_video": 40,
+   "danmaku_videos": 10,
+   "max_danmaku_per_video": 200,
+   "max_requests": 330,
+   "enable_search": true,
+   "enable_hot_search": true,
+   "search_recent_days": 120
+  },
+  "heat": {
+   "meta_window_days": 90,
+   "current_meta_days": 60,
+   "usage_window_days": 30,
+   "recent_days": 7,
+   "meta_half_life_days": 21.0,
+   "usage_half_life_days": 10.0,
+   "video_view_anchor": 5000000,
+   "meta_count_anchor": 6,
+   "usage_count_anchor": 40,
+   "usage_video_anchor": 12,
+   "like_anchor": 120,
+   "weights": {
+    "meta_reach": 0.45,
+    "meta_coverage": 0.18,
+    "organic": 0.13,
+    "velocity": 0.07,
+    "engagement": 0.09,
+    "breadth": 0.04,
+    "prior": 0.04
+   },
+   "min_meme_prob": 0.5,
+   "hot_threshold": 50.0,
+   "observe_threshold": 15.0,
+   "min_usage_videos": 2,
+   "min_usage_docs": 2,
+   "history_alpha": 0.65
+  },
+  "discovery": {
+   "min_count": 3,
+   "min_df": 2,
+   "min_cohesion": 3.0,
+   "min_entropy": 1.0,
+   "max_candidates": 2000
+  },
+  "limit": 30,
+  "expand_queries": true,
+  "expand_limit": 20,
+  "interest_window_days": 60,
+  "verify": true,
+  "verify_gate": true,
+  "verify_limit": 40,
+  "meta_max_age_days": 365,
+  "audit_names": [
+   "音乐",
+   "扎啤",
+   "明码标价",
+   "吴家村"
+  ]
+ },
+ "stats": {
+  "videos": 943,
+  "ranking_videos": 752,
+  "popular_videos": 50,
+  "search_videos": 199,
+  "search_queries": 10,
+  "search_fail": 0,
+  "hot_search_terms": 30,
+  "comments": 1015,
+  "comments_7d": 694,
+  "comments_filtered_old": 1061,
+  "comment_dupes": 152,
+  "comment_requests": 135,
+  "danmaku": 2000,
+  "danmaku_videos": 10,
+  "docs": 4701,
+  "budget_exhausted": false,
+  "errors": [],
+  "hot_search": [
+   {
+    "keyword": "上B站为BLG加油",
+    "heat": 57846498
+   },
+   {
+    "keyword": "WB年总夺冠圆梦凤凰山",
+    "heat": 52847157
+   },
+   {
+    "keyword": "UP主赛前应援BLG",
+    "heat": 40748868
+   },
+   {
+    "keyword": "北京WB战胜北京JDG赛后数据",
+    "heat": 18280619
+   },
+   {
+    "keyword": "热梗编年史",
+    "heat": 4861011
+   },
+   {
+    "keyword": "国足2-0马来西亚",
+    "heat": 4002920
+   },
+   {
+    "keyword": "BLG 决赛我们来了",
+    "heat": 3134566
+   },
+   {
+    "keyword": "国足马来西亚爆发冲突",
+    "heat": 2191964
+   },
+   {
+    "keyword": "日本3-2巴西",
+    "heat": 2052202
+   },
+   {
+    "keyword": "梓墨获2026KPL年总FMVP",
+    "heat": 1650740
+   },
+   {
+    "keyword": "大范围雨雪降温将至",
+    "heat": 1177558
+   },
+   {
+    "keyword": "周深KPL总决赛开场秀太燃了",
+    "heat": 1084310
+   },
+   {
+    "keyword": "终末地有种杯S2",
+    "heat": 1075178
+   },
+   {
+    "keyword": "S16总决赛对阵预热片",
+    "heat": 1061222
+   },
+   {
+    "keyword": "管泽元问Bang哪个位置最关键",
+    "heat": 1020795
+   },
+   {
+    "keyword": "S16唤醒了谁的青春记忆",
+    "heat": 1020794
+   },
+   {
+    "keyword": "灰太狼红太狼版非凡之爱",
+    "heat": 1020792
+   },
+   {
+    "keyword": "中老年病痛为何演变成烂梗",
+    "heat": 1020791
+   },
+   {
+    "keyword": "布隆迪的30年民族大逃杀",
+    "heat": 1020790
+   },
+   {
+    "keyword": "韩立",
+    "heat": 1020779
+   },
+   {
+    "keyword": "耗资万元把匠魂做进MC",
+    "heat": 1020760
+   },
+   {
+    "keyword": "S16冠亚军决赛预告",
+    "heat": 1020315
+   },
+   {
+    "keyword": "S16故事性拉满的名场面",
+    "heat": 1016396
+   },
+   {
+    "keyword": "火影手游尾兽化金角实战",
+    "heat": 1001026
+   },
+   {
+    "keyword": "国际秩序转变下的东亚现状",
+    "heat": 992324
+   },
+   {
+    "keyword": "宋老虎国道设宴招待刘华强",
+    "heat": 988482
+   },
+   {
+    "keyword": "2026六大Pro Max影像横评",
+    "heat": 983820
+   },
+   {
+    "keyword": "美国为何发生航班大规模停飞",
+    "heat": 982457
+   },
+   {
+    "keyword": "写在S赛舞台上的执念",
+    "heat": 971386
+   },
+   {
+    "keyword": "JDG 把光借给BLG",
+    "heat": 961610
+   }
+  ],
+  "video_sources": {
+   "BV11CWD6EEjf": [
+    "popular",
+    "search:热梗"
+   ],
+   "BV114h96GEyq": [
+    "search:热梗",
+    "search:盘点热梗"
+   ],
+   "BV16aHG6xEn5": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1hgWm65E5c": [
+    "search:热梗",
+    "search:网络热梗"
+   ],
+   "BV1ADWr6XE82": [
+    "search:热梗",
+    "search:盘点热梗"
+   ],
+   "BV1rPZJBeE9N": [
+    "search:热梗",
+    "search:盘点热梗"
+   ],
+   "BV1gHJB63EGt": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:盘点热梗"
+   ],
+   "BV17vHG6WE5j": [
+    "search:热梗",
+    "search:2026热梗",
+    "search:盘点热梗"
+   ],
+   "BV1iJnz6sEAA": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1ZDWy6JEzp": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1G6xd6CEAK": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:盘点热梗"
+   ],
+   "BV1Z34y6oE8P": [
+    "search:热梗",
+    "search:盘点热梗"
+   ],
+   "BV1aCWe65EFt": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1noWt63E7F": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:梗百科",
+    "search:梗指南",
+    "search:爆火热梗"
+   ],
+   "BV1dKWJ6VEh4": [
+    "search:热梗",
+    "search:近期热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1TDJE6SEdt": [
+    "search:热梗",
+    "search:2026热梗",
+    "search:网络热梗"
+   ],
+   "BV1ZQau63EUf": [
+    "search:热梗",
+    "search:2026热梗"
+   ],
+   "BV1CpaH6UEuc": [
+    "search:热梗",
+    "search:爆火热梗",
+    "search:盘点热梗"
+   ],
+   "BV15GWY62EZ1": [
+    "search:近期热梗",
+    "search:网络热梗"
+   ],
+   "BV1HpW368Ema": [
+    "search:近期热梗",
+    "search:2026热梗"
+   ],
+   "BV1JEWT62E1n": [
+    "search:近期热梗",
+    "search:爆火热梗",
+    "search:盘点热梗",
+    "search:梗学堂"
+   ],
+   "BV1NFn867EtE": [
+    "search:2026热梗",
+    "search:爆火热梗",
+    "search:网络热梗"
+   ],
+   "BV1YUsG6sE9a": [
+    "search:梗百科",
+    "search:什么梗"
+   ],
+   "BV1pXxM6FEmE": [
+    "search:梗百科",
+    "search:梗指南",
+    "search:梗学堂"
+   ],
+   "BV1hQWB6sEpe": [
+    "search:梗指南",
+    "search:什么梗"
+   ],
+   "BV174486nEYB": [
+    "search:梗指南",
+    "search:什么梗"
+   ],
+   "BV1zp4E6WEfk": [
+    "search:梗指南",
+    "search:什么梗"
+   ],
+   "BV1tUnm6BEDY": [
+    "search:什么梗",
+    "search:爆火热梗",
+    "search:梗学堂"
+   ],
+   "BV1QBWn6gEMm": [
+    "search:什么梗",
+    "search:梗学堂"
+   ],
+   "BV1Eesd69E7W": [
+    "search:爆火热梗",
+    "search:盘点热梗"
+   ],
+   "BV15gDLBbEt3": [
+    "search:爆火热梗",
+    "search:网络热梗"
+   ],
+   "BV1z7411d779": [
+    "search:爆火热梗",
+    "search:盘点热梗"
+   ],
+   "BV1mv4Y6rESW": [
+    "search:爆火热梗",
+    "search:梗学堂"
+   ]
+  },
+  "comment_targets": 45,
+  "comment_target_roles": {
+   "search": 22,
+   "ranking": 23
+  },
+  "comment_evidence_ready": true,
+  "elapsed": 10.0,
+  "requests": 15,
+  "cache_hits": 163,
+  "endpoint_counts": {
+   "home": 1,
+   "spi": 1,
+   "nav": 1,
+   "search": 10,
+   "pagelist": 1,
+   "danmaku": 1
+  },
+  "search_failures": {},
+  "source_errors": [],
+  "discovery_candidates": 2000,
+  "families": 1842,
+  "families_with_meta": 42,
+  "families_with_usage": 1842,
+  "current_families": 26,
+  "observing_families": 9,
+  "current_2x2": 13,
+  "rejected_families": 1789,
+  "verification": {
+   "attempted": 40,
+   "ok": 21,
+   "rejected": 20,
+   "errors": 0,
+   "llm": {
+    "calls": 36,
+    "prompt_tokens": 34416,
+    "completion_tokens": 5560,
+    "total_tokens": 39976,
+    "errors": []
+   },
+   "llm_config": {
+    "base_url": "https://api.deepseek.com/v1",
+    "model": "deepseek-chat",
+    "configured": true,
+    "max_calls": 40
+   }
+  },
+  "discovery_audit": {
+   "names": [
+    "音乐",
+    "扎啤",
+    "明码标价",
+    "吴家村"
+   ],
+   "blocked_by_reason": {
+    "numeric": 35,
+    "lexicon": 38,
+    "marketing": 3,
+    "generic_word": 10,
+    "news_like": 7,
+    "sensitive": 1,
+    "short_ascii": 45,
+    "no_evidence": 5
+   },
+   "raw_candidates": 2361,
+   "kept_candidates": 2217,
+   "named": {
+    "音乐": {
+     "norm": "音乐",
+     "doc_mentions": 53,
+     "candidate_before_filter": false,
+     "kept": false,
+     "reason": "lexicon"
+    },
+    "扎啤": {
+     "norm": "扎啤",
+     "doc_mentions": 4,
+     "candidate_before_filter": true,
+     "kept": true,
+     "reason": ""
+    },
+    "明码标价": {
+     "norm": "明码标价",
+     "doc_mentions": 0,
+     "candidate_before_filter": false,
+     "kept": false,
+     "reason": "not_present"
+    },
+    "吴家村": {
+     "norm": "吴家村",
+     "doc_mentions": 2,
+     "candidate_before_filter": true,
+     "kept": true,
+     "reason": ""
+    }
+   }
+  },
+  "report_elapsed": 65.55,
+  "collection_elapsed": 10.0,
+  "collection_requests": 15,
+  "expansion": {
+   "attempted": 20,
+   "hit": 19,
+   "miss": 1,
+   "errors": 0,
+   "meta_added": 22,
+   "interest_added": 61,
+   "queries": [
+    "吃了不烧心 梗",
+    "司凤音乐 梗",
+    "扎啤 梗",
+    "老牧师 梗",
+    "灭建国 梗",
+    "非凡之爱 梗",
+    "蓝色大肥鱼 梗",
+    "老实赚钱很枯燥吧 梗",
+    "没希望，佩不上 梗",
+    "心生爱慕 梗",
+    "MJ宇宙 梗",
+    "冷静点 梗",
+    "雪豹眉眉 梗",
+    "Ai拟人化潮流 梗",
+    "PiuPiuPiu 梗",
+    "腋毛攻击 梗",
+    "请善待二旬老人 梗",
+    "doge 梗",
+    "中国人能飞 梗",
+    "闪身步 梗"
+   ]
+  },
+  "requests_total": 35,
+  "elapsed_total": 65.5,
+  "source_stats": {
+   "requests": 35,
+   "cache_hits": 163,
+   "endpoint_counts": {
+    "home": 1,
+    "spi": 1,
+    "nav": 1,
+    "search": 30,
+    "pagelist": 1,
+    "danmaku": 1
+   },
+   "errors": [],
+   "search_failures": {},
+   "comment_failures": {}
+  }
+ },
+ "notes": [
+  "热度分 0–100，由元话语、使用、增速、互动、广度、先验合成；低于门槛或证据不足不下发。",
+  "证据为公开 B站 数据，评论样例会截断；原始视频/评论可通过 evidence_ids 回查。"
+ ],
+ "memes": [
+  {
+   "family_key": "吃了不烧心",
+   "canonical": "吃了不烧心",
+   "type": "词",
+   "members": [
+    "不烧心",
+    "吃了不烧心",
+    "烧心",
+    "吃了不烧心是"
+   ],
+   "known": false,
+   "score": 79.0,
+   "raw_score": 79.35,
+   "status": "hot",
+   "heat_level": "爆发",
+   "confidence": 1.0,
+   "meme_prob": 1,
+   "signals": {
+    "meta_videos": 2,
+    "meta_interest_videos": 3,
+    "meta_ups": 2,
+    "meta_views": 5710224.5,
+    "meta_views_editorial": 5596304,
+    "meta_views_interest": 325487,
+    "meta_likes": 144335,
+    "meta_replies": 9082,
+    "meta_7d": 1,
+    "meta_prev": 4,
+    "usage_docs": 49,
+    "usage_videos": 7,
+    "usage_zones": 5,
+    "evidence_docs": 30,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 14,
+    "usage_prev": 35,
+    "organic_docs": 30,
+    "organic_videos": 5,
+    "organic_likes": 7,
+    "like_weighted": 6.78,
+    "mean_like": 0.23,
+    "max_video_share": 0.469,
+    "last_ts": 1794658065,
+    "days_since_last": 0.1,
+    "recency": 0.996,
+    "velocity": 0.367,
+    "confidence": 1.0,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 1.0,
+     "weight": 0.45,
+     "points": 45.0
+    },
+    "meta_coverage": {
+     "raw": 0.7333,
+     "weight": 0.18,
+     "points": 13.2
+    },
+    "organic": {
+     "raw": 0.7327,
+     "weight": 0.13,
+     "points": 9.52
+    },
+    "velocity": {
+     "raw": 0.367,
+     "weight": 0.07,
+     "points": 2.57
+    },
+    "engagement": {
+     "raw": 0.2686,
+     "weight": 0.09,
+     "points": 2.42
+    },
+    "breadth": {
+     "raw": 0.7595,
+     "weight": 0.04,
+     "points": 3.04
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9956,
+     "days_since_last": 0.1,
+     "points": -0.35
+    },
+    "confidence": {
+     "value": 1.0,
+     "factor": 1.0
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.469,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 2,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 2 个梗视频，合计 5,596,304 播放",
+    "定向搜索到 3 个近期相关视频，合计 325,487 播放",
+    "评论/弹幕使用 30 条、覆盖 5 个视频",
+    "近 7 天新增 14 条证据",
+    "独立使用证据 30 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 72.0,
+    "confidence": 0.82,
+    "reason": "有「吃了不烧心是什么梗【梗指南】」视频（BV1N2pc6gErK，332万播放），另有「不烧心是啥梗」梗百科及多条二创视频（BV1U1p567ETx、BV1Gmpu6rEGu），评论中反复出现「不烧心」「吃了不烧心」的复制使用，且11月仍有新评论，符合可复制符号单元与近期活跃特征。",
+    "evidence_ids": [
+     "video:BV1N2pc6gErK",
+     "video:BV1U1p567ETx",
+     "video:BV1Gmpu6rEGu",
+     "BV1GGHj6REow:317928824417",
+     "BV1N2pc6gErK:323765352368",
+     "BV1iJnz6sEAA:323910891152"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "吃了不烧心",
+     "canonical": "吃了不烧心",
+     "norm": "吃了不烧心",
+     "bvid": "BV11ts562E4t",
+     "title": "更了不烧心，不更更烧心",
+     "pubdate": 1794658065,
+     "view": 113,
+     "like": 3,
+     "reply": 1,
+     "danmaku": 0,
+     "owner": "白嫖到Lv6",
+     "query": "吃了不烧心 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "吃了不烧心",
+     "canonical": "吃了不烧心",
+     "norm": "吃了不烧心",
+     "bvid": "BV1U1p567ETx",
+     "title": "烧心动画《吃了不烧心》《规矩不能坏》全系大合集 一口气看完",
+     "pubdate": 1791689400,
+     "view": 306513,
+     "like": 2821,
+     "reply": 603,
+     "danmaku": 2312,
+     "owner": "辣条渡劫失败",
+     "query": "吃了不烧心 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "吃了不烧心",
+     "canonical": "吃了不烧心",
+     "norm": "吃了不烧心",
+     "bvid": "BV1Gmpu6rEGu",
+     "title": "【循环歌单】【不烧心の小曲】【AI短剧の小曲】《囚笼》“一键三连的规矩不能坏，UP看见不烧心.”",
+     "pubdate": 1791676800,
+     "view": 18861,
+     "like": 189,
+     "reply": 16,
+     "danmaku": 7,
+     "owner": "YouYou-音乐",
+     "query": "吃了不烧心 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1GGHj6REow:317928824417",
+     "quote": "不烧心",
+     "ctime": 1792753728,
+     "like": 7,
+     "bvid": "BV1GGHj6REow",
+     "kind": "comment",
+     "video_title": "【梗百科】不烧心是啥梗？",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV1i8nm6SE8f:321678402944",
+     "quote": "吃了不烧心",
+     "ctime": 1792808205,
+     "like": 6,
+     "bvid": "BV1i8nm6SE8f",
+     "kind": "comment",
+     "video_title": "早读时和同桌唱网络热梗#三角洲行动 #三角洲黑潮爆破 #三角洲黑潮爆破新手攻略",
+     "zone": "网络游戏"
+    },
+    {
+     "comment_id": "BV1N2pc6gErK:323765352368",
+     "quote": "不烧心",
+     "ctime": 1794499177,
+     "like": 2,
+     "bvid": "BV1N2pc6gErK",
+     "kind": "comment",
+     "video_title": "吃了不烧心是什么梗【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "司凤音乐",
+   "canonical": "司凤音乐",
+   "type": "词",
+   "members": [
+    "司凤音乐",
+    "司凤音乐是"
+   ],
+   "known": false,
+   "score": 71.42,
+   "raw_score": 73.47,
+   "status": "hot",
+   "heat_level": "爆发",
+   "confidence": 0.9652,
+   "meme_prob": 0.98,
+   "signals": {
+    "meta_videos": 2,
+    "meta_interest_videos": 2,
+    "meta_ups": 2,
+    "meta_views": 3512017.6,
+    "meta_views_editorial": 3408783,
+    "meta_views_interest": 294956,
+    "meta_likes": 84121,
+    "meta_replies": 3186,
+    "meta_7d": 0,
+    "meta_prev": 4,
+    "usage_docs": 5,
+    "usage_videos": 3,
+    "usage_zones": 3,
+    "evidence_docs": 2,
+    "evidence_videos": 2,
+    "evidence_rate_2x2": true,
+    "usage_7d": 3,
+    "usage_prev": 2,
+    "organic_docs": 2,
+    "organic_videos": 2,
+    "organic_likes": 35,
+    "like_weighted": 6.37,
+    "mean_like": 17.5,
+    "max_video_share": 0.6,
+    "last_ts": 1794632151,
+    "days_since_last": 0.4,
+    "recency": 0.982,
+    "velocity": 0.221,
+    "confidence": 0.965,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9771,
+     "weight": 0.45,
+     "points": 43.97
+    },
+    "meta_coverage": {
+     "raw": 0.7333,
+     "weight": 0.18,
+     "points": 13.2
+    },
+    "organic": {
+     "raw": 0.3657,
+     "weight": 0.13,
+     "points": 4.75
+    },
+    "velocity": {
+     "raw": 0.2209,
+     "weight": 0.07,
+     "points": 1.55
+    },
+    "engagement": {
+     "raw": 0.4596,
+     "weight": 0.09,
+     "points": 4.14
+    },
+    "breadth": {
+     "raw": 0.5667,
+     "weight": 0.04,
+     "points": 2.27
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9823,
+     "days_since_last": 0.4,
+     "points": -1.3
+    },
+    "confidence": {
+     "value": 0.9652,
+     "factor": 0.9896
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.6,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 2,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 2 个梗视频，合计 3,408,783 播放",
+    "定向搜索到 2 个近期相关视频，合计 294,956 播放",
+    "评论/弹幕使用 2 条、覆盖 2 个视频",
+    "近 7 天新增 3 条证据",
+    "近 7 天较前期降温",
+    "独立使用证据 2 条 / 2 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 78.0,
+    "confidence": 0.82,
+    "reason": "多条「梗百科/梗指南」视频（BV1WDpg6bEwH、BV1mgHd6bEDj）解释其来源与流行，属固定小曲/名场面类符号；评论区在10-11月反复出现「司凤音乐」使用样本，且11月14日仍有新评论，符合近90天活跃与可复制使用特征。",
+    "evidence_ids": [
+     "video:BV1WDpg6bEwH",
+     "video:BV1mgHd6bEDj",
+     "video:BV1xfJC6nEHj",
+     "BV1mgHd6bEDj:318316792129",
+     "BV1pXxM6FEmE:319487590289",
+     "BV1mgHd6bEDj:320130233233"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "司凤音乐",
+     "canonical": "司凤音乐",
+     "norm": "司凤音乐",
+     "bvid": "BV1xfJC6nEHj",
+     "title": "【科普】司凤音乐为何流行？谁制作了最早的司凤音乐？",
+     "pubdate": 1792061639,
+     "view": 292606,
+     "like": 12007,
+     "reply": 863,
+     "danmaku": 844,
+     "owner": "冰嘘",
+     "query": "司凤音乐 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "司凤音乐",
+     "canonical": "司凤音乐",
+     "norm": "司凤音乐",
+     "bvid": "BV1jyp36HEVZ",
+     "title": "【白给梗科普】愤怒小鸟耳朵（司凤音乐封面）是什么梗？",
+     "pubdate": 1791648697,
+     "view": 2350,
+     "like": 20,
+     "reply": 1,
+     "danmaku": 0,
+     "owner": "baigei梗科普",
+     "query": "司凤音乐 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "司凤音乐",
+     "canonical": "司凤音乐",
+     "norm": "司凤音乐",
+     "bvid": "BV1WDpg6bEwH",
+     "title": "【梗百科】司凤音乐是啥梗？",
+     "pubdate": 1791625068,
+     "view": 1311899,
+     "like": 34576,
+     "reply": 1207,
+     "danmaku": 590,
+     "owner": "梗百科",
+     "query": "司凤音乐 梗",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1mgHd6bEDj:318316792129",
+     "quote": "司凤音乐",
+     "ctime": 1793075006,
+     "like": 1478,
+     "bvid": "BV1mgHd6bEDj",
+     "kind": "comment",
+     "video_title": "司凤音乐是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV1pXxM6FEmE:319487590289",
+     "quote": "司凤音乐",
+     "ctime": 1794051100,
+     "like": 32,
+     "bvid": "BV1pXxM6FEmE",
+     "kind": "comment",
+     "video_title": "【全新拼好歌】|”【年度梗王の小曲】“",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV16aHG6xEn5:323259389712",
+     "quote": "司凤音乐",
+     "ctime": 1794062168,
+     "like": 3,
+     "bvid": "BV16aHG6xEn5",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗 合集版",
+     "zone": "日常"
+    }
+   ]
+  },
+  {
+   "family_key": "闪身步",
+   "canonical": "闪身步",
+   "type": "词",
+   "members": [
+    "闪身步",
+    "登录闪身步"
+   ],
+   "known": false,
+   "score": 69.39,
+   "raw_score": 73.0,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 1.0,
+   "meme_prob": 0.99,
+   "signals": {
+    "meta_videos": 2,
+    "meta_interest_videos": 6,
+    "meta_ups": 2,
+    "meta_views": 3130773.0,
+    "meta_views_editorial": 1134057,
+    "meta_views_interest": 5704903,
+    "meta_likes": 35488,
+    "meta_replies": 1252,
+    "meta_7d": 0,
+    "meta_prev": 8,
+    "usage_docs": 30,
+    "usage_videos": 5,
+    "usage_zones": 4,
+    "evidence_docs": 30,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 10,
+    "usage_prev": 20,
+    "organic_docs": 30,
+    "organic_videos": 5,
+    "organic_likes": 7,
+    "like_weighted": 1.27,
+    "mean_like": 0.23,
+    "max_video_share": 0.733,
+    "last_ts": 1794634208,
+    "days_since_last": 0.37,
+    "recency": 0.983,
+    "velocity": 0.0,
+    "confidence": 1.0,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9696,
+     "weight": 0.45,
+     "points": 43.63
+    },
+    "meta_coverage": {
+     "raw": 0.7333,
+     "weight": 0.18,
+     "points": 13.2
+    },
+    "organic": {
+     "raw": 0.6683,
+     "weight": 0.13,
+     "points": 8.69
+    },
+    "velocity": {
+     "raw": 0.0,
+     "weight": 0.07,
+     "points": 0.0
+    },
+    "engagement": {
+     "raw": 0.1292,
+     "weight": 0.09,
+     "points": 1.16
+    },
+    "breadth": {
+     "raw": 0.6776,
+     "weight": 0.04,
+     "points": 2.71
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9834,
+     "days_since_last": 0.37,
+     "points": -1.21
+    },
+    "confidence": {
+     "value": 1.0,
+     "factor": 1.0
+    },
+    "penalty": {
+     "concentration": 0.9667,
+     "max_video_share": 0.733,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 2,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 2 个梗视频，合计 1,134,057 播放",
+    "定向搜索到 6 个近期相关视频，合计 5,704,903 播放",
+    "评论/弹幕使用 30 条、覆盖 5 个视频",
+    "近 7 天新增 10 条证据",
+    "近 7 天较前期降温",
+    "独立使用证据 30 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "「闪身步」有固定小曲（BV1uwp56mEbE 标注「闪身步の小曲」）、合集与谷歌翻译二创（BV1Cdsf6KEw9、BV1ZMnZ6yEEr），蛋仔派对热梗猜谜弹幕多次刷「闪身步」「登录闪身步」，属可复制符号；10-11 至 11-14 均有证据，近 90 天活跃。",
+    "evidence_ids": [
+     "video:BV1Cdsf6KEw9",
+     "video:BV1ZMnZ6yEEr",
+     "video:BV1uwp56mEbE",
+     "BV12AJv6dENR:d:99343aa0b66e",
+     "BV12AJv6dENR:d:e5c18d3734d9"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "闪身步",
+     "canonical": "闪身步",
+     "norm": "闪身步",
+     "bvid": "BV1Cdsf6KEw9",
+     "title": "谷歌翻译20遍【闪身步】配音",
+     "pubdate": 1793272638,
+     "view": 46870,
+     "like": 2918,
+     "reply": 90,
+     "danmaku": 122,
+     "owner": "不完全变态的迪奥",
+     "query": "闪身步 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "闪身步",
+     "canonical": "闪身步",
+     "norm": "闪身步",
+     "bvid": "BV1ZMnZ6yEEr",
+     "title": "闪身步大合集",
+     "pubdate": 1793020238,
+     "view": 24418,
+     "like": 159,
+     "reply": 3,
+     "danmaku": 33,
+     "owner": "蓝温他她",
+     "query": "闪身步 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "闪身步",
+     "canonical": "闪身步",
+     "norm": "闪身步",
+     "bvid": "BV1xpH56gERW",
+     "title": "闪身步",
+     "pubdate": 1792923265,
+     "view": 16461,
+     "like": 113,
+     "reply": 3,
+     "danmaku": 6,
+     "owner": "青椒笋",
+     "query": "闪身步 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV12AJv6dENR:d:99343aa0b66e",
+     "quote": "闪身步",
+     "ctime": 1794633335,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:10265edb8c16",
+     "quote": "闪身步",
+     "ctime": 1794112605,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:e5c18d3734d9",
+     "quote": "登录闪身步",
+     "ctime": 1794041230,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    }
+   ]
+  },
+  {
+   "family_key": "扎啤",
+   "canonical": "扎啤",
+   "type": "词",
+   "members": [
+    "扎啤",
+    "扎啤是"
+   ],
+   "known": false,
+   "score": 68.63,
+   "raw_score": 69.87,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.9447,
+   "meme_prob": 0.94,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 7,
+    "meta_ups": 1,
+    "meta_views": 1045305.7,
+    "meta_views_editorial": 516176,
+    "meta_views_interest": 1511799,
+    "meta_likes": 5825,
+    "meta_replies": 714,
+    "meta_7d": 3,
+    "meta_prev": 5,
+    "usage_docs": 3,
+    "usage_videos": 3,
+    "usage_zones": 2,
+    "evidence_docs": 3,
+    "evidence_videos": 3,
+    "evidence_rate_2x2": true,
+    "usage_7d": 1,
+    "usage_prev": 2,
+    "organic_docs": 3,
+    "organic_videos": 3,
+    "organic_likes": 286,
+    "like_weighted": 4.15,
+    "mean_like": 95.33,
+    "max_video_share": 0.333,
+    "last_ts": 1794664220,
+    "days_since_last": 0.03,
+    "recency": 0.999,
+    "velocity": 0.582,
+    "confidence": 0.945,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8985,
+     "weight": 0.45,
+     "points": 40.43
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.4156,
+     "weight": 0.13,
+     "points": 5.4
+    },
+    "velocity": {
+     "raw": 0.5823,
+     "weight": 0.07,
+     "points": 4.08
+    },
+    "engagement": {
+     "raw": 0.4003,
+     "weight": 0.09,
+     "points": 3.6
+    },
+    "breadth": {
+     "raw": 0.4896,
+     "weight": 0.04,
+     "points": 1.96
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9988,
+     "days_since_last": 0.03,
+     "points": -0.09
+    },
+    "confidence": {
+     "value": 0.9447,
+     "factor": 0.9834
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.333,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 516,176 播放",
+    "定向搜索到 7 个近期相关视频，合计 1,511,799 播放",
+    "评论/弹幕使用 3 条、覆盖 3 个视频",
+    "近 7 天新增 1 条证据",
+    "独立使用证据 3 条 / 3 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "多条证据显示「扎啤」已脱离本义成为可复制梗：有「扎啤是什么梗？【梗学堂】」「十万个梗库之：扎啤吧」等梗解释视频，另有「最扎啤的一集」「扎啤机」等句式化二创，且11月仍有高播放视频与评论，兴衰曲线可观测。",
+    "evidence_ids": [
+     "video:BV1mtWy6NEJH",
+     "video:BV1MKWn6AEWn",
+     "video:BV1HeW76jEfu",
+     "BV1tUnm6BEDY:title",
+     "BV1Epx96EEBG:322935725920"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "扎啤",
+     "canonical": "扎啤",
+     "norm": "扎啤",
+     "bvid": "BV1mtWy6NEJH",
+     "title": "🍺 扎 啤 机 🍺",
+     "pubdate": 1794390505,
+     "view": 227280,
+     "like": 8440,
+     "reply": 364,
+     "danmaku": 282,
+     "owner": "爱吃笋的小竹",
+     "query": "扎啤 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "扎啤",
+     "canonical": "扎啤",
+     "norm": "扎啤",
+     "bvid": "BV1MKWn6AEWn",
+     "title": "十万个梗库之：扎啤吧 #扎啤 #方言 #抽象 #梗百科",
+     "pubdate": 1794134015,
+     "view": 25211,
+     "like": 603,
+     "reply": 15,
+     "danmaku": 3,
+     "owner": "十万个梗库",
+     "query": "扎啤 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "扎啤",
+     "canonical": "扎啤",
+     "norm": "扎啤",
+     "bvid": "BV1HeW76jEfu",
+     "title": "最 扎 啤 的 一 集",
+     "pubdate": 1794122880,
+     "view": 670591,
+     "like": 32044,
+     "reply": 1010,
+     "danmaku": 2392,
+     "owner": "代号穿山甲",
+     "query": "扎啤 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1Epx96EEBG:322935725920",
+     "quote": "扎啤",
+     "ctime": 1793800081,
+     "like": 283,
+     "bvid": "BV1Epx96EEBG",
+     "kind": "comment",
+     "video_title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV16aHG6xEn5:318861531761",
+     "quote": "扎啤",
+     "ctime": 1793515570,
+     "like": 3,
+     "bvid": "BV16aHG6xEn5",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗 合集版",
+     "zone": "日常"
+    },
+    {
+     "comment_id": "BV1pXxM6FEmE:320182461489",
+     "quote": "扎啤",
+     "ctime": 1794664220,
+     "like": 0,
+     "bvid": "BV1pXxM6FEmE",
+     "kind": "comment",
+     "video_title": "【全新拼好歌】|”【年度梗王の小曲】“",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "中国人能飞",
+   "canonical": "中国人能飞",
+   "type": "词",
+   "members": [
+    "中国人能飞",
+    "中国人会飞",
+    "中国人能飞中国人能飞",
+    "中国人龙飞",
+    "是中国人能飞"
+   ],
+   "known": false,
+   "score": 63.69,
+   "raw_score": 64.43,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 1.0,
+   "meme_prob": 0.98,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 5,
+    "meta_ups": 0,
+    "meta_views": 1312992.4,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 3751407,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 1,
+    "meta_prev": 4,
+    "usage_docs": 40,
+    "usage_videos": 5,
+    "usage_zones": 4,
+    "evidence_docs": 40,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 17,
+    "usage_prev": 23,
+    "organic_docs": 40,
+    "organic_videos": 5,
+    "organic_likes": 7,
+    "like_weighted": 1.27,
+    "mean_like": 0.17,
+    "max_video_share": 0.675,
+    "last_ts": 1794644215,
+    "days_since_last": 0.26,
+    "recency": 0.988,
+    "velocity": 0.527,
+    "confidence": 1.0,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9133,
+     "weight": 0.45,
+     "points": 41.1
+    },
+    "meta_coverage": {
+     "raw": 0.25,
+     "weight": 0.18,
+     "points": 4.5
+    },
+    "organic": {
+     "raw": 0.7022,
+     "weight": 0.13,
+     "points": 9.13
+    },
+    "velocity": {
+     "raw": 0.5272,
+     "weight": 0.07,
+     "points": 3.69
+    },
+    "engagement": {
+     "raw": 0.0122,
+     "weight": 0.09,
+     "points": 0.11
+    },
+    "breadth": {
+     "raw": 0.5752,
+     "weight": 0.04,
+     "points": 2.3
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9885,
+     "days_since_last": 0.26,
+     "points": -0.74
+    },
+    "confidence": {
+     "value": 1.0,
+     "factor": 1.0
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.675,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "定向搜索到 5 个近期相关视频，合计 3,751,407 播放",
+    "评论/弹幕使用 40 条、覆盖 5 个视频",
+    "近 7 天新增 17 条证据",
+    "独立使用证据 40 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 72.0,
+    "confidence": 0.78,
+    "reason": "多条视频标题明确称其为「年度梗の小曲」「中国人能飞 边飞边发MJ」，属固定小曲/句式，可复制；蛋仔派对热梗挑战弹幕多次刷「中国人能飞」，且证据集中在2026年10-11月，符合近期活跃。",
+    "evidence_ids": [
+     "video:BV1zU4M6dEMt",
+     "video:BV17D4M6sEZ8",
+     "video:BV1TKxy6MEPR",
+     "BV12AJv6dENR:d:5730c0bc6b53",
+     "BV12AJv6dENR:d:a6bef01ba792"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "中国人能飞",
+     "canonical": "中国人能飞",
+     "norm": "中国人能飞",
+     "bvid": "BV1Aw4H6iEuB",
+     "title": "山河不忘，英雄不朽，中国人能飞！",
+     "pubdate": 1794105000,
+     "view": 65791,
+     "like": 1326,
+     "reply": 40,
+     "danmaku": 19,
+     "owner": "53小儿郎",
+     "query": "中国人能飞 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "中国人能飞",
+     "canonical": "中国人能飞",
+     "norm": "中国人能飞",
+     "bvid": "BV1zU4M6dEMt",
+     "title": "【中国人能飞】|“【年度梗の小曲】中国人能飞 边飞边发MJ”",
+     "pubdate": 1793700000,
+     "view": 740047,
+     "like": 1350,
+     "reply": 21,
+     "danmaku": 118,
+     "owner": "心刚音乐库",
+     "query": "中国人能飞 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "中国人能飞",
+     "canonical": "中国人能飞",
+     "norm": "中国人能飞",
+     "bvid": "BV17D4M6sEZ8",
+     "title": "循环歌单|【中国人能飞】|“【年度梗の小曲】中国人能飞 边飞边发MJ”",
+     "pubdate": 1793692800,
+     "view": 2552613,
+     "like": 7651,
+     "reply": 86,
+     "danmaku": 132,
+     "owner": "心刚音乐库",
+     "query": "中国人能飞 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV12AJv6dENR:d:5730c0bc6b53",
+     "quote": "中国人能飞",
+     "ctime": 1794547326,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:a6bef01ba792",
+     "quote": "是中国人能飞",
+     "ctime": 1794406001,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:f51209d84d15",
+     "quote": "中国人能飞",
+     "ctime": 1794403786,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    }
+   ]
+  },
+  {
+   "family_key": "灭建国",
+   "canonical": "灭建国",
+   "type": "词",
+   "members": [
+    "灭建国",
+    "灭建国是"
+   ],
+   "known": false,
+   "score": 63.64,
+   "raw_score": 71.14,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.9207,
+   "meme_prob": 0.86,
+   "signals": {
+    "meta_videos": 2,
+    "meta_interest_videos": 4,
+    "meta_ups": 2,
+    "meta_views": 2796918.0,
+    "meta_views_editorial": 1650338,
+    "meta_views_interest": 3275943,
+    "meta_likes": 60352,
+    "meta_replies": 3153,
+    "meta_7d": 1,
+    "meta_prev": 5,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 1,
+    "evidence_videos": 1,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 1,
+    "organic_videos": 1,
+    "organic_likes": 0,
+    "like_weighted": 0.0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794497832,
+    "days_since_last": 1.95,
+    "recency": 0.916,
+    "velocity": 0.802,
+    "confidence": 0.921,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9623,
+     "weight": 0.45,
+     "points": 43.31
+    },
+    "meta_coverage": {
+     "raw": 0.7333,
+     "weight": 0.18,
+     "points": 13.2
+    },
+    "organic": {
+     "raw": 0.1651,
+     "weight": 0.13,
+     "points": 2.15
+    },
+    "velocity": {
+     "raw": 0.8018,
+     "weight": 0.07,
+     "points": 5.61
+    },
+    "engagement": {
+     "raw": 0.2158,
+     "weight": 0.09,
+     "points": 1.94
+    },
+    "breadth": {
+     "raw": 0.3345,
+     "weight": 0.04,
+     "points": 1.34
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9164,
+     "days_since_last": 1.95,
+     "points": -5.95
+    },
+    "confidence": {
+     "value": 0.9207,
+     "factor": 0.9762
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 2,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 2 个梗视频，合计 1,650,338 播放",
+    "定向搜索到 4 个近期相关视频，合计 3,275,943 播放",
+    "评论/弹幕使用 1 条、覆盖 1 个视频",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=0.80）",
+    "独立使用证据不足：1 条 / 1 个视频",
+    "最后一条证据在 2.0 天前"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 72.0,
+    "confidence": 0.78,
+    "reason": "有两条高播放梗解释视频（BV174486nEYB「梗指南」73万播放、BV1Epx96EEBG「梗百科」91万播放），标题明确将其作为梗解释，另有「灭建国是谁呀」等使用/追问视频及评论样本，符合可复制符号单元且有近期兴衰证据。",
+    "evidence_ids": [
+     "video:BV174486nEYB",
+     "video:BV1Epx96EEBG",
+     "video:BV1YUWP6bEWG",
+     "video:BV14AxJ6AEDj",
+     "BV114h96GEyq:323763337024"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "灭建国",
+     "canonical": "灭建国",
+     "norm": "灭建国",
+     "bvid": "BV1YUWP6bEWG",
+     "title": "灭建国是谁呀",
+     "pubdate": 1794277200,
+     "view": 15945,
+     "like": 299,
+     "reply": 44,
+     "danmaku": 204,
+     "owner": "引流区区长",
+     "query": "灭建国 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "灭建国",
+     "canonical": "灭建国",
+     "norm": "灭建国",
+     "bvid": "BV174486nEYB",
+     "title": "灭建国是什么梗【梗指南】",
+     "pubdate": 1793870832,
+     "view": 732806,
+     "like": 19038,
+     "reply": 1288,
+     "danmaku": 265,
+     "owner": "梗指南",
+     "query": "梗指南",
+     "kind": "dedicated",
+     "confidence": 0.95
+    },
+    {
+     "surface": "灭建国",
+     "canonical": "灭建国",
+     "norm": "灭建国",
+     "bvid": "BV1Epx96EEBG",
+     "title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "pubdate": 1793792160,
+     "view": 917532,
+     "like": 41314,
+     "reply": 1865,
+     "danmaku": 4025,
+     "owner": "梗百科",
+     "query": "梗百科",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV114h96GEyq:323763337024",
+     "quote": "灭建国",
+     "ctime": 1794497832,
+     "like": 0,
+     "bvid": "BV114h96GEyq",
+     "kind": "comment",
+     "video_title": "没人会记得神作之下的第二名，除非那一年都是逆天神梗！",
+     "zone": "单机游戏"
+    },
+    {
+     "comment_id": "BV174486nEYB:desc",
+     "quote": "灭建国",
+     "ctime": 1793870832,
+     "like": 0,
+     "bvid": "BV174486nEYB",
+     "kind": "desc",
+     "video_title": "灭建国是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV174486nEYB:title",
+     "quote": "灭建国",
+     "ctime": 1793870832,
+     "like": 0,
+     "bvid": "BV174486nEYB",
+     "kind": "title",
+     "video_title": "灭建国是什么梗【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "吴家村",
+   "canonical": "吴家村",
+   "type": "词",
+   "members": [
+    "吴家村"
+   ],
+   "known": false,
+   "score": 60.17,
+   "raw_score": 69.77,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.6196,
+   "meme_prob": 0.74,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 670708.0,
+    "meta_views_editorial": 670708,
+    "meta_views_interest": 0,
+    "meta_likes": 28743,
+    "meta_replies": 1099,
+    "meta_7d": 1,
+    "meta_prev": 0,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 1,
+    "evidence_videos": 1,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 1,
+    "organic_videos": 1,
+    "organic_likes": 6,
+    "like_weighted": 1.89,
+    "mean_like": 6.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794614592,
+    "days_since_last": 0.6,
+    "recency": 0.973,
+    "velocity": 1.0,
+    "confidence": 0.62,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8698,
+     "weight": 0.45,
+     "points": 39.14
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.2204,
+     "weight": 0.13,
+     "points": 2.86
+    },
+    "velocity": {
+     "raw": 1.0,
+     "weight": 0.07,
+     "points": 7.0
+    },
+    "engagement": {
+     "raw": 0.5753,
+     "weight": 0.09,
+     "points": 5.18
+    },
+    "breadth": {
+     "raw": 0.2967,
+     "weight": 0.04,
+     "points": 1.19
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9734,
+     "days_since_last": 0.6,
+     "points": -1.85
+    },
+    "confidence": {
+     "value": 0.6196,
+     "factor": 0.8859
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 670,708 播放",
+    "评论/弹幕使用 1 条、覆盖 1 个视频",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=1.00）",
+    "独立使用证据不足：1 条 / 1 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "有【梗百科】视频专门解释“吴家村是啥梗”，标题语义指向可复制的梗；另有评论在“爆火全网梗曲”视频下使用该词，说明其作为符号被引用。证据集中在近90天内，符合当前热梗特征。",
+    "evidence_ids": [
+     "video:BV1zjWt6BE1a",
+     "BV1Y5WH61Emq:320107550369",
+     "BV1zjWt6BE1a:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "吴家村",
+     "canonical": "吴家村",
+     "norm": "吴家村",
+     "bvid": "BV1zjWt6BE1a",
+     "title": "【梗百科】吴家村是啥梗？",
+     "pubdate": 1794221911,
+     "view": 670708,
+     "like": 28743,
+     "reply": 1099,
+     "danmaku": 294,
+     "owner": "梗百科",
+     "query": "梗百科",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1Y5WH61Emq:320107550369",
+     "quote": "吴家村",
+     "ctime": 1794614592,
+     "like": 6,
+     "bvid": "BV1Y5WH61Emq",
+     "kind": "comment",
+     "video_title": "从夯到拉锐评十一月初爆火全网梗曲",
+     "zone": "音乐综合"
+    },
+    {
+     "comment_id": "BV1zjWt6BE1a:title",
+     "quote": "吴家村",
+     "ctime": 1794221911,
+     "like": 0,
+     "bvid": "BV1zjWt6BE1a",
+     "kind": "title",
+     "video_title": "【梗百科】吴家村是啥梗？",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "心生爱慕",
+   "canonical": "心生爱慕",
+   "type": "词",
+   "members": [
+    "心生爱慕",
+    "心生爱慕是"
+   ],
+   "known": false,
+   "score": 58.72,
+   "raw_score": 63.01,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.9117,
+   "meme_prob": 0.82,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 7,
+    "meta_ups": 1,
+    "meta_views": 383829.3,
+    "meta_views_editorial": 6600,
+    "meta_views_interest": 1077798,
+    "meta_likes": 91,
+    "meta_replies": 2,
+    "meta_7d": 3,
+    "meta_prev": 5,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 1,
+    "evidence_videos": 1,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 1,
+    "organic_videos": 1,
+    "organic_likes": 1,
+    "like_weighted": 0.49,
+    "mean_like": 1.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794582401,
+    "days_since_last": 0.97,
+    "recency": 0.957,
+    "velocity": 1.0,
+    "confidence": 0.912,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8336,
+     "weight": 0.45,
+     "points": 37.51
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.1859,
+     "weight": 0.13,
+     "points": 2.42
+    },
+    "velocity": {
+     "raw": 1.0,
+     "weight": 0.07,
+     "points": 7.0
+    },
+    "engagement": {
+     "raw": 0.0547,
+     "weight": 0.09,
+     "points": 0.49
+    },
+    "breadth": {
+     "raw": 0.2967,
+     "weight": 0.04,
+     "points": 1.19
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9574,
+     "days_since_last": 0.97,
+     "points": -2.69
+    },
+    "confidence": {
+     "value": 0.9117,
+     "factor": 0.9735
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 6,600 播放",
+    "定向搜索到 7 个近期相关视频，合计 1,077,798 播放",
+    "评论/弹幕使用 1 条、覆盖 1 个视频",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=1.00）",
+    "独立使用证据不足：1 条 / 1 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 42.0,
+    "confidence": 0.62,
+    "reason": "有「心生爱慕是什么梗」「心生爱慕的小曲是什么梗」两条梗科普视频，且「心生爱慕的小曲」指向固定小曲/句式；近90天多条视频与评论使用（如BV1TLWs6kEqG、BV1i8nm6SE8f评论），符合可复制符号且有兴衰证据。",
+    "evidence_ids": [
+     "BV1iGHu6kEAy:title",
+     "BV1yyWA6VEAn:title",
+     "BV1i8nm6SE8f:319512326401",
+     "video:BV15wWB6fEzk"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "心生爱慕",
+     "canonical": "心生爱慕",
+     "norm": "心生爱慕",
+     "bvid": "BV15wWB6fEzk",
+     "title": "心生爱慕",
+     "pubdate": 1794582401,
+     "view": 23047,
+     "like": 1529,
+     "reply": 24,
+     "danmaku": 3,
+     "owner": "祥子鱼Re",
+     "query": "心生爱慕 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "心生爱慕",
+     "canonical": "心生爱慕",
+     "norm": "心生爱慕",
+     "bvid": "BV1nuWZ6dEcF",
+     "title": "被轮奸的女警花对劫匪心生爱慕，醒醒吧女孩们，不要再做恋爱脑，多为自己想想，有些人他不值得！外国太逊了，都在封闭空间了，舆论是怎么发生的。什么平台可以帮劫匪说话？",
+     "pubdate": 1794492582,
+     "view": 12606,
+     "like": 59,
+     "reply": 1,
+     "danmaku": 7,
+     "owner": "泉哥的剧",
+     "query": "心生爱慕 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "心生爱慕",
+     "canonical": "心生爱慕",
+     "norm": "心生爱慕",
+     "bvid": "BV1TLWs6kEqG",
+     "title": "打完这一架对薇斯纳心生爱慕了",
+     "pubdate": 1794189686,
+     "view": 154653,
+     "like": 2904,
+     "reply": 769,
+     "danmaku": 141,
+     "owner": "手残党Freddy",
+     "query": "心生爱慕 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1i8nm6SE8f:319512326401",
+     "quote": "心生爱慕",
+     "ctime": 1794064770,
+     "like": 1,
+     "bvid": "BV1i8nm6SE8f",
+     "kind": "comment",
+     "video_title": "早读时和同桌唱网络热梗#三角洲行动 #三角洲黑潮爆破 #三角洲黑潮爆破新手攻略",
+     "zone": "网络游戏"
+    },
+    {
+     "comment_id": "BV1iGHu6kEAy:title",
+     "quote": "心生爱慕",
+     "ctime": 1792877508,
+     "like": 0,
+     "bvid": "BV1iGHu6kEAy",
+     "kind": "title",
+     "video_title": "【白给梗科普】心生爱慕是什么梗？",
+     "zone": "日常"
+    },
+    {
+     "comment_id": "BV1yyWA6VEAn:title",
+     "quote": "心生爱慕",
+     "ctime": 1791883740,
+     "like": 0,
+     "bvid": "BV1yyWA6VEAn",
+     "kind": "title",
+     "video_title": "心生爱慕的小曲是什么梗？",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "mj宇宙",
+   "canonical": "MJ宇宙",
+   "type": "句式",
+   "members": [
+    "MJ宇宙"
+   ],
+   "known": false,
+   "score": 53.06,
+   "raw_score": 66.65,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.6403,
+   "meme_prob": 0.52,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 5,
+    "meta_ups": 1,
+    "meta_views": 1120506.8,
+    "meta_views_editorial": 917532,
+    "meta_views_interest": 579928,
+    "meta_likes": 41314,
+    "meta_replies": 1865,
+    "meta_7d": 4,
+    "meta_prev": 2,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 2.53,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794650114,
+    "days_since_last": 0.19,
+    "recency": 0.992,
+    "velocity": 1.0,
+    "confidence": 0.64,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.903,
+     "weight": 0.45,
+     "points": 40.64
+    },
+    "meta_coverage": {
+     "raw": 0.625,
+     "weight": 0.18,
+     "points": 11.25
+    },
+    "organic": {
+     "raw": 0.0657,
+     "weight": 0.13,
+     "points": 0.85
+    },
+    "velocity": {
+     "raw": 1.0,
+     "weight": 0.07,
+     "points": 7.0
+    },
+    "engagement": {
+     "raw": 0.3687,
+     "weight": 0.09,
+     "points": 3.32
+    },
+    "breadth": {
+     "raw": 0.2967,
+     "weight": 0.04,
+     "points": 1.19
+    },
+    "prior": {
+     "raw": 0.6,
+     "weight": 0.04,
+     "points": 2.4
+    },
+    "decay": {
+     "recency": 0.9915,
+     "days_since_last": 0.19,
+     "points": -0.57
+    },
+    "confidence": {
+     "value": 0.6403,
+     "factor": 0.8921
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "compilation",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 917,532 播放",
+    "定向搜索到 5 个近期相关视频，合计 579,928 播放",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=1.00）",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "多条视频以「MJ宇宙」为可复制前缀衍生系列内容（研学篇、苦命鸳鸯、校园末日），并有【梗百科】标题及评论使用，符合句式梗特征；近90天内（11月13-14日）仍有高播放视频与评论，热度活跃。",
+    "evidence_ids": [
+     "video:BV1ofs36ZEn5",
+     "video:BV1XMsG6QEVd",
+     "video:BV1S7sG61Ewv",
+     "video:BV1kgWz6GEVh",
+     "BV1Epx96EEBG:320032793473",
+     "BV1Epx96EEBG:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "MJ宇宙",
+     "canonical": "MJ宇宙",
+     "norm": "mj宇宙",
+     "bvid": "BV1ofs36ZEn5",
+     "title": "mj宇宙研学篇合集",
+     "pubdate": 1794650114,
+     "view": 2176,
+     "like": 127,
+     "reply": 4,
+     "danmaku": 3,
+     "owner": "混子幽灵-混灵",
+     "query": "MJ宇宙 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "MJ宇宙",
+     "canonical": "MJ宇宙",
+     "norm": "mj宇宙",
+     "bvid": "BV1XMsG6QEVd",
+     "title": "“MJ宇宙之苦命鸳鸯”",
+     "pubdate": 1794643344,
+     "view": 2398,
+     "like": 114,
+     "reply": 17,
+     "danmaku": 6,
+     "owner": "冬夏玛德發",
+     "query": "MJ宇宙 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "MJ宇宙",
+     "canonical": "MJ宇宙",
+     "norm": "mj宇宙",
+     "bvid": "BV1S7sG61Ewv",
+     "title": "MJ宇宙校园之末日降临第三集（最燃一集）",
+     "pubdate": 1794643122,
+     "view": 35417,
+     "like": 4527,
+     "reply": 103,
+     "danmaku": 129,
+     "owner": "MJ宇宙校园",
+     "query": "MJ宇宙 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1Epx96EEBG:320032793473",
+     "quote": "mj宇宙",
+     "ctime": 1794547590,
+     "like": 14,
+     "bvid": "BV1Epx96EEBG",
+     "kind": "comment",
+     "video_title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV1Epx96EEBG:title",
+     "quote": "MJ宇宙",
+     "ctime": 1793792160,
+     "like": 0,
+     "bvid": "BV1Epx96EEBG",
+     "kind": "title",
+     "video_title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "老实赚钱很枯燥吧",
+   "canonical": "老实赚钱很枯燥吧",
+   "type": "句式",
+   "members": [
+    "老实赚钱很枯燥吧",
+    "老实赚钱一定很枯燥吧"
+   ],
+   "known": false,
+   "score": 52.93,
+   "raw_score": 67.15,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.6389,
+   "meme_prob": 0.86,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 3,
+    "meta_ups": 1,
+    "meta_views": 1138093.1,
+    "meta_views_editorial": 1123236,
+    "meta_views_interest": 42449,
+    "meta_likes": 49094,
+    "meta_replies": 2034,
+    "meta_7d": 3,
+    "meta_prev": 1,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0.0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794631727,
+    "days_since_last": 0.4,
+    "recency": 0.982,
+    "velocity": 1.0,
+    "confidence": 0.639,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.904,
+     "weight": 0.45,
+     "points": 40.68
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 1.0,
+     "weight": 0.07,
+     "points": 7.0
+    },
+    "engagement": {
+     "raw": 0.4314,
+     "weight": 0.09,
+     "points": 3.88
+    },
+    "breadth": {
+     "raw": 0.2967,
+     "weight": 0.04,
+     "points": 1.19
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9821,
+     "days_since_last": 0.4,
+     "points": -1.2
+    },
+    "confidence": {
+     "value": 0.6389,
+     "factor": 0.8917
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 1,123,236 播放",
+    "定向搜索到 3 个近期相关视频，合计 42,449 播放",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=1.00）",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 72.0,
+    "confidence": 0.78,
+    "reason": "有【梗百科】视频（BV1o8xv6fEoW，112万播放）解释该句式，且多条近期视频以“老实赚钱很枯燥吧”为标题或台词复现（BV1tTW366EGU、BV1FvWB6TEfQ），评论也出现变体“老实赚钱一定很枯燥吧”，符合可复制句式特征；10-30至11-14持续有证据，属当前热梗。",
+    "evidence_ids": [
+     "video:BV1o8xv6fEoW",
+     "video:BV1tTW366EGU",
+     "video:BV1FvWB6TEfQ",
+     "BV1o8xv6fEoW:323667904528",
+     "video:BV1pLWC6sEQR"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "老实赚钱很枯燥吧",
+     "canonical": "老实赚钱很枯燥吧",
+     "norm": "老实赚钱很枯燥吧",
+     "bvid": "BV1pLWC6sEQR",
+     "title": "兔娘老实赚钱很枯燥吧🤓",
+     "pubdate": 1794631727,
+     "view": 258,
+     "like": 9,
+     "reply": 0,
+     "danmaku": 0,
+     "owner": "z嗯p",
+     "query": "老实赚钱很枯燥吧 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "老实赚钱很枯燥吧",
+     "canonical": "老实赚钱很枯燥吧",
+     "norm": "老实赚钱很枯燥吧",
+     "bvid": "BV1tTW366EGU",
+     "title": "祥子：老实赚钱，很枯燥吧",
+     "pubdate": 1794627900,
+     "view": 33269,
+     "like": 3915,
+     "reply": 70,
+     "danmaku": 9,
+     "owner": "欲见樱",
+     "query": "老实赚钱很枯燥吧 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "老实赚钱很枯燥吧",
+     "canonical": "老实赚钱很枯燥吧",
+     "norm": "老实赚钱很枯燥吧",
+     "bvid": "BV1FvWB6TEfQ",
+     "title": "老实赚钱，很枯燥吧",
+     "pubdate": 1794577291,
+     "view": 8922,
+     "like": 1173,
+     "reply": 40,
+     "danmaku": 1,
+     "owner": "Iwaraの-百可花-",
+     "query": "老实赚钱很枯燥吧 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1o8xv6fEoW:323667904528",
+     "quote": "老实赚钱一定很枯燥吧",
+     "ctime": 1794411245,
+     "like": 0,
+     "bvid": "BV1o8xv6fEoW",
+     "kind": "comment",
+     "video_title": "【梗百科】老实赚钱很枯燥吧是啥梗？！",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV1o8xv6fEoW:title",
+     "quote": "老实赚钱很枯燥吧",
+     "ctime": 1793351342,
+     "like": 0,
+     "bvid": "BV1o8xv6fEoW",
+     "kind": "title",
+     "video_title": "【梗百科】老实赚钱很枯燥吧是啥梗？！",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "不小心惹了上帝",
+   "canonical": "不小心惹了上帝",
+   "type": "句式",
+   "members": [
+    "不小心惹了上帝",
+    "不小心惹了上帝是"
+   ],
+   "known": false,
+   "score": 52.19,
+   "raw_score": 59.13,
+   "status": "hot",
+   "heat_level": "高位",
+   "confidence": 0.6196,
+   "meme_prob": 0.82,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 106819.0,
+    "meta_views_editorial": 106819,
+    "meta_views_interest": 0,
+    "meta_likes": 732,
+    "meta_replies": 20,
+    "meta_7d": 1,
+    "meta_prev": 0,
+    "usage_docs": 1,
+    "usage_videos": 1,
+    "usage_zones": 1,
+    "evidence_docs": 1,
+    "evidence_videos": 1,
+    "evidence_rate_2x2": false,
+    "usage_7d": 1,
+    "usage_prev": 0,
+    "organic_docs": 1,
+    "organic_videos": 1,
+    "organic_likes": 0,
+    "like_weighted": 0.0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794659576,
+    "days_since_last": 0.08,
+    "recency": 0.996,
+    "velocity": 1.0,
+    "confidence": 0.62,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.7507,
+     "weight": 0.45,
+     "points": 33.78
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.1651,
+     "weight": 0.13,
+     "points": 2.15
+    },
+    "velocity": {
+     "raw": 1.0,
+     "weight": 0.07,
+     "points": 7.0
+    },
+    "engagement": {
+     "raw": 0.0685,
+     "weight": 0.09,
+     "points": 0.62
+    },
+    "breadth": {
+     "raw": 0.2967,
+     "weight": 0.04,
+     "points": 1.19
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9964,
+     "days_since_last": 0.08,
+     "points": -0.21
+    },
+    "confidence": {
+     "value": 0.6196,
+     "factor": 0.8859
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 106,819 播放",
+    "评论/弹幕使用 1 条、覆盖 1 个视频",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=1.00）",
+    "独立使用证据不足：1 条 / 1 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 35.0,
+    "confidence": 0.62,
+    "reason": "有「梗指南」视频专门解释其来源（BV1oYWo6JELW），标题显示它是可复制的歌词/句式梗；另有评论在11月14日直接使用该短语，且出现在「爆火全网梗曲」相关视频下，说明近期仍有传播。但使用样本仅1条，热度有限。",
+    "evidence_ids": [
+     "video:BV1oYWo6JELW",
+     "BV1Y5WH61Emq:323952379216",
+     "BV1oYWo6JELW:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "不小心惹了上帝",
+     "canonical": "不小心惹了上帝",
+     "norm": "不小心惹了上帝",
+     "bvid": "BV1oYWo6JELW",
+     "title": "不小心惹了上帝是什么梗，歌词究竟来自哪里【梗指南】",
+     "pubdate": 1794494501,
+     "view": 106819,
+     "like": 732,
+     "reply": 20,
+     "danmaku": 7,
+     "owner": "银白笙",
+     "query": "梗指南",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1Y5WH61Emq:323952379216",
+     "quote": "不小心惹了上帝",
+     "ctime": 1794659576,
+     "like": 0,
+     "bvid": "BV1Y5WH61Emq",
+     "kind": "comment",
+     "video_title": "从夯到拉锐评十一月初爆火全网梗曲",
+     "zone": "音乐综合"
+    },
+    {
+     "comment_id": "BV1oYWo6JELW:title",
+     "quote": "不小心惹了上帝",
+     "ctime": 1794494501,
+     "like": 0,
+     "bvid": "BV1oYWo6JELW",
+     "kind": "title",
+     "video_title": "不小心惹了上帝是什么梗，歌词究竟来自哪里【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "老牧师",
+   "canonical": "老牧师",
+   "type": "词",
+   "members": [
+    "老牧师",
+    "老牧师是"
+   ],
+   "known": false,
+   "score": 43.74,
+   "raw_score": 51.43,
+   "status": "rising",
+   "heat_level": "上升",
+   "confidence": 0.5688,
+   "meme_prob": 0.94,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 2,
+    "meta_ups": 0,
+    "meta_views": 34821.8,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 99491,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 1,
+    "meta_prev": 1,
+    "usage_docs": 2,
+    "usage_videos": 2,
+    "usage_zones": 2,
+    "evidence_docs": 2,
+    "evidence_videos": 2,
+    "evidence_rate_2x2": true,
+    "usage_7d": 1,
+    "usage_prev": 1,
+    "organic_docs": 2,
+    "organic_videos": 2,
+    "organic_likes": 28,
+    "like_weighted": 1.45,
+    "mean_like": 14.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794621172,
+    "days_since_last": 0.53,
+    "recency": 0.977,
+    "velocity": 0.786,
+    "confidence": 0.569,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.678,
+     "weight": 0.45,
+     "points": 30.51
+    },
+    "meta_coverage": {
+     "raw": 0.25,
+     "weight": 0.18,
+     "points": 4.5
+    },
+    "organic": {
+     "raw": 0.3084,
+     "weight": 0.13,
+     "points": 4.01
+    },
+    "velocity": {
+     "raw": 0.7864,
+     "weight": 0.07,
+     "points": 5.5
+    },
+    "engagement": {
+     "raw": 0.2043,
+     "weight": 0.09,
+     "points": 1.84
+    },
+    "breadth": {
+     "raw": 0.3679,
+     "weight": 0.04,
+     "points": 1.47
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9768,
+     "days_since_last": 0.53,
+     "points": -1.2
+    },
+    "confidence": {
+     "value": 0.5688,
+     "factor": 0.8706
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "dedicated",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "定向搜索到 2 个近期相关视频，合计 99,491 播放",
+    "评论/弹幕使用 2 条、覆盖 2 个视频",
+    "近 7 天新增 1 条证据",
+    "增速偏快（velocity=0.79）",
+    "独立使用证据 2 条 / 2 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 42.0,
+    "confidence": 0.72,
+    "reason": "有「【白给梗科普】老牧师是什么梗？」解释视频，且「司凤雨爱老牧师remix片段」播放9.8万、点赞1.4万，评论与「年度梗王の小曲」等拼好歌语境中反复出现「老牧师」，符合可复制小曲/名场面特征；11月仍有新视频与评论，满足近期性。",
+    "evidence_ids": [
+     "video:BV1L9Mf6SEYB",
+     "video:BV1dRxV6AEXS",
+     "video:BV1WuWr6DEej",
+     "BV1pXxM6FEmE:322191049136",
+     "BV114h96GEyq:323507649728"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "老牧师",
+     "canonical": "老牧师",
+     "norm": "老牧师",
+     "bvid": "BV1WuWr6DEej",
+     "title": "玩狂潮必须得用老牧师角色",
+     "pubdate": 1794621172,
+     "view": 974,
+     "like": 27,
+     "reply": 5,
+     "danmaku": 2,
+     "owner": "天文指挥官联机逆袭",
+     "query": "老牧师 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "老牧师",
+     "canonical": "老牧师",
+     "norm": "老牧师",
+     "bvid": "BV1dRxV6AEXS",
+     "title": "司得凤中凤，方为通透人（司凤雨爱老牧师remix片段）",
+     "pubdate": 1793161012,
+     "view": 98517,
+     "like": 14070,
+     "reply": 1516,
+     "danmaku": 98,
+     "owner": "休念我姓名",
+     "query": "老牧师 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "老牧师",
+     "canonical": "老牧师",
+     "norm": "老牧师",
+     "bvid": "BV1L9Mf6SEYB",
+     "title": "【白给梗科普】老牧师是什么梗？",
+     "pubdate": 1785821407,
+     "view": 44606,
+     "like": 529,
+     "reply": 31,
+     "danmaku": 1,
+     "owner": "baigei梗科普",
+     "query": "什么梗",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1pXxM6FEmE:322191049136",
+     "quote": "老牧师",
+     "ctime": 1793202260,
+     "like": 28,
+     "bvid": "BV1pXxM6FEmE",
+     "kind": "comment",
+     "video_title": "【全新拼好歌】|”【年度梗王の小曲】“",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV114h96GEyq:323507649728",
+     "quote": "老牧师",
+     "ctime": 1794276948,
+     "like": 0,
+     "bvid": "BV114h96GEyq",
+     "kind": "comment",
+     "video_title": "没人会记得神作之下的第二名，除非那一年都是逆天神梗！",
+     "zone": "单机游戏"
+    },
+    {
+     "comment_id": "BV1L9Mf6SEYB:title",
+     "quote": "老牧师",
+     "ctime": 1785821407,
+     "like": 0,
+     "bvid": "BV1L9Mf6SEYB",
+     "kind": "title",
+     "video_title": "【白给梗科普】老牧师是什么梗？",
+     "zone": "日常"
+    }
+   ]
+  },
+  {
+   "family_key": "piupiupiu",
+   "canonical": "PiuPiuPiu",
+   "type": "缩写",
+   "members": [
+    "PiuPiuPiu"
+   ],
+   "known": false,
+   "score": 42.61,
+   "raw_score": 56.3,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.4975,
+   "meme_prob": 0.52,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 3,
+    "meta_ups": 1,
+    "meta_views": 804379.5,
+    "meta_views_editorial": 73162,
+    "meta_views_interest": 2089193,
+    "meta_likes": 2407,
+    "meta_replies": 38,
+    "meta_7d": 1,
+    "meta_prev": 3,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794640556,
+    "days_since_last": 0.3,
+    "recency": 0.99,
+    "velocity": 0.351,
+    "confidence": 0.497,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8815,
+     "weight": 0.45,
+     "points": 39.67
+    },
+    "meta_coverage": {
+     "raw": 0.625,
+     "weight": 0.18,
+     "points": 11.25
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.3505,
+     "weight": 0.07,
+     "points": 2.45
+    },
+    "engagement": {
+     "raw": 0.0299,
+     "weight": 0.09,
+     "points": 0.27
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.6,
+     "weight": 0.04,
+     "points": 2.4
+    },
+    "decay": {
+     "recency": 0.9901,
+     "days_since_last": 0.3,
+     "points": -0.56
+    },
+    "confidence": {
+     "value": 0.4975,
+     "factor": 0.8492
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "compilation",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 73,162 播放",
+    "定向搜索到 3 个近期相关视频，合计 2,089,193 播放",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "有「盘点近期网络热梗：PiuPiuPiu…」视频将其列为热梗，另有「piupiupiuの小曲」及高播放二创（207万播放），符合固定小曲/句式可复制特征；近90天内（9-11月）持续有视频，故判为当前热梗。",
+    "evidence_ids": [
+     "video:BV1fYhi65EJo",
+     "BV1fYhi65EJo:title",
+     "video:BV1fEpg6JExq",
+     "video:BV1tmh16dEGU",
+     "video:BV1SdsG6SECr"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1SdsG6SECr",
+     "title": "不小心惹了piupiupiu的后果：",
+     "pubdate": 1794640556,
+     "view": 127,
+     "like": 4,
+     "reply": 2,
+     "danmaku": 0,
+     "owner": "黄嘎猫meme",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1fEpg6JExq",
+     "title": "【piupiupiuの小曲】《Piu Piu Piu》",
+     "pubdate": 1791634444,
+     "view": 18422,
+     "like": 151,
+     "reply": 8,
+     "danmaku": 1,
+     "owner": "Scenery_JJ",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1tmh16dEGU",
+     "title": "🧊piupiupiu🧊",
+     "pubdate": 1790343538,
+     "view": 2070644,
+     "like": 91676,
+     "reply": 6098,
+     "danmaku": 1702,
+     "owner": "大苟教教教",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1fYhi65EJo:title",
+     "quote": "PiuPiuPiu",
+     "ctime": 1789984800,
+     "like": 0,
+     "bvid": "BV1fYhi65EJo",
+     "kind": "title",
+     "video_title": "盘点近期网络热梗：PiuPiuPiu、请善待二旬老人、腋毛攻击",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "狗尾草表情包",
+   "canonical": "狗尾草表情包",
+   "type": "句式",
+   "members": [
+    "狗尾草表情包",
+    "狗尾草表情包是"
+   ],
+   "known": false,
+   "score": 42.58,
+   "raw_score": 63.03,
+   "status": "rising",
+   "heat_level": "上升",
+   "confidence": 0.4429,
+   "meme_prob": 0.82,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 453179.0,
+    "meta_views_editorial": 453179,
+    "meta_views_interest": 0,
+    "meta_likes": 24642,
+    "meta_replies": 1202,
+    "meta_7d": 1,
+    "meta_prev": 0,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794394163,
+    "days_since_last": 3.15,
+    "recency": 0.901,
+    "velocity": 0.783,
+    "confidence": 0.443,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8443,
+     "weight": 0.45,
+     "points": 38.0
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.7833,
+     "weight": 0.07,
+     "points": 5.48
+    },
+    "engagement": {
+     "raw": 0.5438,
+     "weight": 0.09,
+     "points": 4.89
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9012,
+     "days_since_last": 3.15,
+     "points": -6.23
+    },
+    "confidence": {
+     "value": 0.4429,
+     "factor": 0.8329
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 453,179 播放",
+    "增速偏快（velocity=0.78）",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最后一条证据在 3.2 天前"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.55,
+    "reason": "「狗尾草表情包」属于表情包名，符合固定符号单元；有梗指南视频（BV1hNWm6mEkz，2026-11-11，45万播放、2.4万赞）解释其出处，且近期发布，满足90天内证据。但仅有单条解释视频，缺少多条使用/二创证据，故置信度中等。",
+    "evidence_ids": [
+     "video:BV1hNWm6mEkz",
+     "BV1hNWm6mEkz:desc",
+     "BV1hNWm6mEkz:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "狗尾草表情包",
+     "canonical": "狗尾草表情包",
+     "norm": "狗尾草表情包",
+     "bvid": "BV1hNWm6mEkz",
+     "title": "狗尾草表情包是什么梗【梗指南】",
+     "pubdate": 1794394163,
+     "view": 453179,
+     "like": 24642,
+     "reply": 1202,
+     "danmaku": 158,
+     "owner": "梗指南",
+     "query": "梗指南",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1hNWm6mEkz:desc",
+     "quote": "狗尾草表情包",
+     "ctime": 1794394163,
+     "like": 0,
+     "bvid": "BV1hNWm6mEkz",
+     "kind": "desc",
+     "video_title": "狗尾草表情包是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV1hNWm6mEkz:title",
+     "quote": "狗尾草表情包",
+     "ctime": 1794394163,
+     "like": 0,
+     "bvid": "BV1hNWm6mEkz",
+     "kind": "title",
+     "video_title": "狗尾草表情包是什么梗【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "雪豹眉眉",
+   "canonical": "雪豹眉眉",
+   "type": "词",
+   "members": [
+    "雪豹眉眉"
+   ],
+   "known": false,
+   "score": 41.25,
+   "raw_score": 57.16,
+   "status": "rising",
+   "heat_level": "上升",
+   "confidence": 0.3749,
+   "meme_prob": 0.52,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 65920.0,
+    "meta_views_editorial": 65920,
+    "meta_views_interest": 0,
+    "meta_likes": 5908,
+    "meta_replies": 136,
+    "meta_7d": 1,
+    "meta_prev": 0,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794631965,
+    "days_since_last": 0.4,
+    "recency": 0.987,
+    "velocity": 0.783,
+    "confidence": 0.375,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.7194,
+     "weight": 0.45,
+     "points": 32.37
+    },
+    "meta_coverage": {
+     "raw": 0.625,
+     "weight": 0.18,
+     "points": 11.25
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.7833,
+     "weight": 0.07,
+     "points": 5.48
+    },
+    "engagement": {
+     "raw": 0.6,
+     "weight": 0.09,
+     "points": 5.4
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.6,
+     "weight": 0.04,
+     "points": 2.4
+    },
+    "decay": {
+     "recency": 0.9869,
+     "days_since_last": 0.4,
+     "points": -0.75
+    },
+    "confidence": {
+     "value": 0.3749,
+     "factor": 0.8125
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "compilation"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 65,920 播放",
+    "增速偏快（velocity=0.78）",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 42.0,
+    "confidence": 0.55,
+    "reason": "证据为一条「梗百科」视频（BV1WLWC6sEXn，2026-11-14，6.6万播放、5908赞），标题含「雪豹眉眉？冷静点？中国猫猫爆火外网」，说明其作为可复制的网络符号被解释，且近期有热度；但仅单条视频、无使用样本，证据偏薄，故置信度中等。",
+    "evidence_ids": [
+     "video:BV1WLWC6sEXn",
+     "BV1WLWC6sEXn:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "雪豹眉眉",
+     "canonical": "雪豹眉眉",
+     "norm": "雪豹眉眉",
+     "bvid": "BV1WLWC6sEXn",
+     "title": "【梗百科】雪豹眉眉？冷静点？中国猫猫爆火外网？！",
+     "pubdate": 1794631965,
+     "view": 65920,
+     "like": 5908,
+     "reply": 136,
+     "danmaku": 147,
+     "owner": "梗百科",
+     "query": "梗百科",
+     "kind": "compilation",
+     "confidence": 0.72
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1WLWC6sEXn:title",
+     "quote": "雪豹眉眉",
+     "ctime": 1794631965,
+     "like": 0,
+     "bvid": "BV1WLWC6sEXn",
+     "kind": "title",
+     "video_title": "【梗百科】雪豹眉眉？冷静点？中国猫猫爆火外网？！",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "没希望佩不上",
+   "canonical": "没希望，佩不上",
+   "type": "句式",
+   "members": [
+    "没希望，佩不上"
+   ],
+   "known": false,
+   "score": 40.89,
+   "raw_score": 55.06,
+   "status": "rising",
+   "heat_level": "上升",
+   "confidence": 0.4429,
+   "meme_prob": 0.86,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 38034.0,
+    "meta_views_editorial": 38034,
+    "meta_views_interest": 0,
+    "meta_likes": 1755,
+    "meta_replies": 161,
+    "meta_7d": 1,
+    "meta_prev": 0,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794641897,
+    "days_since_last": 0.29,
+    "recency": 0.991,
+    "velocity": 0.783,
+    "confidence": 0.443,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.6837,
+     "weight": 0.45,
+     "points": 30.77
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.7833,
+     "weight": 0.07,
+     "points": 5.48
+    },
+    "engagement": {
+     "raw": 0.4614,
+     "weight": 0.09,
+     "points": 4.15
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.9906,
+     "days_since_last": 0.29,
+     "points": -0.52
+    },
+    "confidence": {
+     "value": 0.4429,
+     "factor": 0.8329
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 38,034 播放",
+    "增速偏快（velocity=0.78）",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 22.0,
+    "confidence": 0.55,
+    "reason": "证据为一条「梗百科」视频，标题明确解释「没希望，佩不上」并关联希佩败犬人设，属固定句式/名场面解释类内容，符合第3条；视频发布于2026-11-14，满足近90天时效。但仅单条视频、无使用样本，热度与可复制性证据有限，故置信度中等。",
+    "evidence_ids": [
+     "video:BV1YUsG6sE9a",
+     "BV1YUsG6sE9a:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "没希望，佩不上",
+     "canonical": "没希望，佩不上",
+     "norm": "没希望佩不上",
+     "bvid": "BV1YUsG6sE9a",
+     "title": "【梗百科】“没希望，佩不上”是什么梗?为什么希佩在社区成了败犬人设",
+     "pubdate": 1794641897,
+     "view": 38034,
+     "like": 1755,
+     "reply": 161,
+     "danmaku": 109,
+     "owner": "仙舟联盟的社区事件簿",
+     "query": "梗百科",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1YUsG6sE9a:title",
+     "quote": "没希望，佩不上",
+     "ctime": 1794641897,
+     "like": 0,
+     "bvid": "BV1YUsG6sE9a",
+     "kind": "title",
+     "video_title": "【梗百科】“没希望，佩不上”是什么梗?为什么希佩在社区成了败犬人设",
+     "zone": "日常"
+    }
+   ]
+  }
+ ],
+ "observing": [
+  {
+   "family_key": "piupiupiu",
+   "canonical": "PiuPiuPiu",
+   "type": "缩写",
+   "members": [
+    "PiuPiuPiu"
+   ],
+   "known": false,
+   "score": 42.61,
+   "raw_score": 56.3,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.4975,
+   "meme_prob": 0.52,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 3,
+    "meta_ups": 1,
+    "meta_views": 804379.5,
+    "meta_views_editorial": 73162,
+    "meta_views_interest": 2089193,
+    "meta_likes": 2407,
+    "meta_replies": 38,
+    "meta_7d": 1,
+    "meta_prev": 3,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794640556,
+    "days_since_last": 0.3,
+    "recency": 0.99,
+    "velocity": 0.351,
+    "confidence": 0.497,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8815,
+     "weight": 0.45,
+     "points": 39.67
+    },
+    "meta_coverage": {
+     "raw": 0.625,
+     "weight": 0.18,
+     "points": 11.25
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.3505,
+     "weight": 0.07,
+     "points": 2.45
+    },
+    "engagement": {
+     "raw": 0.0299,
+     "weight": 0.09,
+     "points": 0.27
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.6,
+     "weight": 0.04,
+     "points": 2.4
+    },
+    "decay": {
+     "recency": 0.9901,
+     "days_since_last": 0.3,
+     "points": -0.56
+    },
+    "confidence": {
+     "value": 0.4975,
+     "factor": 0.8492
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": [
+      "compilation",
+      "search_interest"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 73,162 播放",
+    "定向搜索到 3 个近期相关视频，合计 2,089,193 播放",
+    "独立使用证据不足：0 条 / 0 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.72,
+    "reason": "有「盘点近期网络热梗：PiuPiuPiu…」视频将其列为热梗，另有「piupiupiuの小曲」及高播放二创（207万播放），符合固定小曲/句式可复制特征；近90天内（9-11月）持续有视频，故判为当前热梗。",
+    "evidence_ids": [
+     "video:BV1fYhi65EJo",
+     "BV1fYhi65EJo:title",
+     "video:BV1fEpg6JExq",
+     "video:BV1tmh16dEGU",
+     "video:BV1SdsG6SECr"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1SdsG6SECr",
+     "title": "不小心惹了piupiupiu的后果：",
+     "pubdate": 1794640556,
+     "view": 127,
+     "like": 4,
+     "reply": 2,
+     "danmaku": 0,
+     "owner": "黄嘎猫meme",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1fEpg6JExq",
+     "title": "【piupiupiuの小曲】《Piu Piu Piu》",
+     "pubdate": 1791634444,
+     "view": 18422,
+     "like": 151,
+     "reply": 8,
+     "danmaku": 1,
+     "owner": "Scenery_JJ",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    },
+    {
+     "surface": "PiuPiuPiu",
+     "canonical": "PiuPiuPiu",
+     "norm": "piupiupiu",
+     "bvid": "BV1tmh16dEGU",
+     "title": "🧊piupiupiu🧊",
+     "pubdate": 1790343538,
+     "view": 2070644,
+     "like": 91676,
+     "reply": 6098,
+     "danmaku": 1702,
+     "owner": "大苟教教教",
+     "query": "PiuPiuPiu 梗",
+     "kind": "search_interest",
+     "confidence": 0.45
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1fYhi65EJo:title",
+     "quote": "PiuPiuPiu",
+     "ctime": 1789984800,
+     "like": 0,
+     "bvid": "BV1fYhi65EJo",
+     "kind": "title",
+     "video_title": "盘点近期网络热梗：PiuPiuPiu、请善待二旬老人、腋毛攻击",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "蓝色大肥鱼",
+   "canonical": "蓝色大肥鱼",
+   "type": "词",
+   "members": [
+    "蓝色大肥鱼",
+    "蓝色大肥鱼是"
+   ],
+   "known": false,
+   "score": 34.87,
+   "raw_score": 67.35,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.6924,
+   "meme_prob": 0.9,
+   "signals": {
+    "meta_videos": 3,
+    "meta_interest_videos": 0,
+    "meta_ups": 3,
+    "meta_views": 3300316.0,
+    "meta_views_editorial": 3300316,
+    "meta_views_interest": 0,
+    "meta_likes": 141176,
+    "meta_replies": 11568,
+    "meta_7d": 0,
+    "meta_prev": 3,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1793196844,
+    "days_since_last": 17.01,
+    "recency": 0.57,
+    "velocity": 0.0,
+    "confidence": 0.692,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9731,
+     "weight": 0.45,
+     "points": 43.79
+    },
+    "meta_coverage": {
+     "raw": 0.8667,
+     "weight": 0.18,
+     "points": 15.6
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.0,
+     "weight": 0.07,
+     "points": 0.0
+    },
+    "engagement": {
+     "raw": 0.4278,
+     "weight": 0.09,
+     "points": 3.85
+    },
+    "breadth": {
+     "raw": 0.1292,
+     "weight": 0.04,
+     "points": 0.52
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.5704,
+     "days_since_last": 17.01,
+     "points": -28.94
+    },
+    "confidence": {
+     "value": 0.6924,
+     "factor": 0.9077
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 3,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 3 个梗视频，合计 3,300,316 播放",
+    "独立使用证据不足：0 条 / 0 个视频"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 72.0,
+    "confidence": 0.62,
+    "reason": "三条不同账号的「梗指南/梗百科/梗学堂」视频（BV1eFs96uE3K、BV1nSxL6LEqv、BV1sZWw6yEkN）均以「蓝色大肥鱼是什么梗」为题，其中一条播放量近300万，说明它已被当作可解释、可复制的符号单元；标题提到「Ai拟人化潮流」，暗示有出处语境。但证据只有解释类视频，缺少实际使用样本，且候选usage全为0，热度与可复制性证据偏弱。",
+    "evidence_ids": [
+     "video:BV1eFs96uE3K",
+     "video:BV1nSxL6LEqv",
+     "video:BV1sZWw6yEkN"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "蓝色大肥鱼",
+     "canonical": "蓝色大肥鱼",
+     "norm": "蓝色大肥鱼",
+     "bvid": "BV1eFs96uE3K",
+     "title": "蓝色大肥鱼是什么梗【梗指南】",
+     "pubdate": 1793196844,
+     "view": 2963281,
+     "like": 117521,
+     "reply": 9380,
+     "danmaku": 611,
+     "owner": "梗指南",
+     "query": "什么梗",
+     "kind": "dedicated",
+     "confidence": 0.95
+    },
+    {
+     "surface": "蓝色大肥鱼",
+     "canonical": "蓝色大肥鱼",
+     "norm": "蓝色大肥鱼",
+     "bvid": "BV1nSxL6LEqv",
+     "title": "【梗百科】蓝色大肥鱼是啥梗？Ai拟人化潮流？！",
+     "pubdate": 1793178115,
+     "view": 239325,
+     "like": 19608,
+     "reply": 1813,
+     "danmaku": 393,
+     "owner": "梗百科",
+     "query": "梗百科",
+     "kind": "dedicated",
+     "confidence": 0.95
+    },
+    {
+     "surface": "蓝色大肥鱼",
+     "canonical": "蓝色大肥鱼",
+     "norm": "蓝色大肥鱼",
+     "bvid": "BV1sZWw6yEkN",
+     "title": "蓝色大肥鱼是什么梗？【梗学堂】",
+     "pubdate": 1791879627,
+     "view": 97710,
+     "like": 4047,
+     "reply": 375,
+     "danmaku": 17,
+     "owner": "梗学堂",
+     "query": "蓝色大肥鱼 梗",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV1eFs96uE3K:desc",
+     "quote": "蓝色大肥鱼",
+     "ctime": 1793196844,
+     "like": 0,
+     "bvid": "BV1eFs96uE3K",
+     "kind": "desc",
+     "video_title": "蓝色大肥鱼是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV1eFs96uE3K:title",
+     "quote": "蓝色大肥鱼",
+     "ctime": 1793196844,
+     "like": 0,
+     "bvid": "BV1eFs96uE3K",
+     "kind": "title",
+     "video_title": "蓝色大肥鱼是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV1nSxL6LEqv:title",
+     "quote": "蓝色大肥鱼",
+     "ctime": 1793178115,
+     "like": 0,
+     "bvid": "BV1nSxL6LEqv",
+     "kind": "title",
+     "video_title": "【梗百科】蓝色大肥鱼是啥梗？Ai拟人化潮流？！",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "我画地为牢厉娜",
+   "canonical": "我画地为牢厉娜",
+   "type": "句式",
+   "members": [
+    "我画地为牢厉娜",
+    "我画地为牢厉娜是"
+   ],
+   "known": false,
+   "score": 33.97,
+   "raw_score": 57.47,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.4429,
+   "meme_prob": 0.82,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 903933.0,
+    "meta_views_editorial": 903933,
+    "meta_views_interest": 0,
+    "meta_likes": 22228,
+    "meta_replies": 1968,
+    "meta_7d": 0,
+    "meta_prev": 1,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1794044980,
+    "days_since_last": 7.19,
+    "recency": 0.789,
+    "velocity": 0.083,
+    "confidence": 0.443,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.8891,
+     "weight": 0.45,
+     "points": 40.01
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.0834,
+     "weight": 0.07,
+     "points": 0.58
+    },
+    "engagement": {
+     "raw": 0.2459,
+     "weight": 0.09,
+     "points": 2.21
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.7886,
+     "days_since_last": 7.19,
+     "points": -12.15
+    },
+    "confidence": {
+     "value": 0.4429,
+     "factor": 0.8329
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 903,933 播放",
+    "独立使用证据不足：0 条 / 0 个视频"
+   ],
+   "verified": {
+    "is_meme": true,
+    "is_current": true,
+    "heat": 62.0,
+    "confidence": 0.55,
+    "reason": "候选为可复制句式，有「梗指南」视频（BV11g4E6aEki，2026-11-07，90万播放、2.2万赞）专门解释，标题与描述均含该句式，符合固定句式且有梗百科视频的条件；但仅有单一来源，缺少多条使用样本，故置信度中等。",
+    "evidence_ids": [
+     "video:BV11g4E6aEki",
+     "BV11g4E6aEki:desc",
+     "BV11g4E6aEki:title"
+    ],
+    "model": "deepseek-chat",
+    "prompt_version": "meme-info/verify-v4",
+    "cached": false,
+    "error": ""
+   },
+   "meta": [
+    {
+     "surface": "我画地为牢厉娜",
+     "canonical": "我画地为牢厉娜",
+     "norm": "我画地为牢厉娜",
+     "bvid": "BV11g4E6aEki",
+     "title": "我画地为牢厉娜是什么梗【梗指南】",
+     "pubdate": 1794044980,
+     "view": 903933,
+     "like": 22228,
+     "reply": 1968,
+     "danmaku": 640,
+     "owner": "梗指南",
+     "query": "梗指南",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV11g4E6aEki:desc",
+     "quote": "我画地为牢厉娜",
+     "ctime": 1794044980,
+     "like": 0,
+     "bvid": "BV11g4E6aEki",
+     "kind": "desc",
+     "video_title": "我画地为牢厉娜是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV11g4E6aEki:title",
+     "quote": "我画地为牢厉娜",
+     "ctime": 1794044980,
+     "like": 0,
+     "bvid": "BV11g4E6aEki",
+     "kind": "title",
+     "video_title": "我画地为牢厉娜是什么梗【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "结过婚我也认",
+   "canonical": "结过婚我也认",
+   "type": "句式",
+   "members": [
+    "结过婚我也认",
+    "结过婚我也认是"
+   ],
+   "known": false,
+   "score": 17.98,
+   "raw_score": 61.32,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.4429,
+   "meme_prob": 0.82,
+   "signals": {
+    "meta_videos": 1,
+    "meta_interest_videos": 0,
+    "meta_ups": 1,
+    "meta_views": 3316885.0,
+    "meta_views_editorial": 3316885,
+    "meta_views_interest": 0,
+    "meta_likes": 83895,
+    "meta_replies": 3344,
+    "meta_7d": 0,
+    "meta_prev": 1,
+    "usage_docs": 0,
+    "usage_videos": 0,
+    "usage_zones": 0,
+    "evidence_docs": 0,
+    "evidence_videos": 0,
+    "evidence_rate_2x2": false,
+    "usage_7d": 0,
+    "usage_prev": 0,
+    "organic_docs": 0,
+    "organic_videos": 0,
+    "organic_likes": 0,
+    "like_weighted": 0,
+    "mean_like": 0.0,
+    "max_video_share": 0.0,
+    "last_ts": 1792209900,
+    "days_since_last": 28.43,
+    "recency": 0.391,
+    "velocity": 0.083,
+    "confidence": 0.443,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.9734,
+     "weight": 0.45,
+     "points": 43.8
+    },
+    "meta_coverage": {
+     "raw": 0.6,
+     "weight": 0.18,
+     "points": 10.8
+    },
+    "organic": {
+     "raw": 0.0,
+     "weight": 0.13,
+     "points": 0.0
+    },
+    "velocity": {
+     "raw": 0.0834,
+     "weight": 0.07,
+     "points": 0.58
+    },
+    "engagement": {
+     "raw": 0.2529,
+     "weight": 0.09,
+     "points": 2.28
+    },
+    "breadth": {
+     "raw": 0.0646,
+     "weight": 0.04,
+     "points": 0.26
+    },
+    "prior": {
+     "raw": 0.9,
+     "weight": 0.04,
+     "points": 3.6
+    },
+    "decay": {
+     "recency": 0.3912,
+     "days_since_last": 28.43,
+     "points": -37.33
+    },
+    "confidence": {
+     "value": 0.4429,
+     "factor": 0.8329
+    },
+    "penalty": {
+     "concentration": 0.9,
+     "max_video_share": 0.0,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 1,
+     "meta_kinds": [
+      "dedicated"
+     ]
+    }
+   },
+   "reasons": [
+    "近 90 天有 1 个梗视频，合计 3,316,885 播放",
+    "独立使用证据不足：0 条 / 0 个视频"
+   ],
+   "verified": null,
+   "meta": [
+    {
+     "surface": "结过婚我也认",
+     "canonical": "结过婚我也认",
+     "norm": "结过婚我也认",
+     "bvid": "BV19iJ86ZEnr",
+     "title": "结过婚我也认是什么梗【梗指南】",
+     "pubdate": 1792209900,
+     "view": 3316885,
+     "like": 83895,
+     "reply": 3344,
+     "danmaku": 2457,
+     "owner": "梗指南",
+     "query": "梗指南",
+     "kind": "dedicated",
+     "confidence": 0.95
+    }
+   ],
+   "evidence": [
+    {
+     "comment_id": "BV19iJ86ZEnr:desc",
+     "quote": "结过婚我也认",
+     "ctime": 1792209900,
+     "like": 0,
+     "bvid": "BV19iJ86ZEnr",
+     "kind": "desc",
+     "video_title": "结过婚我也认是什么梗【梗指南】",
+     "zone": "搞笑"
+    },
+    {
+     "comment_id": "BV19iJ86ZEnr:title",
+     "quote": "结过婚我也认",
+     "ctime": 1792209900,
+     "like": 0,
+     "bvid": "BV19iJ86ZEnr",
+     "kind": "title",
+     "video_title": "结过婚我也认是什么梗【梗指南】",
+     "zone": "搞笑"
+    }
+   ]
+  },
+  {
+   "family_key": "鬼畜",
+   "canonical": "鬼畜",
+   "type": "词",
+   "members": [
+    "鬼畜"
+   ],
+   "known": false,
+   "score": 17.56,
+   "raw_score": 18.94,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.7824,
+   "meme_prob": 0.56,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 0,
+    "meta_ups": 0,
+    "meta_views": 0.0,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 0,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 0,
+    "meta_prev": 0,
+    "usage_docs": 7,
+    "usage_videos": 5,
+    "usage_zones": 4,
+    "evidence_docs": 7,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 3,
+    "usage_prev": 4,
+    "organic_docs": 7,
+    "organic_videos": 5,
+    "organic_likes": 3374,
+    "like_weighted": 12.2,
+    "mean_like": 482.0,
+    "max_video_share": 0.429,
+    "last_ts": 1794656483,
+    "days_since_last": 0.12,
+    "recency": 0.992,
+    "velocity": 0.555,
+    "confidence": 0.782,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.0,
+     "weight": 0.45,
+     "points": 0.0
+    },
+    "meta_coverage": {
+     "raw": 0.0,
+     "weight": 0.18,
+     "points": 0.0
+    },
+    "organic": {
+     "raw": 0.596,
+     "weight": 0.13,
+     "points": 7.75
+    },
+    "velocity": {
+     "raw": 0.5552,
+     "weight": 0.07,
+     "points": 3.89
+    },
+    "engagement": {
+     "raw": 0.4,
+     "weight": 0.09,
+     "points": 3.6
+    },
+    "breadth": {
+     "raw": 0.5752,
+     "weight": 0.04,
+     "points": 2.3
+    },
+    "prior": {
+     "raw": 0.35,
+     "weight": 0.04,
+     "points": 1.4
+    },
+    "decay": {
+     "recency": 0.9919,
+     "days_since_last": 0.12,
+     "points": -0.15
+    },
+    "confidence": {
+     "value": 0.7824,
+     "factor": 0.9347
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.429,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": []
+    }
+   },
+   "reasons": [
+    "评论/弹幕使用 7 条、覆盖 5 个视频",
+    "近 7 天新增 3 条证据",
+    "独立使用证据 7 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": null,
+   "meta": [],
+   "evidence": [
+    {
+     "comment_id": "BV1iJnz6sEAA:321432064000",
+     "quote": "鬼畜",
+     "ctime": 1792588312,
+     "like": 2922,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV1mv4Y6rESW:d:37348bc9d55b",
+     "quote": "鬼畜",
+     "ctime": 1794656483,
+     "like": 0,
+     "bvid": "BV1mv4Y6rESW",
+     "kind": "danmaku",
+     "video_title": "近十几年的梗都在这里了",
+     "zone": "人力VOCALOID"
+    },
+    {
+     "comment_id": "BV1NyoDYNEBq:323002008160",
+     "quote": "鬼畜",
+     "ctime": 1793863820,
+     "like": 0,
+     "bvid": "BV1NyoDYNEBq",
+     "kind": "comment",
+     "video_title": "【蓝蓝路】 世界如此可爱",
+     "zone": "鬼畜"
+    }
+   ]
+  },
+  {
+   "family_key": "绷住",
+   "canonical": "绷住",
+   "type": "词",
+   "members": [
+    "没绷住",
+    "绷住"
+   ],
+   "known": false,
+   "score": 17.21,
+   "raw_score": 17.72,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.9189,
+   "meme_prob": 0.66,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 0,
+    "meta_ups": 0,
+    "meta_views": 0.0,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 0,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 0,
+    "meta_prev": 0,
+    "usage_docs": 13,
+    "usage_videos": 7,
+    "usage_zones": 6,
+    "evidence_docs": 13,
+    "evidence_videos": 7,
+    "evidence_rate_2x2": true,
+    "usage_7d": 4,
+    "usage_prev": 9,
+    "organic_docs": 13,
+    "organic_videos": 7,
+    "organic_likes": 161,
+    "like_weighted": 8.41,
+    "mean_like": 12.38,
+    "max_video_share": 0.308,
+    "last_ts": 1794661025,
+    "days_since_last": 0.06,
+    "recency": 0.996,
+    "velocity": 0.429,
+    "confidence": 0.919,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.0,
+     "weight": 0.45,
+     "points": 0.0
+    },
+    "meta_coverage": {
+     "raw": 0.0,
+     "weight": 0.18,
+     "points": 0.0
+    },
+    "organic": {
+     "raw": 0.6799,
+     "weight": 0.13,
+     "points": 8.84
+    },
+    "velocity": {
+     "raw": 0.4294,
+     "weight": 0.07,
+     "points": 3.01
+    },
+    "engagement": {
+     "raw": 0.1957,
+     "weight": 0.09,
+     "points": 1.76
+    },
+    "breadth": {
+     "raw": 0.6782,
+     "weight": 0.04,
+     "points": 2.71
+    },
+    "prior": {
+     "raw": 0.35,
+     "weight": 0.04,
+     "points": 1.4
+    },
+    "decay": {
+     "recency": 0.9955,
+     "days_since_last": 0.06,
+     "points": -0.08
+    },
+    "confidence": {
+     "value": 0.9189,
+     "factor": 0.9757
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.308,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": []
+    }
+   },
+   "reasons": [
+    "评论/弹幕使用 13 条、覆盖 7 个视频",
+    "近 7 天新增 4 条证据",
+    "独立使用证据 13 条 / 7 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": null,
+   "meta": [],
+   "evidence": [
+    {
+     "comment_id": "BV1iJnz6sEAA:321553605424",
+     "quote": "没绷住",
+     "ctime": 1792691464,
+     "like": 97,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV1Epx96EEBG:322960371216",
+     "quote": "绷住",
+     "ctime": 1793819657,
+     "like": 38,
+     "bvid": "BV1Epx96EEBG",
+     "kind": "comment",
+     "video_title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "zone": "乐评盘点"
+    },
+    {
+     "comment_id": "BV1Epx96EEBG:320032793473",
+     "quote": "没绷住",
+     "ctime": 1794547590,
+     "like": 14,
+     "bvid": "BV1Epx96EEBG",
+     "kind": "comment",
+     "video_title": "【梗百科】灭建国是啥梗？MJ宇宙？！",
+     "zone": "乐评盘点"
+    }
+   ]
+  },
+  {
+   "family_key": "练武术",
+   "canonical": "练武术",
+   "type": "词",
+   "members": [
+    "练武术"
+   ],
+   "known": false,
+   "score": 15.99,
+   "raw_score": 16.57,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.9417,
+   "meme_prob": 0.66,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 0,
+    "meta_ups": 0,
+    "meta_views": 0.0,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 0,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 0,
+    "meta_prev": 0,
+    "usage_docs": 24,
+    "usage_videos": 5,
+    "usage_zones": 4,
+    "evidence_docs": 24,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 11,
+    "usage_prev": 13,
+    "organic_docs": 24,
+    "organic_videos": 5,
+    "organic_likes": 8,
+    "like_weighted": 1.78,
+    "mean_like": 0.33,
+    "max_video_share": 0.583,
+    "last_ts": 1794644215,
+    "days_since_last": 0.26,
+    "recency": 0.982,
+    "velocity": 0.598,
+    "confidence": 0.942,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.0,
+     "weight": 0.45,
+     "points": 0.0
+    },
+    "meta_coverage": {
+     "raw": 0.0,
+     "weight": 0.18,
+     "points": 0.0
+    },
+    "organic": {
+     "raw": 0.6529,
+     "weight": 0.13,
+     "points": 8.49
+    },
+    "velocity": {
+     "raw": 0.5979,
+     "weight": 0.07,
+     "points": 4.19
+    },
+    "engagement": {
+     "raw": 0.0217,
+     "weight": 0.09,
+     "points": 0.2
+    },
+    "breadth": {
+     "raw": 0.5752,
+     "weight": 0.04,
+     "points": 2.3
+    },
+    "prior": {
+     "raw": 0.35,
+     "weight": 0.04,
+     "points": 1.4
+    },
+    "decay": {
+     "recency": 0.9822,
+     "days_since_last": 0.26,
+     "points": -0.29
+    },
+    "confidence": {
+     "value": 0.9417,
+     "factor": 0.9825
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.583,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": []
+    }
+   },
+   "reasons": [
+    "评论/弹幕使用 24 条、覆盖 5 个视频",
+    "近 7 天新增 11 条证据",
+    "独立使用证据 24 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": null,
+   "meta": [],
+   "evidence": [
+    {
+     "comment_id": "BV1iJnz6sEAA:323925790608",
+     "quote": "练武术",
+     "ctime": 1794644215,
+     "like": 0,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV1iJnz6sEAA:323910891152",
+     "quote": "练武术",
+     "ctime": 1794634208,
+     "like": 0,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:7d51440ca9a1",
+     "quote": "练武术",
+     "ctime": 1794361226,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    }
+   ]
+  },
+  {
+   "family_key": "学功夫",
+   "canonical": "学功夫",
+   "type": "词",
+   "members": [
+    "学功夫"
+   ],
+   "known": false,
+   "score": 15.89,
+   "raw_score": 16.49,
+   "status": "observing",
+   "heat_level": "活跃",
+   "confidence": 0.936,
+   "meme_prob": 0.66,
+   "signals": {
+    "meta_videos": 0,
+    "meta_interest_videos": 0,
+    "meta_ups": 0,
+    "meta_views": 0.0,
+    "meta_views_editorial": 0,
+    "meta_views_interest": 0,
+    "meta_likes": 0,
+    "meta_replies": 0,
+    "meta_7d": 0,
+    "meta_prev": 0,
+    "usage_docs": 23,
+    "usage_videos": 5,
+    "usage_zones": 4,
+    "evidence_docs": 23,
+    "evidence_videos": 5,
+    "evidence_rate_2x2": true,
+    "usage_7d": 11,
+    "usage_prev": 12,
+    "organic_docs": 23,
+    "organic_videos": 5,
+    "organic_likes": 7,
+    "like_weighted": 1.27,
+    "mean_like": 0.3,
+    "max_video_share": 0.652,
+    "last_ts": 1794644215,
+    "days_since_last": 0.26,
+    "recency": 0.982,
+    "velocity": 0.618,
+    "confidence": 0.936,
+    "is_current": true
+   },
+   "components": {
+    "meta_reach": {
+     "raw": 0.0,
+     "weight": 0.45,
+     "points": 0.0
+    },
+    "meta_coverage": {
+     "raw": 0.0,
+     "weight": 0.18,
+     "points": 0.0
+    },
+    "organic": {
+     "raw": 0.6373,
+     "weight": 0.13,
+     "points": 8.28
+    },
+    "velocity": {
+     "raw": 0.6184,
+     "weight": 0.07,
+     "points": 4.33
+    },
+    "engagement": {
+     "raw": 0.02,
+     "weight": 0.09,
+     "points": 0.18
+    },
+    "breadth": {
+     "raw": 0.5752,
+     "weight": 0.04,
+     "points": 2.3
+    },
+    "prior": {
+     "raw": 0.35,
+     "weight": 0.04,
+     "points": 1.4
+    },
+    "decay": {
+     "recency": 0.9822,
+     "days_since_last": 0.26,
+     "points": -0.29
+    },
+    "confidence": {
+     "value": 0.936,
+     "factor": 0.9808
+    },
+    "penalty": {
+     "concentration": 1.0,
+     "max_video_share": 0.652,
+     "evergreen": 1.0
+    },
+    "source": {
+     "known": false,
+     "dedicated_meta": 0,
+     "meta_kinds": []
+    }
+   },
+   "reasons": [
+    "评论/弹幕使用 23 条、覆盖 5 个视频",
+    "近 7 天新增 11 条证据",
+    "独立使用证据 23 条 / 5 个视频",
+    "最近 24 小时仍有新证据"
+   ],
+   "verified": null,
+   "meta": [],
+   "evidence": [
+    {
+     "comment_id": "BV1iJnz6sEAA:323925790608",
+     "quote": "学功夫",
+     "ctime": 1794644215,
+     "like": 0,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV1iJnz6sEAA:323910891152",
+     "quote": "学功夫",
+     "ctime": 1794634208,
+     "like": 0,
+     "bvid": "BV1iJnz6sEAA",
+     "kind": "comment",
+     "video_title": "上课时唱网络热梗",
+     "zone": "影视剪辑"
+    },
+    {
+     "comment_id": "BV12AJv6dENR:d:7d51440ca9a1",
+     "quote": "学功夫",
+     "ctime": 1794361226,
+     "like": 0,
+     "bvid": "BV12AJv6dENR",
+     "kind": "danmaku",
+     "video_title": "蛋仔派对：看图猜热梗挑战？跟得上网速，才会没难度！",
+     "zone": "手机游戏"
+    }
+   ]
+  }
+ ]
+}

@@ -158,3 +158,30 @@ def test_strong_usage_without_meta_still_passes_meme_prob_gate():
     assert meme is not None
     assert meme.meme_prob >= 0.56
     assert len({item.bvid for item in meme.usage}) >= 3
+
+
+def test_filter_audit_reports_reprojection_reasons():
+    videos = [
+        make_video("BVP", "【梗百科】吴家村是啥梗？", aid=1, pubdate=NOW - DAY,
+                   view=1_000_000, source="search:梗百科"),
+        make_video("BVQ", "音乐视频", aid=2, pubdate=NOW - DAY),
+    ]
+    comments = [
+        make_comment("BVQ", "BVQ:1", "音乐", ctime=NOW - DAY, like=1),
+        make_comment("BVQ", "BVQ:2", "音乐", ctime=NOW - 2 * DAY, like=2),
+        make_comment("BVQ", "BVQ:3", "音乐", ctime=NOW - 3 * DAY, like=3),
+    ]
+    corpus = make_corpus(videos, comments)
+    knowledge = Knowledge()
+    mentions = extract_meta_mentions(corpus.videos, knowledge, now=NOW)
+    audit: dict = {"names": ["吴家村", "音乐"]}
+    candidates = extract_candidates(
+        corpus.docs, knowledge, now=NOW, meta_mentions=mentions, audit=audit
+    )
+    assert any(item.norm == "吴家村" for item in candidates)   # 用户盲标 ✅
+    named = audit["named"]
+    assert named["吴家村"]["kept"] is True
+    assert named["音乐"]["kept"] is False
+    assert named["音乐"]["reason"] in ("lexicon", "common_word")
+    assert named["吴家村"]["doc_mentions"] >= 1
+    assert audit["blocked_by_reason"]
