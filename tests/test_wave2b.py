@@ -100,7 +100,8 @@ class FakeClient:
         self.comment_calls: list[tuple[int, int]] = []
         self._cid = cid
         self._comments = comments if comments is not None else [
-            {"text": "这是什么梗", "like": 1, "at": 0}]
+            {"text": "这是什么梗", "like": 1,
+             "ctime": int(time.time()) - 3600, "rpid": 900001}]
 
     def cid_for(self, bvid: str) -> int | None:
         self.cid_calls.append(bvid)
@@ -109,9 +110,14 @@ class FakeClient:
     def danmaku(self, cid: int) -> str:
         return ""
 
-    def comments(self, aid: int, page: int) -> list[dict]:
-        self.comment_calls.append((aid, page))
+    def comments(self, aid: int, page: int = 1, mode: int = 3,
+                 cursor: int | None = None, ps: int = 20) -> list[dict]:
+        self.comment_calls.append((aid, page, mode))
         return [dict(item) for item in self._comments]
+
+    def comment_page(self, aid: int, page: int = 1, mode: int = 3,
+                     cursor: int | None = None, ps: int = 20):
+        return self.comments(aid, page=page, mode=mode, cursor=cursor, ps=ps), 0
 
 
 def test_upsert_videos_preserves_cid_on_null(tmp_path):
@@ -172,17 +178,17 @@ def test_comment_cache_hit_skips_requests(tmp_path):
     video = {"bvid": "BV1", "aid": 1, "zone": "鬼畜"}
 
     _, first = _run_collect(conn, 1, client, video, comments=True)
-    assert first["comment_requests"] == 1
+    assert first["comment_requests"] == 2        # mode=3 与 mode=2 各一页
     assert first["comment_cached"] == 0
-    assert first["comments"] == 1
-    assert client.comment_calls == [(1, 1)]
+    assert first["comments"] == 1                # 两种 mode 返回同一条：按 rpid/文本去重
+    assert client.comment_calls == [(1, 1, 3), (1, 1, 2)]
 
     _, second = _run_collect(conn, 2, client, video, comments=True)
     assert second["comment_requests"] == 0    # 命中缓存不请求
-    assert second["comment_cached"] == 1      # stats 新增 comment_cached
+    assert second["comment_cached"] == 2      # 两个 (aid,mode,page) 各命中一次
     assert second["comments"] == 1            # 统计口径不变
-    assert client.comment_calls == [(1, 1)]
-    assert conn.execute("SELECT COUNT(*) FROM comment_cache").fetchone()[0] == 1
+    assert client.comment_calls == [(1, 1, 3), (1, 1, 2)]
+    assert conn.execute("SELECT COUNT(*) FROM comment_cache").fetchone()[0] == 2
     conn.close()
 
 
@@ -195,7 +201,7 @@ def test_comment_cache_ttl_expired_refetches(tmp_path, monkeypatch):
     conn.execute("UPDATE comment_cache SET fetched_at='2020-01-01T00:00:00+08:00'")
     conn.commit()
     _, stats = _run_collect(conn, 2, client, video, comments=True)
-    assert stats["comment_requests"] == 1
+    assert stats["comment_requests"] == 2
     assert stats["comment_cached"] == 0
     conn.close()
 
@@ -208,7 +214,7 @@ def test_comment_cache_disabled_refetches(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "COMMENT_CACHE_SECONDS", 0)
     _run_collect(conn, 1, client, video, comments=True)
     _, stats = _run_collect(conn, 2, client, video, comments=True)
-    assert stats["comment_requests"] == 1
+    assert stats["comment_requests"] == 2
     assert stats["comment_cached"] == 0
     assert conn.execute("SELECT COUNT(*) FROM comment_cache").fetchone()[0] == 0
     conn.close()

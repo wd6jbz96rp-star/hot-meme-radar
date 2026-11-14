@@ -17,6 +17,11 @@ from .score import score_families
 from .zones import ZONES
 
 
+def _now() -> datetime:
+    """当前本地时间；测试/离线回放可 monkeypatch 冻结时间。"""
+    return datetime.now().astimezone()
+
+
 def _dedupe_videos(videos: list[dict]) -> list[dict]:
     seen: set[str] = set()
     result: list[dict] = []
@@ -90,10 +95,15 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
                  videos: list[dict], comment_targets: list[dict],
                  danmaku_targets: list[dict]) -> tuple[list[TextDoc], dict]:
     rng = random.Random(20261114)
-    stats = {"comments": 0, "danmaku": 0, "danmaku_cached": 0,
+    stats = {"comments": 0, "comments_recent": 0, "comments_7d": 0,
+             "comment_dupes": 0, "comment_filtered_old": 0,
+             "comment_modes": {str(mode): 0 for mode in config.COMMENT_MODES},
+             "danmaku": 0, "danmaku_docs": 0, "danmaku_cached": 0,
              "comment_requests": 0, "comment_cached": 0, "pagelist_requests": 0}
     danmaku_docs: list[TextDoc] = []
     comment_docs: list[TextDoc] = []
+    now_ts = _now().timestamp()
+    recent_seconds = config.COMMENT_RECENT_DAYS * 86400
 
     # 一次批量取 cid：搜索视频的 cid 在上一轮已由 collect_docs 回写，
     # 这里命中即可完全跳过 pagelist（warm 轮 25 → 0）。
@@ -124,41 +134,102 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
         if len(parsed) > config.MAX_DANMAKU_PER_VIDEO:
             parsed = rng.sample(parsed, config.MAX_DANMAKU_PER_VIDEO)
         stats["danmaku"] += len(parsed)
+        stats["danmaku_docs"] += len(parsed)
         for item in parsed:
             danmaku_docs.append(
                 TextDoc(text=item["text"], bvid=video["bvid"], zone=video.get("zone", ""),
                         kind="danmaku", owner=video.get("owner_name", ""))
             )
 
+    window_seconds = config.COMMENT_WINDOW_DAYS * 86400
     for video in comment_targets:
         aid = video.get("aid")
         if not aid:
             continue
-        collected: list[dict] = []
-        for page in range(1, config.COMMENT_PAGES + 1):
-            cached = store.get_comment_cache(conn, int(aid), page)
-            if cached is not None:
-                # 命中缓存也按当前 cycle 落 text_sample，保持统计口径一致
-                items = cached
-                stats["comment_cached"] += 1
+        per_mode: dict[int, list[dict]] = {mode: [] for mode in config.COMMENT_MODES}
+        seen_rpid: set = set()
+        seen_text: set = set()
+        for mode in config.COMMENT_MODES:
+            cursor = 0
+            for page in range(1, config.COMMENT_PAGES + 1):
+                cached = store.get_comment_cache(conn, int(aid), mode, page)
+                if cached is not None:
+                    # 命中缓存也按当前 cycle 落 text_sample，统计口径不变
+                    items = cached
+                    stats["comment_cached"] += 1
+                else:
+                    items, cursor = client.comment_page(
+                        int(aid), page=page, mode=mode, cursor=cursor
+                    )
+                    stats["comment_requests"] += 1
+                    store.put_comment_cache(conn, int(aid), mode, page, items)
+                for item in items:
+                    text = (item.get("text") or "").strip()
+                    if not text:
+                        continue
+                    rpid = item.get("rpid")
+                    if rpid is not None:
+                        if rpid in seen_rpid:
+                            stats["comment_dupes"] += 1
+                            continue
+                    norm = normalize_surface(text)
+                    if norm in seen_text:
+                        stats["comment_dupes"] += 1
+                        continue
+                    try:
+                        ctime = int(item.get("ctime") or 0)
+                    except (TypeError, ValueError):
+                        ctime = 0
+                    if ctime <= 0 or (now_ts - ctime) > window_seconds:
+                        stats["comment_filtered_old"] += 1
+                        continue
+                    if rpid is not None:
+                        seen_rpid.add(rpid)
+                    seen_text.add(norm)
+                    per_mode[mode].append(
+                        {"text": text, "like": int(item.get("like") or 0),
+                         "ctime": ctime, "rpid": rpid, "_mode": mode,
+                         "_recent": (now_ts - ctime) <= recent_seconds}
+                    )
+                if len(items) < config.COMMENT_PAGE_SIZE:
+                    break
+
+        # 热度评论按赞、时间评论按时间各取一半，再合并补齐，保留两种证据。
+        limit = config.COMMENT_MAX_PER_VIDEO
+        per_mode_cap = max(1, limit // max(1, len(config.COMMENT_MODES)))
+        picked: list[dict] = []
+        leftovers: list[dict] = []
+        for mode in config.COMMENT_MODES:
+            bucket = per_mode[mode]
+            if mode == 3:
+                bucket.sort(key=lambda c: c["like"], reverse=True)
             else:
-                items = client.comments(int(aid), page)
-                stats["comment_requests"] += 1
-                store.put_comment_cache(conn, int(aid), page, items)
-            if not items:
-                break
-            collected.extend(items)
-            if len(items) < 20:
-                break
-        stats["comments"] += len(collected)
-        if collected:
-            store.insert_text_samples(conn, cycle_id, video["bvid"], "comment", collected)
-        for item in collected:
-            comment_docs.append(
-                TextDoc(text=item["text"], bvid=video["bvid"], zone=video.get("zone", ""),
-                        kind="comment", likes=item.get("like", 0),
-                        owner=video.get("owner_name", ""))
-            )
+                bucket.sort(key=lambda c: c["ctime"], reverse=True)
+            picked.extend(bucket[:per_mode_cap])
+            leftovers.extend(bucket[per_mode_cap:])
+        if len(picked) < limit:
+            leftovers.sort(key=lambda c: (c["like"], c["ctime"]), reverse=True)
+            picked.extend(leftovers[: limit - len(picked)])
+        picked.sort(key=lambda c: (c["like"], c["ctime"]), reverse=True)
+        picked = picked[:limit]
+
+        stats["comments"] += len(picked)
+        stats["comments_recent"] += len(picked)
+        for entry in picked:
+            if entry["_recent"]:
+                stats["comments_7d"] += 1
+            stats["comment_modes"][str(entry["_mode"])] += 1
+        if picked:
+            store.insert_text_samples(conn, cycle_id, video["bvid"], "comment", picked)
+        for entry in picked:
+            doc = TextDoc(text=entry["text"], bvid=video["bvid"],
+                          zone=video.get("zone", ""), kind="comment",
+                          likes=entry["like"], owner=video.get("owner_name", ""))
+            # ctime/mode 作为动态属性附加：extract.TextDoc 由其他会话维护，不在此改字段。
+            doc.ctime = entry["ctime"]
+            doc.mode = entry["_mode"]
+            doc.rpid = entry["rpid"]
+            comment_docs.append(doc)
 
     header_docs: list[TextDoc] = []
     for video in videos:
@@ -198,8 +269,12 @@ def compute_usage(families: list[dict], docs: list[TextDoc],
     long_surfaces = long_surfaces[:100]
 
     usage: dict[str, dict] = {
-        family["family_key"]: {"videos": set(), "search_videos": set(),
-                               "count": 0, "per_video": Counter()}
+        family["family_key"]: {
+            "videos": set(), "search_videos": set(),
+            "count": 0, "per_video": Counter(),
+            # 评论区证据（P0）：文档数、点赞/时间样本、覆盖视频、弹幕命中
+            "comment_likes": [], "comment_videos": set(), "danmaku_docs": 0,
+        }
         for family in families
     }
 
@@ -226,15 +301,79 @@ def compute_usage(families: list[dict], docs: list[TextDoc],
                 if key:
                     hits[key] = hits.get(key, 0) + 1
 
+        ctime = int(getattr(doc, "ctime", 0) or 0)
+        likes = max(0, int(doc.likes or 0))
         for key, count in hits.items():
-            bucket = usage[key]
+            bucket = usage.get(key)
+            if bucket is None:
+                continue
             bucket["videos"].add(bvid)
             bucket["count"] += count
             bucket["per_video"][bvid] += count
             if video_meta[bvid].get("source") == "search":
                 bucket["search_videos"].add(bvid)
+            if doc.kind == "comment":
+                bucket["comment_likes"].append((ctime, likes))
+                bucket["comment_videos"].add(bvid)
+            elif doc.kind == "danmaku":
+                bucket["danmaku_docs"] += 1
 
     return usage
+
+
+def comment_evidence(bucket: dict | None, now_ts: float) -> dict:
+    """评论证据（P0）：窗口计数、年龄归一赞、7 天增速、弹幕刷屏标记。
+
+    - `comment_count_recent`：≤COMMENT_WINDOW_DAYS 的评论文档数；
+    - `comment_7d_count`：≤COMMENT_RECENT_DAYS 的评论文档数；
+    - `comment_like_weighted`：Σ log1p(like) × 0.5^(age_days / 半衰期)；
+    - `comment_growth_7d`：(近 7 天 + 1) / (7–30 天 + 1)，>1 表示在加速；
+    - `danmaku_only`：弹幕有命中、评论近 7 天与视频覆盖都低 → 老梗刷屏旁证。
+    """
+    bucket = bucket or {}
+    window = config.COMMENT_WINDOW_DAYS * 86400
+    recent_window = config.COMMENT_RECENT_DAYS * 86400
+    pairs = [(int(t), int(like)) for t, like in bucket.get("comment_likes", []) if t > 0]
+    recent = [(t, like) for t, like in pairs if 0 <= now_ts - t <= window]
+    week = [(t, like) for t, like in pairs if 0 <= now_ts - t <= recent_window]
+    mid = len(recent) - len(week)
+    weighted = 0.0
+    for t, like in recent:
+        age_days = max(0.0, (now_ts - t) / 86400.0)
+        weighted += math.log1p(like) * math.pow(
+            0.5, age_days / max(0.1, config.COMMENT_LIKE_HALF_LIFE_DAYS))
+    earliest = min((t for t, _ in recent), default=0)
+    df_video = len(bucket.get("comment_videos") or ())
+    danmaku_docs = int(bucket.get("danmaku_docs", 0))
+    return {
+        "comment_count_recent": len(recent),
+        "comment_7d_count": len(week),
+        "comment_mid_count": mid,
+        "comment_like_weighted": round(weighted, 2),
+        "comment_growth_7d": round((len(week) + 1.0) / (mid + 1.0), 3),
+        "comment_df_video": df_video,
+        "danmaku_docs": danmaku_docs,
+        "earliest_comment_at": (
+            datetime.fromtimestamp(earliest).astimezone().isoformat(timespec="seconds")
+            if earliest else ""
+        ),
+        "age_days": (round((now_ts - earliest) / 86400.0, 1) if earliest else None),
+        "danmaku_only": bool(danmaku_docs >= 3 and df_video < 2 and len(week) < 2),
+    }
+
+
+def comment_gate(item: dict, evidence: dict, evidence_ready: bool) -> str:
+    """P0 门控：评论证据健康时，非种子候选无任何 ≤30 天评论证据 → rejected。
+
+    返回拒绝原因（空串 = 放行）。种子仍按原有规则，不受此门控影响；
+    评论采集不健康（本轮评论文档 < COMMENT_GATE_MIN_DOCS）时整体跳过门控，
+    避免单源失败把候选池清零。
+    """
+    if not evidence_ready or item.get("seed_hit"):
+        return ""
+    if int(evidence.get("comment_count_recent", 0)) > 0:
+        return ""
+    return "no_recent_comment"
 
 
 def confirm_rounds() -> int:
@@ -294,6 +433,15 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
 
         video_meta = {v["bvid"]: v for v in videos}
         usage = compute_usage(families, docs, video_meta)
+        # P0 评论区优先：评论证据健康时才启用「无近 30 天评论证据」门控
+        evidence_ready = (
+            int(collect_stats.get("comments_recent", 0)) >= config.COMMENT_GATE_MIN_DOCS
+        )
+        stats["comment_evidence_ready"] = evidence_ready
+        stats["comment_gate_checked"] = 0
+        stats["comment_gate_rejected"] = 0
+        stats["meme_gate_rejected"] = 0
+        evidence_now = _now().timestamp()
 
         week_ago = (datetime.now().astimezone() - timedelta(days=config.WINDOW_DAYS)).isoformat(
             timespec="seconds"
@@ -305,6 +453,7 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
         for family in families:
             key = family["family_key"]
             bucket = usage.get(key) or {"videos": set(), "count": 0, "per_video": Counter()}
+            family["comment"] = comment_evidence(usage.get(key), evidence_now)
             video_ids = bucket["videos"]
             exposure = sum(
                 math.log1p(max(0, video_meta[b].get("view", 0)))
@@ -354,8 +503,20 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             item["first_seen"] = family.get("first_seen")
             item["is_new"] = bool(family.get("is_new"))
             item["judge_reasons"] = family.get("judge_reasons", {})
+            evidence = family.get("comment") or {}
+            # 评论证据进 components.raw（API 原样透传），同时留一份顶层便于看板取用
+            item.setdefault("raw_signals", {}).update(evidence)
+            item["components"]["comment"] = evidence
             if not passes_meme_gate(item["components"].get("meme", 0.0), item.get("seed_hit")):
                 item["status"] = "rejected"
+                stats["meme_gate_rejected"] += 1
+                continue
+            stats["comment_gate_checked"] += 1
+            gate_reason = comment_gate(item, evidence, evidence_ready)
+            if gate_reason:
+                item["status"] = "rejected"
+                item["comment_gate"] = gate_reason
+                stats["comment_gate_rejected"] += 1
                 continue
             streak = store.hype_streak(conn, key, config.MIN_SCORE, rounds=confirm_rounds())
             item["status"] = status_for(item, family, streak)

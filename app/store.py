@@ -74,10 +74,11 @@ CREATE TABLE IF NOT EXISTS danmaku_cache(
 );
 CREATE TABLE IF NOT EXISTS comment_cache(
     aid INTEGER NOT NULL,
+    mode INTEGER NOT NULL DEFAULT 3,
     page INTEGER NOT NULL,
     fetched_at TEXT NOT NULL,
     payload TEXT NOT NULL,
-    PRIMARY KEY(aid, page)
+    PRIMARY KEY(aid, mode, page)
 );
 CREATE TABLE IF NOT EXISTS candidate(
     norm TEXT PRIMARY KEY,
@@ -131,13 +132,42 @@ CREATE TABLE IF NOT EXISTS source_error(
 """
 
 
+COMMENT_CACHE_DDL = """CREATE TABLE IF NOT EXISTS comment_cache(
+    aid INTEGER NOT NULL,
+    mode INTEGER NOT NULL DEFAULT 3,
+    page INTEGER NOT NULL,
+    fetched_at TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY(aid, mode, page)
+);
+"""
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
-    """兼容旧库：为已存在的 meme_signal 补 is_new 列（幂等）。"""
+    """兼容旧库（幂等）：补 meme_signal.is_new；comment_cache 加 mode 进主键。"""
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(meme_signal)")}
     if "is_new" not in columns:
         conn.execute(
             "ALTER TABLE meme_signal ADD COLUMN is_new INTEGER NOT NULL DEFAULT 0"
         )
+    _migrate_comment_cache(conn)
+
+
+def _migrate_comment_cache(conn: sqlite3.Connection) -> None:
+    """旧表主键 (aid,page) 无法区分 mode：重建为 (aid,mode,page)，旧行视为 mode=3。
+
+    先 rename 再建新表再搬运；已迁移的库检测到 mode 列直接返回，可重复执行。
+    """
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(comment_cache)")}
+    if not columns or "mode" in columns:
+        return
+    conn.execute("ALTER TABLE comment_cache RENAME TO comment_cache_legacy")
+    conn.executescript(COMMENT_CACHE_DDL)
+    conn.execute(
+        """INSERT OR IGNORE INTO comment_cache(aid, mode, page, fetched_at, payload)
+           SELECT aid, 3, page, fetched_at, payload FROM comment_cache_legacy"""
+    )
+    conn.execute("DROP TABLE comment_cache_legacy")
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -275,12 +305,24 @@ def insert_metrics(conn: sqlite3.Connection, cycle_id: int, videos: Iterable[dic
 
 def insert_text_samples(conn: sqlite3.Connection, cycle_id: int, bvid: str, kind: str,
                         samples: Iterable[dict]) -> None:
-    rows = [
-        (cycle_id, bvid, kind, s.get("text", ""), int(s.get("like", 0) or 0),
-         float(s.get("at", 0) or 0))
-        for s in samples
-        if s.get("text")
-    ]
+    """`raw_time`：评论落 `ctime`（Unix 秒），弹幕回退到 `at`（视频内秒数）。
+
+    P0 前这里取 `s.get("at")`，评论没有 `at` 字段 → raw_time 恒 0（已修）。
+    """
+    rows = []
+    for s in samples:
+        if not s.get("text"):
+            continue
+        raw_time = s.get("ctime")
+        if raw_time is None:
+            raw_time = s.get("at")
+        try:
+            raw_time = float(raw_time or 0)
+        except (TypeError, ValueError):
+            raw_time = 0.0
+        rows.append(
+            (cycle_id, bvid, kind, s.get("text", ""), int(s.get("like", 0) or 0), raw_time)
+        )
     conn.executemany(
         "INSERT OR IGNORE INTO text_sample(cycle_id, bvid, kind, text, likes, raw_time) "
         "VALUES(?,?,?,?,?,?)",
@@ -315,14 +357,37 @@ def put_danmaku_cache(conn: sqlite3.Connection, cid: int, payload: bytes) -> Non
     conn.commit()
 
 
-def get_comment_cache(conn: sqlite3.Connection, aid: int, page: int,
+def _normalize_comment_items(items: Iterable[dict] | None) -> list[dict]:
+    """评论缓存/落库统一形状，保证 `ctime` 一定在（缓存也要带时间）。"""
+    rows: list[dict] = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        try:
+            ctime = int(item.get("ctime") or 0)
+        except (TypeError, ValueError):
+            ctime = 0
+        try:
+            like = int(item.get("like") or 0)
+        except (TypeError, ValueError):
+            like = 0
+        rows.append({"text": text, "like": like, "ctime": ctime,
+                     "rpid": item.get("rpid")})
+    return rows
+
+
+def get_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
                       ttl_seconds: int | None = None) -> list[dict] | None:
-    """返回 TTL 内的评论页；`None` = 未命中/已过期/缓存关闭。"""
+    """返回 TTL 内的评论页；`None` = 未命中/已过期/缓存关闭。键 = (aid,mode,page)。"""
     ttl = config.COMMENT_CACHE_SECONDS if ttl_seconds is None else ttl_seconds
     if ttl <= 0:
         return None
     row = conn.execute(
-        "SELECT payload, fetched_at FROM comment_cache WHERE aid=? AND page=?", (aid, page)
+        "SELECT payload, fetched_at FROM comment_cache WHERE aid=? AND mode=? AND page=?",
+        (aid, mode, page),
     ).fetchone()
     if not row or not _fresh(row["fetched_at"], ttl):
         return None
@@ -330,16 +395,18 @@ def get_comment_cache(conn: sqlite3.Connection, aid: int, page: int,
         data = json.loads(row["payload"])
     except (TypeError, json.JSONDecodeError):
         return None
-    return data if isinstance(data, list) else None
+    return _normalize_comment_items(data) if isinstance(data, list) else None
 
 
-def put_comment_cache(conn: sqlite3.Connection, aid: int, page: int,
-                      items: list[dict]) -> None:
+def put_comment_cache(conn: sqlite3.Connection, aid: int, mode: int = 3, page: int = 1,
+                      items: list[dict] | None = None) -> None:
     if config.COMMENT_CACHE_SECONDS <= 0:
         return
     conn.execute(
-        "INSERT OR REPLACE INTO comment_cache(aid, page, fetched_at, payload) VALUES(?,?,?,?)",
-        (aid, page, now_iso(), json.dumps(items, ensure_ascii=False)),
+        "INSERT OR REPLACE INTO comment_cache(aid, mode, page, fetched_at, payload) "
+        "VALUES(?,?,?,?,?)",
+        (aid, mode, page, now_iso(),
+         json.dumps(_normalize_comment_items(items), ensure_ascii=False)),
     )
     conn.commit()
 

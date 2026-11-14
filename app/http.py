@@ -84,7 +84,7 @@ def _endpoint_label(url: str) -> str:
         return "danmaku"
     if path.endswith("/x/player/pagelist"):
         return "pagelist"
-    if path.endswith("/x/v2/reply"):
+    if path.endswith("/x/v2/reply") or path.endswith("/x/v2/reply/main"):
         return "comments"
     if "/ranking/" in path:
         return "ranking"

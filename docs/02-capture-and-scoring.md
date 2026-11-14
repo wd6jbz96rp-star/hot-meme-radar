@@ -15,7 +15,7 @@
 | `x/frontend/finger/spi` | 取 buvid3/buvid4 | 免登录，用于通过排行榜风控 |
 | `x/web-interface/ranking/v2?rid=` | 分区榜，约 90–100 条/区 | 带 view/danmaku/reply/like/coin/fav/share |
 | `x/web-interface/popular` | 全站热门补充 | ps ≤ 50 |
-| `x/v2/reply?type=1&oid=&sort=2` | 热评 | 20 条/页，免登录 |
+| `x/v2/reply/main?type=1&oid=&mode=3&next=0&ps=20` | 热度评论（mode=3）/ 时间序评论（mode=2） | 免 wbi、免登录；首屏 `next=0`，`ps=20`；响应含 `replies`、可选 `top_replies`、`cursor.next` |
 | `comment.bilibili.com/{cid}.xml` | 弹幕 | raw-deflate，`zlib.decompress(data, -15)` |
 | `x/web-interface/wbi/search/type` | 搜索「热梗/梗百科/热梗盘点」等视频 | 需 wbi 签名 |
 | `x/player/pagelist` | 搜索视频补 cid | 搜索结果不含 cid |
@@ -31,6 +31,23 @@
 | D 知识 | 种子梗表 148 条 + 别名表 | 先验、归并、区分老梗 |
 
 分区权重按造梗密度设定：鬼畜 1.4、生活 1.2、动画 1.1、游戏 1.1、影视 1.0、音乐 0.9、娱乐 0.9、知识 0.7。
+
+### 2.1 语料配额与窗口（v2 P0 评论区优先）
+
+评论是第一语料区，弹幕降为「梗句扩散」旁证：
+
+| 项 | 口径 |
+|---|---|
+| 评论视频 | 30 个（分区榜按 `reply` 取 + 10 个梗搜索视频），`COMMENT_VIDEOS=30` |
+| 评论接口 | `/x/v2/reply/main`，每视频 `mode=3`（热度）+ `mode=2`（时间）各 1 页，`ps=20`，`COMMENT_MODES=(3,2)`、`COMMENT_PAGES=1` |
+| 每视频保留 | 两种 mode 合并去重后 ≤40 条（`COMMENT_MAX_PER_VIDEO=40`）：热度评论按赞、时间评论按 `ctime` 各取一半，再按赞补齐 |
+| 评论窗口 | 只收 `ctime` ≤30 天（`COMMENT_WINDOW_DAYS=30`）；≤7 天单独计数用于增速（`COMMENT_RECENT_DAYS=7`） |
+| 评论去重 | 先按 `rpid`，再按归一化文本；同一评论同时出现在两个 mode 只留一条 |
+| 评论落库 | `text_sample.raw_time = ctime`（Unix 秒）；`TextDoc` 以动态属性携带 `ctime/mode/rpid`，不改 `extract.TextDoc` 字段 |
+| 弹幕视频 | 10 个（`DANMAKU_VIDEOS=10`），每视频随机采样 ≤200 条（`MAX_DANMAKU_PER_VIDEO=200`） |
+| 弹幕定位 | 只作整句扩散旁证与「老梗刷屏」识别，不参与评论证据门控 |
+
+旧 `/x/v2/reply` 实测匿名仅返回 3 条 → 一轮 90 条评论；`reply/main` 单页 ~19–20 条，30 视频 ×2 mode ≈ 1200 条。旧 fixture 结构（只有 `data.replies`）仍可解析。
 
 ## 3. 候选发现
 
@@ -59,6 +76,23 @@
 | 广度 B | 视频数、分区数、UP 数的分位均值 |
 | 增速 V | (本轮频次+1) / (过去 7 天日均+1) |
 | 梗性 P | 判定分 0–1（含「梗源覆盖」：出现在热梗类搜索视频中的条数） |
+| 评论证据 | 见 §4.1：窗口计数、年龄归一赞、7 天增速、弹幕刷屏标记 |
+
+### 4.1 评论证据（P0）
+
+按梗族汇总 ≤30 天评论证据，写入 `components.raw`（API 原样透传），同时留 `components.comment`：
+
+| 字段 | 定义 |
+|---|---|
+| `comment_count_recent` | ≤30 天命中该族的评论文档数 |
+| `comment_7d_count` | ≤7 天命中数；`comment_mid_count` = 7–30 天命中数 |
+| `comment_growth_7d` | 7 天增速 = `(comment_7d_count+1) / (comment_mid_count+1)`，>1 表示在加速 |
+| `comment_like_weighted` | `Σ log1p(like) × 0.5^(age_days / 14)`（`COMMENT_LIKE_HALF_LIFE_DAYS=14`），点赞按年龄归一 |
+| `comment_df_video` | 命中该族的评论视频数 |
+| `earliest_comment_at` / `age_days` | 窗口内最早评论时间（ISO）/ 距今天数 |
+| `danmaku_only` | 弹幕命中 ≥3 且 `comment_df_video<2`、`comment_7d_count<2` → 老梗刷屏旁证 |
+
+**P0 门控**：当本轮 `comments_recent ≥ COMMENT_GATE_MIN_DOCS=200`（评论采集健康）时，非种子候选若 `comment_count_recent == 0` → `rejected`（原因 `no_recent_comment`）。种子仍走原有规则；评论采集不健康时整体跳过门控，避免单源失败清空候选池。
 
 归一化：每个信号在本轮候选池内取百分位，避免量纲与轮次波动。
 
@@ -104,9 +138,10 @@ Top10 以梗族为单位，每条包含：热度分、名次变化、类型、�
 ### 7.1 采集缓存与请求指标
 
 - **弹幕缓存**：24h（`CACHE_TTL_SECONDS`），按 cid 命中。
-- **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, page)` 命中；命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变。
+- **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, mode, page)` 命中（旧库启动时幂等迁移，历史行补 `mode=3`）；缓存内容带 `ctime`。命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变。
 - **cid 持久化**：搜索视频首轮补 `x/player/pagelist` 后回写 `video.cid`；后续轮 `upsert_videos` 用 `COALESCE` 保留，warm 轮 `pagelist_requests=0`。
-- `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
+- `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav，`reply/main` 计入 `comments`）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
+- 评论语料指标：`comments`（本轮保留条数）、`comments_recent`（≤30 天）、`comments_7d`（≤7 天）、`comment_modes`（各 mode 保留条数）、`comment_dupes`（rpid/文本去重数）、`comment_filtered_old`（窗口外丢弃数）、`danmaku`/`danmaku_docs`（弹幕文档数）、`comment_evidence_ready`、`comment_gate_checked`（通过梗性门控、进入评论门控的候选数）、`comment_gate_rejected`（被 P0 门控拒绝的候选数）、`meme_gate_rejected`（被梗性门控拒绝的候选数）。
 
 ## 8. 扩展点
 

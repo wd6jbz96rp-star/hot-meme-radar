@@ -37,13 +37,23 @@ MIN_VIDEOS_FOR_RANK = 2   # 至少出现在 2 个视频中才进稳定榜
 
 # ---- 采集量 ----
 VIDEOS_PER_ZONE = 25
+# P0 评论区优先（docs/pm/BOARD.md §13）：评论 30 视频 ×2 mode 各 1 页 ≈1200 条，
+# 弹幕降到 10 视频、每视频 ≤200 条，只作「梗句扩散」旁证。
 COMMENT_VIDEOS = 30
-DANMAKU_VIDEOS = 50
-SEARCH_DANMAKU_VIDEOS = 25
+DANMAKU_VIDEOS = 10
+SEARCH_DANMAKU_VIDEOS = 2
 SEARCH_COMMENT_VIDEOS = 10
-COMMENT_PAGES = 2
+COMMENT_PAGES = 1
+# 热度评论 mode=3 / 时间序评论 mode=2（`/x/v2/reply/main`）
+COMMENT_MODES = (3, 2)
+COMMENT_PAGE_SIZE = 20
+COMMENT_WINDOW_DAYS = 30        # 评论证据窗口（≤30 天）
+COMMENT_RECENT_DAYS = 7         # 增速窗口（≤7 天）
+COMMENT_MAX_PER_VIDEO = 40      # 合并两种 mode 后每视频保留条数
+COMMENT_GATE_MIN_DOCS = 200     # 本轮评论文档 ≥ 此值才启用评论证据门控
+COMMENT_LIKE_HALF_LIFE_DAYS = 14.0  # 评论点赞按年龄衰减的半衰期
 MAX_CORPUS_CHARS = 160_000
-MAX_DANMAKU_PER_VIDEO = 400
+MAX_DANMAKU_PER_VIDEO = 200
 SEARCH_QUERIES = [
     "网络热梗", "热梗", "梗百科", "什么梗", "年度热梗", "梗合集",
     "2026热梗", "2025热梗", "2024热梗", "热梗盘点", "网络流行语",

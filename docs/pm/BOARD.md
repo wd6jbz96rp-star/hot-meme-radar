@@ -165,3 +165,36 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 3. **冷启动**：评论 412→curl 兜底改为直接 curl 或用可用 TLS 指纹，压缩 95s；或首轮限制评论目标数。
 4. **多进程/部署**：单 worker 显式声明，或加进程级文件锁。
 5. **异步**：在 2 rps 合规线下无收益，暂缓；若未来放宽到 3 rps 再评估有界并发（ASYNC-DESIGN 方案 A）。
+
+## 13. v2 P0：评论区优先（进行中，16:12）
+
+### 13.1 决策
+
+| # | 决策 |
+|---|---|
+| V1 | **评论区是第一语料区**：评论 30 视频 ×（热度 mode=3 + 时间 mode=2），弹幕降到 10 视频、只做扩散旁证 |
+| V2 | **分层窗口**：≤30 天取证据与语义；≤7 天算增速/新晋；≤90 天只用于经典/回锅 |
+| V3 | 点赞按年龄归一（`log1p(like)` + age），不做「7 天且高赞」硬 AND（实测会接近 0 条） |
+| V4 | 评论 `ctime` 必须落库（现 `raw_time` 恒 0 是 bug）；新增 `earliest_comment_at` / `age_days` |
+| V5 | 老梗刷屏识别：弹幕重复高 + 近 7 天评论增速低 → 只进经典榜 |
+| V6 | P0 不做 LLM；LLM 审核/重排在 P2，等证据包可用后再接 |
+
+### 13.2 实测依据
+
+- 当前 cycle#7：评论 90 条 vs 弹幕 16,444 条（弹幕 99.5%）。
+- 接口探测（1 视频）：`/x/v2/reply` 仅 3 条；`/x/v2/reply/main?mode=3` 20 条；`mode=2` 19 条且按时间。
+- 3 视频分布：热度评论集中在 30–90 天前（均赞 2021/3508），时间评论集中在 ≤7 天（均赞 0.1–0.5）；仅 2 天新视频出现「≤7 天 + 均赞 1506」。
+
+### 13.3 分工
+
+| 会话 | 所有权 | 任务 |
+|---|---|---|
+| comment-core | `app/bili.py`、`app/pipeline.py`、`app/store.py`、`app/config.py`、`tests/*`、`docs/02` | 切 `reply/main`、ctime 落库、窗口/配额/缓存、评论证据与 7 天增速、真机对比 |
+| eval-harness | `eval/`（新建）、`docs/pm/EVAL-DESIGN.md`、`docs/pm/P0-BASELINE.md` | 标注规范、指标脚本、种子年代审计、当前 Top10 基线 |
+
+### 13.4 P0 验收
+
+- 评论 ≥800 条/轮，弹幕 ≤4,000 条/轮；请求 ≤110；0 新增错误。
+- `text_sample.raw_time` 非 0；canonical 能带 `earliest_comment_at`、`comment_7d_count`、`comment_like_weighted`。
+- pytest 全绿；真机只用 `/tmp/p0.db`，不写生产库、不重启 8000。
+- 产出「评论区版 Top10 vs 当前 Top10」对比与 origin 年代分布。

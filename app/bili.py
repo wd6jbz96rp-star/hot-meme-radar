@@ -14,6 +14,7 @@ import html as html_lib
 import json
 import re
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import config
@@ -85,26 +86,63 @@ def parse_ranking(payload: dict, rid: int) -> list[dict]:
 _REPLY_TAG = re.compile(r"<d p=\"([^\"]*)\">(.*?)</d>", re.S)
 
 
+def _reply_items(data: dict) -> list[dict]:
+    """`/x/v2/reply/main` 同时给 `replies` 与 `top_replies`（置顶/热评），按 rpid 去重。"""
+    items: list[dict] = []
+    seen: set = set()
+    for key in ("top_replies", "replies"):
+        for item in data.get(key) or []:
+            if not isinstance(item, dict):
+                continue
+            rpid = item.get("rpid")
+            if rpid is not None:
+                if rpid in seen:
+                    continue
+                seen.add(rpid)
+            items.append(item)
+    return items
+
+
 def parse_comments(payload: dict) -> list[dict]:
-    """解析评论响应，只保留一级评论正文与点赞数。"""
+    """解析评论响应（兼容旧 `/x/v2/reply` 与 `/x/v2/reply/main`），保留 ctime/like/rpid。"""
     if not isinstance(payload, dict) or payload.get("code") != 0:
         return []
     data = payload.get("data") or {}
     comments: list[dict] = []
-    for item in data.get("replies") or []:
+    for item in _reply_items(data):
         content = item.get("content") or {}
         message = (content.get("message") or "").strip()
         if not message:
             continue
+        try:
+            ctime = int(item.get("ctime") or 0)
+        except (TypeError, ValueError):
+            ctime = 0
+        try:
+            like = int(item.get("like") or 0)
+        except (TypeError, ValueError):
+            like = 0
         comments.append(
             {
                 "text": message,
-                "like": int(item.get("like") or 0),
-                "ctime": int(item.get("ctime") or 0),
+                "like": like,
+                "ctime": ctime,
                 "rpid": item.get("rpid"),
             }
         )
     return comments
+
+
+def parse_comment_page(payload: dict) -> tuple[list[dict], int]:
+    """返回 (评论, next 游标)；`is_end` / 缺失 / 不可解析时回 0（不再翻页）。"""
+    comments = parse_comments(payload)
+    cursor = (payload.get("data") or {}).get("cursor") or {}
+    if cursor.get("is_end"):
+        return comments, 0
+    try:
+        return comments, int(cursor.get("next") or 0)
+    except (TypeError, ValueError):
+        return comments, 0
 
 
 def parse_danmaku(xml_text: str) -> list[dict]:
@@ -358,22 +396,68 @@ class BiliClient:
                 return None
         return None
 
-    def comments(self, aid: int, page: int = 1) -> list[dict]:
+    # 视频/评论接口对「无评论」「视频不可见」返回的 code：不是采集故障，不记 error。
+    BENIGN_COMMENT_CODES = {-404, 12002, 12061, 12071}
+
+    @contextmanager
+    def _without_buvid3(self):
+        """评论请求临时去掉 buvid3。
+
+        实测（2026-11，匿名）：带 buvid3 时 `/x/v2/reply/main` 只回 3 条；
+        去掉后同 oid/mode/next 回 20 条。buvid3 仍用于其他接口防风控，
+        这里只在评论请求期间摘掉、请求后原样放回。
+        """
+        jar = getattr(getattr(self, "http", None), "jar", None)
+        if jar is None:
+            yield
+            return
+        saved = [cookie for cookie in list(jar) if cookie.name == "buvid3"]
+        for cookie in saved:
+            jar.clear(cookie.domain, cookie.path, cookie.name)
+        try:
+            yield
+        finally:
+            for cookie in saved:
+                jar.set_cookie(cookie)
+
+    def comment_page(self, aid: int, page: int = 1, mode: int = 3,
+                     cursor: int | None = None, ps: int = 20) -> tuple[list[dict], int]:
+        """一级评论页：`/x/v2/reply/main`（免 wbi）。
+
+        mode=3 热度序（默认），mode=2 时间序；`next` 为游标（首屏 0），返回 (评论, 下一页游标)。
+        单页失败记录错误并返回空列表，不抛异常。
+        """
         self._ensure()
         if self.offline:
-            payload_text = self._fixture("reply.json")
+            # 离线回放：优先 mode 专属 fixture（真实两 mode 返回不同评论集），
+            # 回退到通用 reply_main.json / 旧结构 reply.json。
+            payload_text = (self._fixture(f"reply_main_mode{mode}.json")
+                            or self._fixture("reply_main.json")
+                            or self._fixture("reply.json"))
             payload = json.loads(payload_text) if payload_text else {"code": -1}
-        else:
-            try:
+            return parse_comment_page(payload)
+        offset = 0 if page <= 1 else (page - 1) * ps
+        next_cursor = offset if cursor is None else int(cursor)
+        try:
+            with self._without_buvid3():
                 payload = self._api(
-                    "/x/v2/reply",
-                    f"type=1&oid={aid}&pn={page}&sort=2",
-                    source="reply",
+                    "/x/v2/reply/main",
+                    f"type=1&oid={int(aid)}&mode={int(mode)}&next={next_cursor}&ps={int(ps)}",
+                    source=f"reply:{mode}",
                 )
-            except HttpError as exc:
-                self._record_error("reply", exc)
-                return []
-        return parse_comments(payload)
+        except HttpError as exc:
+            self._record_error(f"reply:{aid}:{mode}", exc)
+            return [], 0
+        code = payload.get("code")
+        if code not in (0, None) and code not in self.BENIGN_COMMENT_CODES:
+            self._record_error(f"reply:{aid}:{mode}", RuntimeError(f"code={code}"))
+            return [], 0
+        return parse_comment_page(payload)
+
+    def comments(self, aid: int, page: int = 1, mode: int = 3,
+                 cursor: int | None = None, ps: int = 20) -> list[dict]:
+        """一级评论列表（单页）；见 `comment_page`。"""
+        return self.comment_page(aid, page=page, mode=mode, cursor=cursor, ps=ps)[0]
 
     def danmaku(self, cid: int) -> str:
         self._ensure()
