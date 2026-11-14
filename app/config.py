@@ -14,7 +14,7 @@ OFFLINE = os.getenv("HOTMEME_OFFLINE", "0") == "1"
 DISABLE_SCHEDULER = os.getenv("HOTMEME_DISABLE_SCHEDULER", "0") == "1"
 CYCLE_INTERVAL_SECONDS = int(os.getenv("HOTMEME_INTERVAL", "600"))
 HTTP_TIMEOUT = float(os.getenv("HOTMEME_TIMEOUT", "12"))
-MAX_RPS = float(os.getenv("HOTMEME_MAX_RPS", "3"))
+MAX_RPS = float(os.getenv("HOTMEME_MAX_RPS", "2.0"))  # 合规线 2 rps（docs/02 §7）
 HOST = os.getenv("HOTMEME_HOST", "127.0.0.1")
 PORT = int(os.getenv("HOTMEME_PORT", "8000"))
 REFRESH_TOKEN = os.getenv("HOTMEME_TOKEN", "")
@@ -75,4 +75,4 @@ WEIGHTS = {
 TEXT_SAMPLE_TTL_DAYS = 30
 METRIC_TTL_DAYS = 90
 CACHE_TTL_SECONDS = 24 * 3600
-COMMENT_CACHE_SECONDS = 30 * 60
+COMMENT_CACHE_SECONDS = int(os.getenv("HOTMEME_COMMENT_CACHE_SECONDS", str(30 * 60)))

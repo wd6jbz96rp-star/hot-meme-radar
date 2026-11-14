@@ -99,7 +99,14 @@ Top10 以梗族为单位，每条包含：热度分、名次变化、类型、�
 | Python 默认 CA 失败 | cafile 回退链 `/etc/ssl/cert.pem` → certifi |
 | 接口变更 | adapter 隔离 + fixture 回归 |
 | 冷启动 | 首轮无历史时跳过 EMA，直接用本轮得分；以广度 + 词典 + 梗源先验排序 |
-| 合规 | 公开数据、10 分钟低频、不存用户身份、敏感词过滤、单源可停用 |
+| 合规 | 公开数据、限速 2 rps、10 分钟低频、不存用户身份、敏感词过滤、单源可停用 |
+
+### 7.1 采集缓存与请求指标
+
+- **弹幕缓存**：24h（`CACHE_TTL_SECONDS`），按 cid 命中。
+- **评论缓存**：30 分钟（`HOTMEME_COMMENT_CACHE_SECONDS=1800`，`0` 关闭），按 `(aid, page)` 命中；命中时**不产生请求**，但仍按当前 cycle 写入 `text_sample`，`stats.comments` 统计口径不变。
+- **cid 持久化**：搜索视频首轮补 `x/player/pagelist` 后回写 `video.cid`；后续轮 `upsert_videos` 用 `COALESCE` 保留，warm 轮 `pagelist_requests=0`。
+- `cycle.stats_json` 的请求指标：`requests`（HTTP 总请求数，含 412 后的 curl 兜底）、`endpoint_counts`（ranking/popular/search/pagelist/comments/danmaku/spi/nav）、`comment_requests`（评论页实际拉取次数，不含 curl 兜底）、`comment_cached`（评论缓存命中页数）、`danmaku_cached`、`pagelist_requests`。
 
 ## 8. 扩展点
 

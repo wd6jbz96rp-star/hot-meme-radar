@@ -32,7 +32,12 @@ open http://127.0.0.1:8000
 | `HOTMEME_INTERVAL` | `600` | 采集间隔（秒） |
 | `HOTMEME_PORT` / `HOTMEME_HOST` | `8000` / `127.0.0.1` | 服务地址 |
 | `HOTMEME_DB` | `data/hotmeme.db` | SQLite 路径 |
-| `HOTMEME_MAX_RPS` | `3` | 对 B站 的最大请求频率 |
+| `HOTMEME_DATA_DIR` | `data` | 数据目录（`HOTMEME_DB` 未设置时用于推导默认库路径） |
+| `HOTMEME_FIXTURES` | `tests/fixtures` | 离线回放 fixture 目录 |
+| `HOTMEME_MAX_RPS` | `2.0` | 对 B站 的最大请求频率（合规线 2 rps） |
+| `HOTMEME_TIMEOUT` | `12` | 单请求超时（秒） |
+| `HOTMEME_UA` | Chrome 120 UA | 请求 User-Agent |
+| `HOTMEME_COMMENT_CACHE_SECONDS` | `1800` | 评论缓存 TTL（秒），`0` 关闭 |
 | `HOTMEME_OFFLINE` | `0` | 置 1 用 `tests/fixtures` 回放，不触网 |
 | `HOTMEME_DISABLE_SCHEDULER` | `0` | 置 1 只提供 API，不自动采集 |
 | `HOTMEME_TOKEN` | 空 | 设置后 `POST /api/refresh` 需要 `x-token` |

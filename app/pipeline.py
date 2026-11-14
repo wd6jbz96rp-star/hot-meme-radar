@@ -90,15 +90,22 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
                  videos: list[dict], comment_targets: list[dict],
                  danmaku_targets: list[dict]) -> tuple[list[TextDoc], dict]:
     rng = random.Random(20261114)
-    stats = {"comments": 0, "danmaku": 0, "danmaku_cached": 0, "comment_requests": 0}
+    stats = {"comments": 0, "danmaku": 0, "danmaku_cached": 0,
+             "comment_requests": 0, "comment_cached": 0, "pagelist_requests": 0}
     danmaku_docs: list[TextDoc] = []
     comment_docs: list[TextDoc] = []
 
+    # 一次批量取 cid：搜索视频的 cid 在上一轮已由 collect_docs 回写，
+    # 这里命中即可完全跳过 pagelist（warm 轮 25 → 0）。
+    cid_lookup = store.cid_map(conn, [video["bvid"] for video in danmaku_targets])
     for video in danmaku_targets:
-        cid = video.get("cid")
+        cid = video.get("cid") or cid_lookup.get(video["bvid"])
         if not cid:
+            stats["pagelist_requests"] += 1
             cid = client.cid_for(video["bvid"])
-            video["cid"] = cid
+            if cid:
+                store.update_video_cid(conn, video["bvid"], cid)
+        video["cid"] = cid
         if not cid:
             continue
         payload = store.get_danmaku_cache(conn, int(cid))
@@ -129,8 +136,15 @@ def collect_docs(client: BiliClient, conn, cycle_id: int,
             continue
         collected: list[dict] = []
         for page in range(1, config.COMMENT_PAGES + 1):
-            items = client.comments(int(aid), page)
-            stats["comment_requests"] += 1
+            cached = store.get_comment_cache(conn, int(aid), page)
+            if cached is not None:
+                # 命中缓存也按当前 cycle 落 text_sample，保持统计口径一致
+                items = cached
+                stats["comment_cached"] += 1
+            else:
+                items = client.comments(int(aid), page)
+                stats["comment_requests"] += 1
+                store.put_comment_cache(conn, int(aid), page, items)
             if not items:
                 break
             collected.extend(items)
@@ -245,12 +259,13 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
     own_connection = conn is None
     conn = conn or store.connect()
     store.init_db(conn)
-    cycle_id = store.start_cycle(conn)
     started = time.time()
+    cycle_id: int | None = None
     stats: dict = {}
     status = "done"
 
     try:
+        cycle_id = store.start_cycle(conn)
         client = client or BiliClient()
         videos, zone_counts = fetch_videos(client)
         stats["videos"] = len(videos)
@@ -409,6 +424,8 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             for item in display
         ]
         stats["requests"] = client.http.request_count()
+        calls = getattr(getattr(client, "http", None), "calls", None)
+        stats["endpoint_counts"] = dict(calls or {})
         stats["elapsed"] = round(time.time() - started, 1)
         stats["errors"] = list(client.errors)
 
@@ -416,10 +433,12 @@ def run_cycle(conn=None, client: BiliClient | None = None) -> dict:
             status = "degraded"
         store.finish_cycle(conn, cycle_id, status, stats)
         store.prune(conn)
-    except Exception as exc:  # noqa: BLE001 - 单轮失败要落库并继续服务上一轮
-        store.record_error(conn, cycle_id, "pipeline", str(exc))
-        stats["elapsed"] = round(time.time() - started, 1)
-        store.finish_cycle(conn, cycle_id, "failed", stats)
+    except BaseException as exc:  # noqa: BLE001 - 含 KeyboardInterrupt：先收尾再抛出
+        if cycle_id is not None:
+            store.record_error(conn, cycle_id, "pipeline", str(exc))
+            stats["elapsed"] = round(time.time() - started, 1)
+            stats["requests"] = getattr(getattr(client, "http", None), "request_count", lambda: 0)()
+            store.finish_cycle(conn, cycle_id, "failed", stats)
         raise
     finally:
         if own_connection:

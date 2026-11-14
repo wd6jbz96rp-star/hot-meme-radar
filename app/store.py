@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS danmaku_cache(
     fetched_at TEXT NOT NULL,
     payload BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS comment_cache(
+    aid INTEGER NOT NULL,
+    page INTEGER NOT NULL,
+    fetched_at TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY(aid, page)
+);
 CREATE TABLE IF NOT EXISTS candidate(
     norm TEXT PRIMARY KEY,
     surface TEXT,
@@ -165,6 +172,28 @@ def record_error(conn: sqlite3.Connection, cycle_id: int, source: str, error: st
     conn.commit()
 
 
+def abort_running_cycles(conn: sqlite3.Connection,
+                         reason: str = "服务启动时发现未收尾的采集轮次，已标记为 aborted") -> int:
+    """把进程中断（Ctrl-C / 重启 / OOM）遗留的 running 轮次收尾，避免监控盲区。
+
+    幂等：没有残留时返回 0；每行补一条 source_error 便于追溯。
+    """
+    rows = conn.execute("SELECT id FROM cycle WHERE status='running'").fetchall()
+    stamp = now_iso()
+    for row in rows:
+        cycle_id = int(row["id"])
+        conn.execute(
+            "UPDATE cycle SET status='aborted', finished_at=? WHERE id=?",
+            (stamp, cycle_id),
+        )
+        conn.execute(
+            "INSERT INTO source_error(cycle_id, source, error) VALUES(?,?,?)",
+            (cycle_id, "lifecycle", reason[:300]),
+        )
+    conn.commit()
+    return len(rows)
+
+
 def latest_cycle(conn: sqlite3.Connection) -> dict | None:
     row = conn.execute(
         "SELECT * FROM cycle WHERE status IN ('done','degraded') ORDER BY id DESC LIMIT 1"
@@ -196,10 +225,32 @@ def upsert_videos(conn: sqlite3.Connection, videos: Iterable[dict], now: str | N
                              zone, pubdate, duration, first_seen)
            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(bvid) DO UPDATE SET
-             title=excluded.title, desc=excluded.desc, cid=excluded.cid,
+             title=excluded.title, desc=excluded.desc,
+             cid=COALESCE(excluded.cid, cid),
              owner_name=excluded.owner_name, zone=excluded.zone""",
         rows,
     )
+    conn.commit()
+
+
+def cid_map(conn: sqlite3.Connection, bvids: Iterable[str]) -> dict[str, int]:
+    """批量读取已持久化的 cid，避免每轮对搜索视频重复请求 pagelist。"""
+    ids = sorted({b for b in bvids if b})
+    if not ids:
+        return {}
+    placeholders = ",".join("?" for _ in ids)
+    rows = conn.execute(
+        f"SELECT bvid, cid FROM video WHERE bvid IN ({placeholders}) AND cid IS NOT NULL",
+        ids,
+    ).fetchall()
+    return {r["bvid"]: int(r["cid"]) for r in rows}
+
+
+def update_video_cid(conn: sqlite3.Connection, bvid: str, cid: int | None) -> None:
+    """collect_docs 补到 cid 后回写；`upsert_videos` 的 COALESCE 保证后续轮不被 NULL 覆盖。"""
+    if not bvid or not cid:
+        return
+    conn.execute("UPDATE video SET cid=? WHERE bvid=?", (int(cid), bvid))
     conn.commit()
 
 
@@ -260,6 +311,35 @@ def put_danmaku_cache(conn: sqlite3.Connection, cid: int, payload: bytes) -> Non
     conn.execute(
         "INSERT OR REPLACE INTO danmaku_cache(cid, fetched_at, payload) VALUES(?,?,?)",
         (cid, now_iso(), payload),
+    )
+    conn.commit()
+
+
+def get_comment_cache(conn: sqlite3.Connection, aid: int, page: int,
+                      ttl_seconds: int | None = None) -> list[dict] | None:
+    """返回 TTL 内的评论页；`None` = 未命中/已过期/缓存关闭。"""
+    ttl = config.COMMENT_CACHE_SECONDS if ttl_seconds is None else ttl_seconds
+    if ttl <= 0:
+        return None
+    row = conn.execute(
+        "SELECT payload, fetched_at FROM comment_cache WHERE aid=? AND page=?", (aid, page)
+    ).fetchone()
+    if not row or not _fresh(row["fetched_at"], ttl):
+        return None
+    try:
+        data = json.loads(row["payload"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, list) else None
+
+
+def put_comment_cache(conn: sqlite3.Connection, aid: int, page: int,
+                      items: list[dict]) -> None:
+    if config.COMMENT_CACHE_SECONDS <= 0:
+        return
+    conn.execute(
+        "INSERT OR REPLACE INTO comment_cache(aid, page, fetched_at, payload) VALUES(?,?,?,?)",
+        (aid, page, now_iso(), json.dumps(items, ensure_ascii=False)),
     )
     conn.commit()
 

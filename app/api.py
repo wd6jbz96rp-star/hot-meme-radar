@@ -12,6 +12,9 @@ from . import config, pipeline, store
 
 STATE: dict = {"snapshot": None, "running": False, "error": ""}
 SUBSCRIBERS: set[asyncio.Queue] = set()
+RUN_LOCK = asyncio.Lock()
+_COLLECT_TASK: asyncio.Task | None = None
+_SCHEDULER_TASK: asyncio.Task | None = None
 
 
 async def _broadcast(payload: dict) -> None:
@@ -22,42 +25,71 @@ async def _broadcast(payload: dict) -> None:
             pass
 
 
+def _collection_active() -> bool:
+    return bool(
+        STATE["running"] or (_COLLECT_TASK is not None and not _COLLECT_TASK.done())
+    )
+
+
+async def _run_collection(reason: str) -> None:
+    """进程内唯一采集入口：scheduler 与 /api/refresh 共用，RUN_LOCK 兜底串行。"""
+    async with RUN_LOCK:
+        STATE["running"] = True
+        try:
+            snapshot = await asyncio.to_thread(pipeline.run_cycle)
+            STATE["snapshot"] = snapshot
+            STATE["error"] = ""
+            await _broadcast(snapshot)
+        except Exception as exc:  # noqa: BLE001 - 单轮失败要复位状态、继续服务
+            STATE["error"] = str(exc)[:300]
+        finally:
+            STATE["running"] = False
+
+
+def _start_collection(reason: str) -> bool:
+    """同步占位后再创建任务：检查与置位无 await 间隔，双跑窗口被消除。"""
+    global _COLLECT_TASK
+    if _collection_active():
+        return False
+    STATE["running"] = True
+    _COLLECT_TASK = asyncio.create_task(_run_collection(reason))
+    return True
+
+
 async def _scheduler() -> None:
     while True:
-        if not STATE["running"]:
-            STATE["running"] = True
-            try:
-                snapshot = await asyncio.to_thread(pipeline.run_cycle)
-                STATE["snapshot"] = snapshot
-                STATE["error"] = ""
-                await _broadcast(snapshot)
-            except Exception as exc:  # noqa: BLE001 - 定时任务不能因单轮失败退出
-                STATE["error"] = str(exc)[:300]
-            finally:
-                STATE["running"] = False
+        _start_collection("scheduler")  # 手动刷新在跑时本轮 tick 跳过，不排队
         await asyncio.sleep(config.CYCLE_INTERVAL_SECONDS)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _SCHEDULER_TASK
     connection = store.connect()
     store.init_db(connection)
-    connection.close()
+    try:
+        aborted = store.abort_running_cycles(connection)
+        if aborted:
+            STATE["error"] = f"启动时回收 {aborted} 个未收尾的采集轮次"
+    finally:
+        connection.close()
     try:
         STATE["snapshot"] = await asyncio.to_thread(pipeline.snapshot)
     except Exception as exc:  # noqa: BLE001
         STATE["error"] = str(exc)[:300]
         STATE["snapshot"] = {"status": "empty", "top": [], "cycle": None}
-    task = None
     if not config.DISABLE_SCHEDULER and not config.OFFLINE:
-        task = asyncio.create_task(_scheduler())
-    yield
-    if task:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        _SCHEDULER_TASK = asyncio.create_task(_scheduler())
+    try:
+        yield
+    finally:
+        if _SCHEDULER_TASK:
+            _SCHEDULER_TASK.cancel()
+            try:
+                await _SCHEDULER_TASK
+            except asyncio.CancelledError:
+                pass
+            _SCHEDULER_TASK = None
 
 
 app = FastAPI(title="网络热梗动态 Top10", lifespan=lifespan)
@@ -103,7 +135,8 @@ async def api_history(family_key: str, limit: int = 60) -> dict:
 async def api_health() -> dict:
     connection = store.connect()
     try:
-        return {"scheduler": not config.DISABLE_SCHEDULER,
+        scheduler_running = _SCHEDULER_TASK is not None and not _SCHEDULER_TASK.done()
+        return {"scheduler": scheduler_running,
                 "running": STATE["running"],
                 "error": STATE["error"],
                 "offline": config.OFFLINE,
@@ -118,24 +151,12 @@ async def api_refresh(request: Request) -> dict:
     token = request.headers.get("x-token") or request.query_params.get("token")
     if config.REFRESH_TOKEN and token != config.REFRESH_TOKEN:
         raise HTTPException(status_code=403, detail="token 无效")
-    if STATE["running"]:
+    if _collection_active():
         raise HTTPException(status_code=409, detail="已有采集任务在跑")
     if config.OFFLINE:
         raise HTTPException(status_code=400, detail="离线模式不可刷新")
-
-    async def _refresh() -> None:
-        STATE["running"] = True
-        try:
-            snapshot = await asyncio.to_thread(pipeline.run_cycle)
-            STATE["snapshot"] = snapshot
-            STATE["error"] = ""
-            await _broadcast(snapshot)
-        except Exception as exc:  # noqa: BLE001
-            STATE["error"] = str(exc)[:300]
-        finally:
-            STATE["running"] = False
-
-    asyncio.create_task(_refresh())
+    if not _start_collection("manual"):
+        raise HTTPException(status_code=409, detail="已有采集任务在跑")
     return {"started": True}
 
 
