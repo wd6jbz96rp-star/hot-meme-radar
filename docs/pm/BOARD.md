@@ -465,3 +465,24 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 补标 4 条为 **AI+网页检索**（蓝色大肥鱼 current、doge evergreen、心生爱慕 current、雪豹眉眉 unclear），不是用户盲标；用户 16 锚点 raw P@10 仍为 0.70（labeled 1.0）。
 - 全仓 **300 passed**。
 - 下一步：app + 模块同段 3 轮 warm-history，记录稳定性；再决定切榜。
+
+## 26. Warm-history 3 轮与切榜门槛（00:58）
+
+- 报告：`docs/pm/WARM-EVAL.md`；3 轮 app→模块，总 8m34s，≤2rps，无 8000/生产写（除事故脚本，见下）。
+- 模块 Top10 用户 ❌：**0/0/0**；publishable Top10 **7/8/8**；Top20 Jaccard **0.905**；Top10 8 条 3 轮全在。
+- app 旧 Top10 仍 10/10 种子；模块 Top10 与 app overlap **0/10**；旧 `list=new` 仍被 rank=0 噪声占满。
+- 未切榜：`REPLACE-NEW-LIST.md` 四门槛仅第 1 条满足；`闪身步` 连续 3 轮 Top10+publishable 仍只有 AI 补标、无用户锚点；产品未确认「只发 publishable 7–8 条/轮」；旧 new 未下线；r2/r3 gate 全走 LLM 缓存，需 1 轮冷缓存复验。
+
+### 26.1 事故（已止损）
+
+- warm-eval 辅助脚本 `/private/tmp/warm_recover_app.py` 首版忘设 `HOTMEME_DB`，连生产库并调用 `init_db()`；`data/hotmeme.db` 从 `00b3e839…` 变为 `8b533acb…`。
+- 取证：当前字节 == `/tmp/shadow-web.db`（00:11 副本）；integrity ok；cycle=24 / signals=341 / memes=1650，无业务行变化；只是 WAL checkpoint/布局差异。
+- 处置：不再写生产库；后续脚本强制 `/tmp`；事故记录 `docs/pm/INCIDENT-20261115.md`。数据无损坏，不需要恢复。
+
+### 26.2 切榜前还需
+
+1. 用户确认 `闪身步`（AI 标 current，3 轮 publishable）与 `不小心惹了上帝` 等； 
+2. 产品确认「只发 publishable 7–8 条/轮」；
+3. 旧 `list=new` 从 UI/API 下线或标 shadow；
+4. 1 轮 LLM 冷缓存 gate 复验；
+5. 完成后 `/api/meme-info?only=publishable&limit=8` 作为新梗榜，保留 `/api/top` + JSON 回滚。
