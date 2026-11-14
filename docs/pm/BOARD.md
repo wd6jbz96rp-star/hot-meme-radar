@@ -457,3 +457,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - **发现 app `list=new` 不可用**：rank=0 的 comment_backed 噪声词（ai 87.5/看完/b站/ge/这句…）按 score 占满 new 榜，3 条真 new 梗被挤出；切榜前必须修或由模块替代。
 - 修了 `tools/meme_info_shadow.py` 直接运行被 `tools/meme_info.py` 遮蔽的 bug（sys.path 优先仓库根）；297 tests 仍全绿。
 - 结论：**继续 shadow，暂不切 `list=new`。**
+
+## 25. Gate 修复 + new 榜替代契约（00:45）
+
+- 工程师 `f841d2e`：gate 漏网 `最怕BLG夺冠之人`/`腋毛攻击` 已修；40 审 18 rejected，`unverified_omitted=9`；Top10 无用户 ❌。
+- `meme_info/REPLACE-NEW-LIST.md`：旧 `list=new` 的 rank=0 comment_backed 噪声不可用，决定由模块 `publishable` 替代；切榜门槛=3 轮 shadow、Top10 无 ❌、publishable 稳定、用户复核未标项、旧 new 下线。
+- 补标 4 条为 **AI+网页检索**（蓝色大肥鱼 current、doge evergreen、心生爱慕 current、雪豹眉眉 unclear），不是用户盲标；用户 16 锚点 raw P@10 仍为 0.70（labeled 1.0）。
+- 全仓 **300 passed**。
+- 下一步：app + 模块同段 3 轮 warm-history，记录稳定性；再决定切榜。
