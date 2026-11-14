@@ -149,3 +149,15 @@ def test_verdict_cache_makes_same_family_stable(tmp_path):
     assert first.is_meme is True
     assert second.cached is True
     assert client.calls_seen == calls_after_first
+
+
+def test_user_rejected_anchor_forces_reject_without_llm_call():
+    client = FakeClient([])  # 不应被调用
+    verifier = SemanticVerifier(client)
+    for name in ("腋毛攻击", "最怕BLG夺冠之人"):
+        result = verifier.verify_meme(make_meme(name), now=NOW)
+        assert result.is_meme is False
+        assert result.is_current is False
+        assert result.cached is True
+        assert "锚点" in result.reason
+    assert client.calls_seen == 0

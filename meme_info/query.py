@@ -319,9 +319,14 @@ def build_report(
     scored = model.score_memes(memes, now=now, history=history, knowledge=knowledge)
     verification_stats: dict[str, Any] = {}
     if verifier is not None and config.verify:
+        verify_limit = int(config.verify_limit)
+        if config.verify_gate:
+            # gate 会剔除条目，必须多审一段，否则被剔后未审的下位项会补进 TopN。
+            verify_limit = max(verify_limit, min(len(scored), config.limit * 2))
         verification_stats = _attach_verification(
-            scored, verifier, limit=config.verify_limit, now=now, gate=config.verify_gate
+            scored, verifier, limit=verify_limit, now=now, gate=config.verify_gate
         )
+        verification_stats["limit"] = verify_limit
         client = getattr(verifier, "llm", None)
         if client is not None and hasattr(client, "stats"):
             try:
@@ -337,14 +342,31 @@ def build_report(
             ),
             reverse=True,
         )
+    def _gate_visible(meme: Meme) -> bool:
+        if not config.verify_gate:
+            return True
+        verified = meme.verified or {}
+        return verified.get("is_meme") is True and verified.get("is_current") is True
+
     current = [
         meme for meme in scored
-        if meme.status in ("hot", "rising", "observing") and meme.signals.get("is_current")
+        if meme.status in ("hot", "rising", "observing")
+        and meme.signals.get("is_current")
+        and _gate_visible(meme)
     ]
     observing = [
         meme for meme in scored
-        if meme.status == "observing" and meme.signals.get("is_current")
+        if meme.status == "observing"
+        and meme.signals.get("is_current")
+        and _gate_visible(meme)
     ]
+    if config.verify_gate:
+        verification_stats["unverified_omitted"] = sum(
+            1 for meme in scored
+            if meme.status in ("hot", "rising", "observing")
+            and meme.signals.get("is_current")
+            and not _gate_visible(meme)
+        )
     stats = dict(corpus.stats)
     stats.update(
         {

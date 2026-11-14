@@ -147,3 +147,13 @@ def test_two_comments_two_videos_is_evidence_2x2():
     assert scored.signals["evidence_docs"] >= 2
     assert scored.signals["evidence_videos"] >= 2
     assert scored.signals["evidence_rate_2x2"] is True
+
+
+def test_publishable_requires_hot_rising_and_2x2():
+    model = HeatModel(HeatConfig())
+    good = make_meme("测试强梗", meta=3, meta_views=3_000_000, usage=10, usage_videos=3)
+    meta_only = make_meme("仅观察梗", meta=2, usage=0)
+    scored = model.score_memes([good, meta_only], now=NOW, knowledge=Knowledge())
+    by_name = {m.canonical: m for m in scored}
+    assert by_name["测试强梗"].publishable is True
+    assert by_name["仅观察梗"].publishable is False

@@ -209,7 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         expand_limit=max(0, args.expand_limit),
         verify=verify,
         verify_gate=bool(args.verify_gate),
-        verify_limit=limit,
+        # gate 剔除后仍需覆盖 TopN；40 条足够覆盖 limit=20 + 拒绝缓冲。
+        verify_limit=max(limit * 2, limit + 10),
     )
     verifier = None
     verify_info: dict = {"requested": verify, "configured": False}

@@ -284,6 +284,7 @@ class Meme:
     raw_score: float = 0.0
     smoothed_score: float | None = None
     status: str = "candidate"      # hot / rising / observing / rejected
+    publishable: bool = False      # hot/rising + 2×2 独立使用；发布门用
     heat_level: str = ""
     confidence: float = 0.0
     meme_prob: float = 0.0

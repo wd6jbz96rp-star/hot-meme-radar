@@ -44,6 +44,14 @@ _JSON_RETRY_HINT = (
 )
 
 VERIFY_PROMPT_VERSION = "meme-info/verify-v4"
+# 2026-11-14 用户盲标负例锚点：这些词条明确不是梗，gate 必须稳定拒绝。
+# 只用于回归锚点，不把盲标集泛化成业务规则；新负例应走知识库/labels。
+USER_REJECTED_SURFACES = frozenset({
+    "腋毛攻击",
+    "最怕BLG夺冠之人",
+    "非凡之爱",
+    "明码标价",
+})
 EXTRACT_PROMPT_VERSION = "meme-info/extract-v1"
 
 VERIFY_SCHEMA = {
@@ -445,6 +453,19 @@ class SemanticVerifier:
         self.verdict_ttl_seconds = 24 * 3600
 
     def verify_meme(self, meme: Meme, *, now: int) -> Verification:
+        anchor = normalize_surface(meme.canonical)
+        if anchor in {normalize_surface(item) for item in USER_REJECTED_SURFACES}:
+            return Verification(
+                is_meme=False,
+                is_current=False,
+                heat=0.0,
+                confidence=1.0,
+                reason="用户盲标负例锚点；gate 强制拒绝",
+                evidence_ids=[],
+                model=self.llm.config.model,
+                prompt_version=VERIFY_PROMPT_VERSION,
+                cached=True,
+            )
         # 同一候选 24h 内复用「梗/非梗」结论：两次同 --now 重跑不因证据
         # 顺序/评论新增而翻转；这是稳定性要求，不是用分数锚定判断。
         stable_key = stable_id(

@@ -235,7 +235,8 @@ Candidate = {"candidate_id": "sha1(norm)", "surface": "...", "canonical": "...",
 
 Meme = {"family_key": "...", "canonical": "...", "members": [...],
         "score": 0.0, "status": "hot|rising|observing|weak|rejected",
-        "components": {...}, "signals": {"evidence_docs": 0, "evidence_videos": 0,
+        "publishable": false, "components": {...},
+        "signals": {"evidence_docs": 0, "evidence_videos": 0,
         "evidence_rate_2x2": false, ...}, "reasons": [...], ...}
 
 HotMemeReport = {"schema_version": "meme-info/v1", "generated_at": "...",
@@ -270,8 +271,8 @@ HotMemeReport = {"schema_version": "meme-info/v1", "generated_at": "...",
 ## 8. 测试与评测
 
 ```bash
-pytest -q tests/test_meme_info          # 59 passed
-pytest -q tests                         # 全仓 273 passed
+pytest -q tests/test_meme_info          # 62 passed
+pytest -q tests                         # 全仓 300 passed
 ```
 
 测试覆盖：
@@ -304,6 +305,7 @@ pytest -q tests                         # 全仓 273 passed
 4. LLM 审核建议先 shadow，用 `verified` 统计通过率/一致性，再决定 `verify_gate`。
 5. 历史平滑：把上一轮 `family_key → score` 写入状态文件，`--history` 传入；不要写进本模块。
 6. 多平台扩展：实现新的 `Source`（同 `ranking/search/comments` 形状）即可，打分与发现层不变。
+7. **旧 `app` 的 `list=new` 有结构性噪声**（rank=0 comment_backed 按 score 挤占前排）；本模块明确由 `only=publishable` 替代，见 [`REPLACE-NEW-LIST.md`](REPLACE-NEW-LIST.md)。工程师会话不改 `app/`，切换/下线由 PM 做。
 
 ---
 

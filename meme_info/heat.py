@@ -469,6 +469,9 @@ class HeatModel:
         }
         meme.components = components
         meme.reasons = self._reasons(meme, signals, rejection)
+        meme.publishable = bool(
+            meme.status in ("hot", "rising") and signals.evidence_rate_2x2
+        )
         # 2×2 独立使用是「证据质量徽章」，不是查询硬门槛：用户盲标确认
         # 部分 explainer-only 条目（吴家村/灭建国/MJ宇宙/狗尾草等）是真梗。
         # 发布门再用 evidence_rate_2x2 决定是否只发「强证据」。

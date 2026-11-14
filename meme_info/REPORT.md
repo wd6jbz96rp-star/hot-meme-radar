@@ -3,7 +3,7 @@
 > 快照时间：2026-11-14 22:30（Asia/Shanghai）
 > 返工依据：`docs/pm/MEME-INFO-REVIEW.md`（v3 §8）、`docs/pm/ENGINEER-CORRECTION.md`
 > 用户盲标：`meme_info/labels/blind_20261114_user.json`（16 条）
-> 代码：本仓库 `master`；模块 `meme_info/`；全仓测试 **273 passed**
+> 代码：本仓库 `master`；模块 `meme_info/`；全仓测试 **300 passed**
 
 ---
 
@@ -14,9 +14,11 @@
 - **16 条用户锚点（验收口径）**：22:30 gate raw **P@10 = 0.80、P@16 = 0.6875**；labeled P@10=1.00、labeled P@16=0.9167。raw 是验收数，**未达到 PM 的 P@10≥0.9**。
 - **62 条补标**（60 条 AI/网页检索 + 用户 16 条锚点中的 62 行）对 22:30 gate：P@10 1.00、P@16 0.875；但它是 **AI+网页补标**，不是独立人工盲标，**不能当验收数**，只作为 shadow 前的补充回归。
 - **稳定性**：同 `--now` 两次 gate 跑，Top20 Jaccard **0.8182**（18/20 相同）；PM 22:25 Top8 全部仍在 Top10；差异来自线上评论/搜索数据变化，不是排序翻转。纯同一 Corpus 打分（`score`）Top20 Jaccard = 1.0。
+- **gate 漏网 2 条已修**：00:40 shadow 轮 40 条送审、18 条 rejected、`unverified_omitted=9`；`最怕BLG夺冠之人`、`腋毛攻击`（以及 `非凡之爱`）均为 `llm_not_meme`，Top10 7✅/0❌/3未标。
+- **`list=new` 处置**：旧 app `list=new` 被 rank=0 的 comment_backed 噪声占满；本会话**不改 app/**，明确由模块 `only=publishable` 替代，见 [`REPLACE-NEW-LIST.md`](REPLACE-NEW-LIST.md)。
 - **2×2 语义修正**：`evidence_rate_2x2` 是**证据质量徽章**，不是查询硬门槛；查询层不得因 explainer-only 误杀用户确认的梗，发布门再用它决定「强证据」。
 - **判定：条件性通过，可做 shadow adapter，不能自动发布/替换旧榜**；用户需再复核 2–3 轮。
-- 测试：`tests/test_meme_info` **59 passed**；全仓 **273 passed**。
+- 测试：`tests/test_meme_info` **62 passed**；全仓 **300 passed**。
 
 ---
 
@@ -68,7 +70,14 @@
 | 明码标价 | `common_phrase` | 不进入 gate | filtered |
 | 音乐 | `lexicon`（修复词频格式后命中） | 不进入 gate | filtered |
 
-### 3.2 2×2 证据徽章
+### 3.2 00:40 gate 修复轮（shadow 同参数）
+
+- 40 条送审、18 条 rejected、`unverified_omitted=9`；`limit=40`（limit20×2）避免「剔掉后未审项补位」。
+- `最怕BLG夺冠之人`、`腋毛攻击`、`非凡之爱` → `llm_not_meme`；`明码标价` 规则层；`音乐` lexicon。
+- Top10：7✅ / 0❌ / 3未标（`蓝色大肥鱼`、`doge`、`心生爱慕`）；`publishable=7/10`。
+- 这说明 gate 漏网 2 条已修；仍需再跑 2 轮确认稳定。
+
+### 3.3 2×2 证据徽章
 
 `signals` 现在每条都有：
 
@@ -155,19 +164,41 @@ PM 22:25 Top8: 全部仍在 Top10（顺序有 1–2 位移动）
 
 ---
 
-## 7. 成本与本轮数据
+## 7. `list=new` 噪声处置：明确由模块替代
+
+同轮 app 临时库的 `list=new` Top10 被 `rank=0` 的 comment_backed 观察项占满：
+
+```
+ai 87.5 / 看完 86.3 / b站 85.8 / ge 85.5 / 这句 85.5 /
+on 85.5 / 11 85.2 / 20 85.1 / 到了 85.1 / in 84.8
+```
+
+这些项不占主榜名次，但 `store.list_items(list=new)` 只按 `score DESC` 排、不过滤 rank=0，
+把真正的新梗挤出 new Top10。**旧 `list=new` 不能作为切榜基线。**
+
+决定：**由模块 `only=publishable` 替代**，不修改 `app/`（PM 负责组装/下线旧榜）：
+
+- `GET /api/meme-info?only=publishable&limit=N`；
+- 只含 `status∈(hot,rising)` + `evidence_rate_2x2=true` + LLM gate 通过（未审项不进 `memes`）；
+- 00:40 gate 轮 `publishable=7/10`，Top10 7✅/0❌/3未标；
+- 切榜前仍需 3 轮 shadow、用户复核 3 条未标、产品接受「只发 7–8 条/轮」。
+
+详细字段映射与切榜门槛见 [`REPLACE-NEW-LIST.md`](REPLACE-NEW-LIST.md)。若 PM 要保留旧 pipeline，
+则需改 `app/store.py::list_items` 排除 rank=0；本会话不改 `app/`，选择模块替代路径。
+
+## 8. 成本与本轮数据
 
 | 项 | 值 |
 |---|---|
 | 视频 | 943 |
-| 评论 | 1,015（694 条 ≤7 天） |
+| 评论 | 1,012（697 条 ≤7 天） |
 | 弹幕 | 2,000 |
-| 语料文档 | 4,701 |
-| 本轮请求 | 15（warm cache；163 次命中） |
-| 总耗时 | 65.5s（含 LLM gate） |
-| LLM 送审 | 40 条，36 次真实调用（4 条缓存），0 错误 |
-| LLM token | 34,416 prompt + 5,560 completion = **39,976** |
-| 估算成本 | 约 ¥0.03–0.04/轮（DeepSeek，仅参考） |
+| 语料文档 | 4,688 |
+| 本轮请求 | 158（warm cache；20 次命中） |
+| 总耗时 | 183.5s（采集 121.4s + 打分/LLM） |
+| LLM 送审 | 40 条，19 次真实调用（锚点/缓存复用），18 rejected，0 错误 |
+| LLM token | 16,491 prompt + 2,777 completion = **19,268** |
+| 估算成本 | 约 ¥0.02–0.03/轮（DeepSeek，仅参考） |
 
 复现：
 
@@ -190,19 +221,20 @@ python -m tools.meme_info eval --pred /tmp/mi_check_gate_v4.json \
 
 ---
 
-## 8. 仍未解决 / 下一步
+## 9. 仍未解决 / 下一步
 
 1. **验收口径仍不达标**：16 用户锚点 raw P@10=0.80（目标 ≥0.9）；62 条 AI 补标 1.0 不能替代人工盲标。需要用户复核 2–3 轮或补纯人工盲标；`腋毛攻击` 存在用户 ❌ vs 网页“热梗”冲突，继续按用户锚点 non_meme。
 2. **Top20 稳定性 0.8182**：线上数据变化导致尾部进出；发布前用固定 Corpus 重放 + `--history` EMA，别直接拿单轮 Top20 做 A/B。
-3. **发布门**：只发 `status=hot/rising` 且 `evidence_rate_2x2=true`；meta-only 进 observe；`吴家村/灭建国/MJ宇宙/狗尾草/没希望` 这类用户确认但 2×2 不足的，应有人工白名单/复核，不要自动发。
+3. **发布门 / list=new**：只发 `status=hot/rising` 且 `evidence_rate_2x2=true`；meta-only 进 observe；旧 app `list=new` 必须下线或路由到 `only=publishable`，不要再用 rank=0 噪声榜做基线。`吴家村/灭建国/MJ宇宙/狗尾草/没希望` 这类用户确认但 2×2 不足的，应人工白名单/复核，不自动发。
 4. **LLM 结论缓存 24h**：同候选不会频繁翻转；但新证据/新梗仍需人工抽检。
 5. **多平台/多轮**：模块已把 Source 隔离；接微博/抖音时只实现 adapter，不改发现/打分层。
 
 ---
 
-## 9. 文件
+## 10. 文件
 
 - [`meme_info/README.md`](README.md)：接口/CLI/模型；
+- [`meme_info/REPLACE-NEW-LIST.md`](REPLACE-NEW-LIST.md)：old `list=new` 由模块 publishable 替代的契约；
 - [`meme_info/labels/current_20261114.json`](labels/current_20261114.json)：银标（72 条，用户盲标优先修正）；
 - [`meme_info/labels/blind_20261114_user.json`](labels/blind_20261114_user.json)：16 条用户盲标（权威）；
 - [`meme_info/labels/blind_template_20261114.csv`](labels/blind_template_20261114.csv)：62 条补标（60 条 AI+网页检索稿 + 老实/雪豹 2 条用户锚点；隐藏分数/元话语）；

@@ -113,3 +113,40 @@ def test_meta_only_meme_is_kept_but_flagged_without_2x2():
     assert any(meme.canonical == "只有标题的梗" for meme in report.memes)
     target = next(meme for meme in report.memes if meme.canonical == "只有标题的梗")
     assert target.signals["evidence_rate_2x2"] is False
+
+
+def test_verify_gate_omits_unverified_items():
+    from meme_info.models import Evidence, Meme, MetaMention, Usage
+    from meme_info.query import build_report
+
+    def fake_meme(name: str) -> Meme:
+        norm = normalize_surface(name)
+        usage = [
+            Usage(doc_id=f"{name}-{index}", bvid=f"BV{name}{index}", kind="comment",
+                  ctime=NOW - DAY, like=3, text=name)
+            for index in range(3)
+        ]
+        meta = [MetaMention(surface=name, canonical=name, norm=norm, bvid=f"BVM{name}",
+                            title=f"{name}是什么梗", pubdate=NOW - DAY, view=1_000_000,
+                            kind="dedicated", confidence=0.9)]
+        evidence = [Evidence(comment_id=u.doc_id, quote=name, ctime=u.ctime,
+                             like=u.like, bvid=u.bvid) for u in usage]
+        return Meme(family_key=norm, canonical=name, norm=norm, members=[name],
+                    meta=meta, usage=usage, evidence=evidence, meme_prob=0.8,
+                    first_seen=NOW - DAY, last_seen=NOW)
+
+    def verifier(meme, now=None):
+        if meme.canonical == "有审核":
+            return {"is_meme": True, "is_current": True, "heat": 70,
+                    "confidence": 0.8, "reason": "ok", "evidence_ids": []}
+        return None
+
+    report = build_report(
+        make_corpus([], []),
+        memes=[fake_meme("有审核"), fake_meme("未审核")],
+        now=NOW,
+        config=QueryConfig(limit=10, verify=True, verify_gate=True, verify_limit=10),
+        verifier=verifier,
+    )
+    assert [m.canonical for m in report.memes] == ["有审核"]
+    assert report.stats["verification"]["unverified_omitted"] == 1
