@@ -3,1391 +3,1257 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>网络热梗 · 实时 Top10</title>
+<title>热梗雷达 · 新梗榜 / 模块 shadow</title>
+<meta name="description" content="只读热梗报告看板：新梗榜（publishable 发布门）与模块 shadow 全量观察视图。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0d12'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%237c9cff'%3E%E6%A2%97%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#0b0d12; --panel:#12151d; --panel-2:#171b26; --line:#232838;
-    --text:#e8ecf5; --muted:#8b93a7; --accent:#7c9cff; --hot:#ff6b6b;
-    --gold:#ffcc66; --green:#5ee2a0; --purple:#b48cff;
+    --bg:#070a10;
+    --panel:#0e141e;
+    --panel-2:#111927;
+    --line:rgba(148,177,214,.14);
+    --line-strong:rgba(148,177,214,.26);
+    --text:#e8eef8;
+    --text-soft:#bcc8da;
+    --muted:#8492a8;
+    --dim:#5b6980;
+    --accent:#6aa7ff;
+    --mint:#3ddc97;
+    --amber:#f6c453;
+    --red:#ff7b7b;
+    --violet:#b39dff;
+    --radius:16px;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1a2036 0,var(--bg) 55%);
-       color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
-       min-height:100vh}
-  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
-  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
-  h1{margin:0;font-size:26px;letter-spacing:.5px}
-  h1 span{color:var(--accent)}
-  .sub{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6}
-  .status{display:flex;gap:8px 10px;align-items:center;font-size:12px;color:var(--muted);
-          flex-wrap:wrap;justify-content:flex-end}
-  #cycleMeta::before{content:"· ";color:#333c52}
-  #updatedAt:not(:empty)::before{content:"· ";color:#333c52}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);flex:none}
-  .dot.warn{background:var(--gold);box-shadow:0 0 10px var(--gold)}
-  .dot.off{background:#555;box-shadow:none}
-  #cycleMeta,#updatedAt{font-variant-numeric:tabular-nums}
-  .notice{margin:0 0 14px;padding:9px 13px;border-radius:10px;border:1px solid #4a3f1f;
-          background:#1f1a10;color:var(--gold);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
-  .notice[hidden]{display:none}
-  .notice.bad{border-color:#5a2a2a;background:#221313;color:#ff9b9b}
-  .notice.llm{border-color:#3a3f5c;background:#161b2b;color:#c3cbe0}
-  .notice.llm[hidden]{display:none}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;padding:4px;background:#10131c;
-        border:1px solid var(--line);border-radius:12px;width:fit-content;max-width:100%}
-  .tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--muted);
-       font:inherit;font-size:13px;padding:7px 16px;border-radius:9px;cursor:pointer;
-       transition:color .15s ease,background .15s ease,border-color .15s ease}
-  .tab:hover{color:var(--text);background:#171c29}
-  .tab[aria-selected="true"]{color:var(--text);background:#1c2335;border-color:#33405c}
-  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .tab .cnt{color:#6c7590;font-size:11px;margin-left:5px;font-variant-numeric:tabular-nums}
-  .tab[aria-selected="true"] .cnt{color:#9aa6c4}
-  .tab-badge{font-size:10px;line-height:1;padding:2px 6px;border-radius:999px;margin-left:6px;
-             border:1px solid #3a4a6b;color:#8fd9ff;background:#11202c;white-space:nowrap;
-             vertical-align:1px;font-weight:400;letter-spacing:0}
-  .tab[aria-selected="true"] .tab-badge{color:#d3ecff;border-color:#4b6f96;background:#152b3d}
-  .llmbar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 10px;
-          padding:9px 13px;border:1px solid var(--line);border-radius:11px;background:#0f121a;
-          font-size:12px;color:var(--muted);line-height:1.6}
-  .llmbar .mode{font-variant-numeric:tabular-nums;color:#8b93a7}
-  .llmbar .mode b{color:#c3cbe0;font-weight:600}
-  .llm-badge{font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
-             color:var(--muted);background:#151a26;white-space:nowrap}
-  .llm-badge.active{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .llm-badge.fallback{color:var(--gold);border-color:#4a3f1f;background:#1f1a10}
-  .llm-badge.off{color:#9aa6c4;background:#161b26}
-  .llm-desc{overflow-wrap:anywhere;min-width:0}
-  .llm-counts{display:flex;gap:6px 10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
-  .llm-counts b{color:var(--text);font-weight:600}
-  .verdict{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
-  .verdict.approve{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .verdict.reject{color:#ff9b9b;border-color:#5a2a2a;background:#221313}
-  .verdict.unclear{color:var(--gold);border-color:#4a3f1f;background:#1f1a10}
-  .verdict.merge{color:var(--purple);border-color:#43345f;background:#1b1528}
-  .verdict.pending{color:#8b93a7;border-color:#2c3345;background:#141924}
-  .llm-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:12px;
-            color:var(--muted);line-height:1.6;min-width:0}
-  .llm-line .reason{overflow-wrap:anywhere;min-width:0}
-  .evidence{margin-top:6px;font-size:11px;color:#6c7590;line-height:1.7;
-            display:flex;gap:4px 12px;flex-wrap:wrap}
-  .evidence span:not(:first-child)::before{content:"·";color:#3d455c;margin-right:8px}
-  .evidence b{color:#aab3c9;font-weight:600;font-variant-numeric:tabular-nums}
-  .tag.lst-new{color:#8fd9ff;border-color:#2b4a63;background:#11202c}
-  .tag.lst-classic{color:#c9b68a;border-color:#4a3f2a;background:#221d12}
-  .panel.observing{border-style:dashed}
-  .panel.observing .rank{font-size:12px;letter-spacing:1px;color:#6c7590;font-weight:600}
-  .empty-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
-  .empty-actions button{appearance:none;font:inherit;font-size:13px;padding:8px 16px;border-radius:9px;
-      border:1px solid #33405c;background:#171c29;color:var(--text);cursor:pointer}
-  .empty-actions button:hover{background:#1f2740;border-color:#405174}
-  .empty-actions button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  #list[aria-busy="true"]{opacity:.55;transition:opacity .15s ease}
-  .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
-         border-radius:16px;padding:18px 20px;margin-bottom:14px;display:grid;
-         grid-template-columns:64px minmax(0,1fr) auto;gap:16px;align-items:center;position:relative;
-         transition:transform .15s ease,border-color .15s ease;cursor:pointer}
-  .panel:hover{transform:translateY(-1px);border-color:#33405c}
-  .panel.open{border-color:#33405c}
-  .panel:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-  .rank{font-size:34px;font-weight:800;line-height:1;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
-  .panel.top1 .rank{color:var(--gold)}
-  .panel.top2 .rank{color:#c9d4e6}
-  .panel.top3 .rank{color:#d3a06a}
-  .name{font-size:19px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
-  .name .title{min-width:0;overflow-wrap:anywhere}
-  .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
-  .tag.new{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .tag.type{color:var(--accent);border-color:#2b3a63;background:#131a2c}
-  .sample{color:var(--muted);font-size:13px;margin-top:7px;line-height:1.6;overflow-wrap:anywhere}
-  .sample em{color:#c3cbe0;font-style:normal}
-  .score{text-align:right;min-width:92px}
-  .score .num{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
-  .score .delta{font-size:12px;margin-top:2px}
-  .up{color:var(--green)} .down{color:var(--hot)} .flat{color:var(--muted)}
-  .bar{height:4px;border-radius:4px;background:#1e2433;margin-top:10px;overflow:hidden}
-  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:4px}
-  .detail{grid-column:1/-1;margin-top:2px;border-top:1px dashed var(--line);padding-top:12px;display:none;min-width:0}
-  .panel.open .detail{display:block}
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
-  .chip b{color:var(--text);font-weight:600;margin-left:4px}
-  .reasons{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7;word-break:break-word;overflow-wrap:anywhere}
-  .hist{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
-  .hist-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;
-             font-size:11px;color:var(--muted);margin-bottom:2px}
-  .hist-legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-  .hist-legend span{display:inline-flex;align-items:center;gap:5px}
-  .sw{display:inline-block;width:12px;height:2px;border-radius:2px;background:var(--accent)}
-  .sw.rank{background:var(--purple)}
-  .spark-svg{display:block;width:100%;height:auto;max-height:104px}
-  .spark-empty{font-size:12px;color:var(--muted);padding:8px 0;line-height:1.6}
-  .hist-foot{display:flex;gap:12px 18px;flex-wrap:wrap;font-size:11px;color:#6c7590;margin-top:2px}
-  .hist-foot b{font-weight:600;color:#c3cbe0;font-variant-numeric:tabular-nums}
-  .toggle{position:absolute;right:16px;bottom:8px;font-size:11px;color:#4d5670;user-select:none;pointer-events:none}
-  .panel.open .toggle{color:#6c7590}
-  .empty{text-align:center;padding:70px 20px;color:var(--muted)}
-  .empty h2{color:var(--text);margin:0 0 10px}
-  .empty p{margin:6px 0;font-size:13px;line-height:1.7}
-  .spinner{width:26px;height:26px;border:2px solid #2a3147;border-top-color:var(--accent);
-           border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{
+    margin:0;min-height:100vh;color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;
+    background:
+      radial-gradient(1100px 520px at 12% -8%,rgba(43,92,255,.16),transparent 62%),
+      radial-gradient(900px 480px at 92% -12%,rgba(61,220,151,.10),transparent 60%),
+      radial-gradient(700px 420px at 50% 110%,rgba(179,157,255,.06),transparent 60%),
+      var(--bg);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(rgba(148,177,214,.055) 1px,transparent 1px);
+    background-size:26px 26px;
+    mask-image:linear-gradient(180deg,rgba(0,0,0,.55),transparent 70%);
+    -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.55),transparent 70%);
+  }
+  [hidden]{display:none!important}
+  a{color:var(--accent)}
+  button{font:inherit;color:inherit}
+  code{font-family:var(--mono);font-size:.92em}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  ::selection{background:rgba(106,167,255,.32);color:#fff}
+  .skip-link{
+    position:absolute;left:12px;top:-48px;z-index:20;padding:8px 14px;border-radius:8px;
+    background:#12203a;color:#fff;font-size:13px;text-decoration:none;border:1px solid var(--accent);
+    transition:top .15s ease;
+  }
+  .skip-link:focus{top:12px}
+  .page{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:28px 24px 56px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* ---------- header ---------- */
+  .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px 24px;flex-wrap:wrap;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .brand-mark{
+    flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(140deg,#2b5cff 0%,#37c6e0 55%,#7cf2c6 100%);
+    color:#04131c;font-size:19px;font-weight:800;letter-spacing:-.02em;
+    box-shadow:0 6px 24px rgba(60,140,255,.28),inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .brand-text{min-width:0}
+  h1{margin:0;font-size:22px;line-height:1.3;font-weight:750;letter-spacing:.01em}
+  h1 .en{margin-left:9px;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+  .tagline{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.65;overflow-wrap:anywhere}
+  .hero-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .conn-pill{
+    display:inline-flex;align-items:center;gap:8px;min-height:34px;max-width:100%;
+    padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:rgba(12,19,29,.85);
+    font-size:12px;color:var(--text-soft)
+  }
+  .conn-pill .dot{flex:none}
+  .conn-pill.bad{border-color:rgba(255,123,123,.4);background:rgba(255,123,123,.08);color:#ffc4c4}
+  .conn-pill.warn{border-color:rgba(246,196,83,.36);background:rgba(246,196,83,.07);color:#ffe3a3}
+  .conn-pill.ok{border-color:rgba(61,220,151,.32);background:rgba(61,220,151,.07);color:#b6f5d7}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px rgba(148,177,214,.08)}
+  .dot.ok{background:var(--mint);box-shadow:0 0 10px rgba(61,220,151,.7)}
+  .dot.warn{background:var(--amber);box-shadow:0 0 10px rgba(246,196,83,.65)}
+  .dot.bad{background:var(--red);box-shadow:0 0 10px rgba(255,123,123,.65)}
+  .btn{
+    appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    min-height:34px;padding:6px 15px;border-radius:9px;border:1px solid var(--line-strong);
+    background:#141d2b;color:var(--text);font-size:12.5px;cursor:pointer;
+    transition:border-color .15s ease,background .15s ease,color .15s ease;
+  }
+  .btn:hover{border-color:var(--accent);background:#182539;color:#fff}
+  .btn:disabled{cursor:progress;opacity:.72}
+  .btn[aria-busy="true"]{cursor:progress}
+  .btn .spin{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:var(--accent);animation:spin .9s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  footer{margin-top:26px;color:#5d6680;font-size:12px;line-height:1.8;text-align:center}
-  #meta{overflow-wrap:anywhere}
-  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px}
-  /* ---------- 模块 shadow（只读对比，不参与发布） ---------- */
-  #llmBar[hidden],#list[hidden],.shadow-view[hidden]{display:none}
-  .shadow-banner{margin:0 0 12px;padding:11px 14px;border-radius:12px;border:1px solid #3a3f5c;
-    background:linear-gradient(90deg,#141a2a,#10131c);color:#c3cbe0;font-size:12px;line-height:1.7}
-  .shadow-banner b{color:var(--purple);font-weight:700}
-  .shadow-banner .sb-sub{display:block;margin-top:3px;color:var(--muted);overflow-wrap:anywhere}
-  .shadow-banner .sb-sub b{color:#ffcc66}
-  .shadow-banner.new-banner{border-color:#2f5c46;background:linear-gradient(90deg,#12271d,#10131c)}
-  .shadow-banner.new-banner b{color:var(--green)}
-  .shadow-view code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:11px;color:#c3cbe0;background:#151a26;border:1px solid var(--line);border-radius:6px;
-    padding:1px 6px;overflow-wrap:anywhere;word-break:break-all;max-width:100%}
-  .shadow-head{margin:0 0 10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;
-    background:#0f121a;display:flex;flex-direction:column;gap:7px;min-width:0}
-  .s-row{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;font-size:12px;color:var(--muted);
-    line-height:1.7;min-width:0}
-  .s-kv{overflow-wrap:anywhere;min-width:0}
-  .s-kv b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
-  .s-badge{font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
-    color:var(--muted);background:#151a26;white-space:nowrap}
-  .s-badge.ok{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .s-badge.stale{color:var(--gold);border-color:#4a3f1f;background:#1f1a10}
-  .s-badge.missing,.s-badge.invalid{color:#ff9b9b;border-color:#5a2a2a;background:#221313}
-  .s-badge.pub{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .s-badge.nopub{color:#8b93a7;border-color:#2c3345;background:#141924}
-  .s-badge.two{color:#8fd9ff;border-color:#2b4a63;background:#11202c}
-  .s-badge.notwo{color:#8b93a7;border-color:#2c3345;background:#141924}
-  .s-badge.hot{color:var(--hot);border-color:#5a2a2a;background:#221313}
-  .s-badge.rising{color:var(--green);border-color:#2f5c46;background:#12271d}
-  .s-badge.observing{color:#c9b68a;border-color:#4a3f2a;background:#221d12}
-  .s-stats{display:flex;gap:7px 10px;flex-wrap:wrap;margin:0 0 11px;font-size:12px;color:var(--muted)}
-  .s-stat{border:1px solid var(--line);border-radius:8px;padding:3px 9px;background:#0f121a;white-space:nowrap}
-  .s-stat b{color:var(--text);font-weight:600;margin-left:5px;font-variant-numeric:tabular-nums}
-  .s-toolbar{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin:0 0 12px;font-size:12px;color:var(--muted)}
-  .s-switch{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;
-    border:1px solid var(--line);border-radius:9px;padding:6px 11px;background:#0f121a}
-  .s-switch:focus-within{outline:2px solid var(--accent);outline-offset:2px}
-  .s-switch input{accent-color:var(--accent);width:14px;height:14px;margin:0}
-  .s-btn{appearance:none;font:inherit;font-size:12px;padding:6px 13px;border-radius:9px;
-    border:1px solid #33405c;background:#171c29;color:var(--text);cursor:pointer}
-  .s-btn:hover{background:#1f2740;border-color:#405174}
-  .s-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .s-only{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-  #shadowList[aria-busy="true"]{opacity:.55;transition:opacity .15s ease}
-  .s-card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
-    border-radius:14px;padding:14px 16px;margin-bottom:10px;display:grid;
-    grid-template-columns:52px minmax(0,1fr) auto;gap:10px 16px;align-items:start;min-width:0}
-  .s-rank{font-size:26px;font-weight:800;line-height:1.05;color:var(--muted);text-align:center;
-    font-variant-numeric:tabular-nums;padding-top:2px}
-  .s-card.top1 .s-rank{color:var(--gold)} .s-card.top2 .s-rank{color:#c9d4e6} .s-card.top3 .s-rank{color:#d3a06a}
-  .s-main{min-width:0}
-  .s-name{font-size:17px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
-    min-width:0;line-height:1.5}
-  .s-name .title{overflow-wrap:anywhere;min-width:0}
-  .s-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  .s-chip{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;
-    padding:2px 8px;overflow-wrap:anywhere;max-width:100%}
-  .s-chip b{color:#c3cbe0;font-weight:600;margin-left:4px;font-variant-numeric:tabular-nums}
-  .s-reason{margin-top:7px;font-size:12px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
-  .s-reason b{color:#aab3c9;font-weight:600}
-  .s-ev{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;display:flex;
-    flex-direction:column;gap:5px;min-width:0}
-  .s-ev-item{font-size:11px;color:#6c7590;line-height:1.65;overflow-wrap:anywhere;min-width:0}
-  .s-ev-item b{color:#aab3c9;font-weight:600;font-variant-numeric:tabular-nums}
-  .s-ev-item .q{color:#c3cbe0}
-  .s-score{text-align:right;min-width:76px}
-  .s-score .num{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
-  .s-score .unit{font-size:10px;color:#6c7590;margin-top:2px;letter-spacing:.5px}
-  @media (prefers-reduced-motion: reduce){
-    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;
-      transition-duration:.001ms !important;scroll-behavior:auto !important}
-    .panel:hover{transform:none}
-    .spinner{border-top-color:var(--muted);animation:none}
+
+  /* ---------- report board ---------- */
+  .report-board{
+    margin:0 0 18px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+    background:linear-gradient(165deg,rgba(19,28,43,.92),rgba(11,16,25,.94));
+    box-shadow:0 18px 50px rgba(0,0,0,.28);
   }
-  @media (max-width:640px){
-    .wrap{padding:24px 14px 64px}
-    .tabs{width:100%;display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
-    .tab{padding:8px 6px;font-size:12px;text-align:center}
-    .shadow-banner{padding:9px 11px}
-    .shadow-head{padding:10px 11px}
-    .s-row{font-size:11px}
-    .s-card{grid-template-columns:40px minmax(0,1fr);gap:8px 12px;padding:13px 13px}
-    .s-rank{font-size:22px}
-    .s-score{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:8px;min-width:0}
-    .s-stats{gap:6px 8px;font-size:11px}
-    .llmbar{font-size:11px;padding:8px 10px;gap:6px 8px}
-    .panel{grid-template-columns:44px minmax(0,1fr);gap:10px 12px;padding:16px 14px}
-    .score{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px;min-width:0}
-    .rank{font-size:26px}
-    .rank.obs{font-size:10px}
-    h1{font-size:21px}
-    .status{justify-content:flex-start;font-size:11px}
-    .toggle{right:12px}
-    .chips{gap:6px}
-    .evidence{gap:3px 10px}
-    .spark-svg{max-height:88px}
+  .board-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .board-cell{padding:15px 18px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+  .board-cell:nth-child(3n){border-right:0}
+  .board-cell:nth-child(n+4){border-bottom:0}
+  .cell-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell-value{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:650;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+  .cell-value .mono,.cell-value.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:16px;letter-spacing:-.01em}
+  .cell-sub{margin-top:4px;font-size:11.5px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere}
+  .cell-sub .mono{color:var(--text-soft)}
+  .board-cell.emphasis .cell-value{font-size:19px}
+  .board-foot{
+    display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;
+    padding:10px 18px;border-top:1px solid var(--line);background:rgba(8,12,19,.5);
+    font-size:11.5px;color:var(--dim)
+  }
+  .board-foot .sep{color:rgba(148,177,214,.28)}
+  .board-foot b{color:var(--text-soft);font-weight:600}
+
+  /* ---------- view bar / tabs ---------- */
+  .viewbar{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;margin:0 0 12px}
+  .tabs{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:rgba(9,14,22,.85);max-width:100%}
+  .tab{
+    appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:8px 16px;border:1px solid transparent;border-radius:9px;background:transparent;
+    color:var(--muted);font-size:13px;font-weight:550;cursor:pointer;white-space:nowrap;
+    transition:color .15s ease,background .15s ease,border-color .15s ease;
+  }
+  .tab:hover{color:var(--text);background:rgba(148,177,214,.07)}
+  .tab[aria-selected="true"]{
+    color:#fff;background:linear-gradient(180deg,#1b2a41,#152033);
+    border-color:rgba(106,167,255,.36);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)
+  }
+  .tab .tab-count{
+    display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:18px;padding:0 6px;
+    border-radius:999px;border:1px solid var(--line);background:rgba(148,177,214,.08);
+    font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums
+  }
+  .tab[aria-selected="true"] .tab-count{color:#dbe8ff;border-color:rgba(106,167,255,.4);background:rgba(106,167,255,.14)}
+  .tab .tab-note{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+  .tab[aria-selected="true"] .tab-note{color:var(--muted)}
+  .viewbar-hint{font-size:11.5px;color:var(--dim);line-height:1.6;margin:0;max-width:52ch;text-align:right}
+  .viewbar-hint code{color:var(--muted)}
+
+  /* ---------- policy / notice ---------- */
+  .policy{
+    display:flex;gap:9px;align-items:flex-start;margin:0 0 14px;padding:10px 14px;border-radius:12px;
+    border:1px dashed rgba(106,167,255,.3);background:rgba(106,167,255,.055);
+    font-size:12px;line-height:1.7;color:var(--muted);overflow-wrap:anywhere
+  }
+  .policy .p-key{flex:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(106,167,255,.35);border-radius:5px;padding:1px 6px;margin-top:1px}
+  .policy strong{color:var(--text-soft);font-weight:650}
+  .notice{
+    display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;padding:11px 14px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(148,177,214,.05);font-size:12.5px;line-height:1.7;
+    color:var(--text-soft);overflow-wrap:anywhere
+  }
+  .notice.warn{border-color:rgba(246,196,83,.34);background:rgba(246,196,83,.07);color:#f6dfa4}
+  .notice.bad{border-color:rgba(255,123,123,.36);background:rgba(255,123,123,.07);color:#ffc0c0}
+  .notice-icon{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;margin-top:1px;border:1px solid currentColor;opacity:.9}
+  .notice-text{min-width:0}
+  .notice code{color:inherit;background:rgba(255,255,255,.06);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+
+  /* ---------- panels ---------- */
+  .view-panel{min-width:0}
+  .panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 18px;flex-wrap:wrap;margin:0 0 12px}
+  .panel-title{margin:0;font-size:18px;font-weight:700;display:flex;align-items:center;gap:9px;flex-wrap:wrap;line-height:1.4}
+  .panel-title .en{margin-left:2px;font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+  .panel-sub{margin:4px 0 0;font-size:11.5px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
+  .panel-sub code{color:var(--text-soft)}
+  .panel-counter{
+    flex:none;font-family:var(--mono);font-size:11px;color:var(--text-soft);
+    border:1px solid var(--line);border-radius:999px;padding:4px 11px;background:rgba(12,19,29,.7);
+    font-variant-numeric:tabular-nums;white-space:nowrap
+  }
+  .observe-banner{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;border-radius:12px;
+    border:1px dashed rgba(179,157,255,.34);background:linear-gradient(90deg,rgba(179,157,255,.09),rgba(11,16,25,.2));
+    font-size:12px;color:#d3c9ff;line-height:1.65
+  }
+  .observe-banner .ob-key{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--violet);border:1px solid rgba(179,157,255,.4);border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .observe-banner span{overflow-wrap:anywhere}
+
+  /* ---------- meme cards ---------- */
+  .meme-list{list-style:none;margin:0;padding:0;display:grid;gap:12px;min-width:0}
+  .meme-item{min-width:0;margin:0}
+  .meme-card{
+    position:relative;display:grid;grid-template-columns:58px minmax(0,1fr) 128px;gap:6px 18px;
+    padding:18px 20px;border:1px solid var(--line);border-radius:var(--radius);
+    background:linear-gradient(165deg,rgba(19,28,43,.9),rgba(12,17,26,.96));
+    box-shadow:0 10px 30px rgba(0,0,0,.16);
+    min-width:0;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+  }
+  .meme-card:hover{border-color:var(--line-strong);box-shadow:0 14px 34px rgba(0,0,0,.24);transform:translateY(-1px)}
+  .meme-card::before{
+    content:"";position:absolute;left:0;top:16px;bottom:16px;width:2px;border-radius:2px;
+    background:rgba(148,177,214,.14)
+  }
+  .meme-card.rank-1::before{background:linear-gradient(180deg,#ffd76a,#f6a93b)}
+  .meme-card.rank-2::before{background:linear-gradient(180deg,#d8e3f2,#8d9db4)}
+  .meme-card.rank-3::before{background:linear-gradient(180deg,#e8b184,#b0784c)}
+  .rank{display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:1px;min-width:0}
+  .rank-hash{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1}
+  .rank-num{font-size:29px;font-weight:800;line-height:1.15;letter-spacing:-.03em;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rank-1 .rank-num{color:#ffd76a}
+  .rank-2 .rank-num{color:#d8e3f2}
+  .rank-3 .rank-num{color:#e8b184}
+  .rank-label{margin-top:3px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+  .meme-main{min-width:0;grid-column:2}
+  .meme-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
+  .meme-head h3{
+    margin:0;font-size:18px;font-weight:700;line-height:1.45;letter-spacing:.005em;
+    overflow-wrap:anywhere;min-width:0;max-width:100%
+  }
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;flex:none;
+    font-size:10.5px;line-height:1;padding:4px 8px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(148,177,214,.06);color:var(--muted);
+    white-space:nowrap;font-weight:550
+  }
+  .badge .b-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.9}
+  .badge-status.hot{color:#ffa88e;border-color:rgba(255,123,123,.32);background:rgba(255,123,123,.09)}
+  .badge-status.rising{color:#8ff0c4;border-color:rgba(61,220,151,.34);background:rgba(61,220,151,.09)}
+  .badge-status.other{color:var(--muted)}
+  .badge-pub.yes{color:#9cf0cc;border-color:rgba(61,220,151,.36);background:rgba(61,220,151,.1)}
+  .badge-pub.no{color:var(--dim);border-style:dashed;background:transparent}
+  .badge-2x2.yes{color:#9ed4ff;border-color:rgba(106,167,255,.34);background:rgba(106,167,255,.1)}
+  .badge-2x2.no{color:var(--dim);background:transparent}
+  .badge-type{color:var(--muted);font-family:var(--mono);font-size:9.5px;letter-spacing:.03em}
+  .badge-observe{color:#d3c9ff;border-color:rgba(179,157,255,.36);background:rgba(179,157,255,.09);font-family:var(--mono);font-size:9.5px;letter-spacing:.1em}
+  .meme-meaning{
+    margin:8px 0 0;font-size:12.5px;line-height:1.7;color:var(--text-soft);
+    overflow-wrap:anywhere
+  }
+  .meme-metrics{display:flex;align-items:center;gap:5px 16px;flex-wrap:wrap;margin:7px 0 0;font-size:11.5px;color:var(--muted);min-width:0}
+  .meme-metrics b{color:var(--text-soft);font-weight:650;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .meme-metrics .metric-sep{color:rgba(148,177,214,.25)}
+  .llm-box{
+    margin:10px 0 0;padding:9px 12px 10px;border-left:2px solid rgba(179,157,255,.52);
+    background:linear-gradient(90deg,rgba(179,157,255,.07),rgba(179,157,255,.015));
+    border-radius:0 10px 10px 0;min-width:0
+  }
+  .llm-head{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;min-width:0}
+  .llm-label{flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--violet);text-transform:uppercase}
+  .llm-flag{font-size:11px;color:var(--muted);white-space:nowrap}
+  .llm-flag b{font-weight:700;font-family:var(--mono)}
+  .llm-flag.yes b{color:var(--mint)}
+  .llm-flag.no b{color:var(--red)}
+  .llm-flag.unknown b{color:var(--dim)}
+  .llm-flag .num{color:var(--text-soft);font-family:var(--mono);font-weight:650;font-variant-numeric:tabular-nums}
+  .llm-reason{margin:6px 0 0;font-size:12px;line-height:1.72;color:var(--text-soft);overflow-wrap:anywhere}
+  .llm-reason.is-empty{color:var(--dim);font-style:italic}
+  .llm-error{margin:5px 0 0;font-size:11px;line-height:1.6;color:#ffb4b4;overflow-wrap:anywhere}
+  .llm-box.is-empty{border-left-color:rgba(148,177,214,.24);background:rgba(148,177,214,.035)}
+  .llm-box.is-empty .llm-label{color:var(--dim)}
+  .evidence-block{margin-top:10px;min-width:0}
+  .evidence-title{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .evidence{list-style:none;margin:0;padding:0;display:grid;gap:5px;min-width:0}
+  .evidence-item{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:11.5px;line-height:1.65;min-width:0}
+  .ev-quote{color:var(--text-soft);overflow-wrap:anywhere;min-width:0}
+  .ev-meta{color:var(--dim);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+  .evidence-empty{margin:0;font-size:11.5px;color:var(--dim);font-style:italic}
+  .meme-score{
+    grid-column:3;grid-row:1;display:flex;flex-direction:column;align-items:flex-end;gap:5px;
+    text-align:right;min-width:0;padding-top:1px
+  }
+  .score-value{
+    font-family:var(--mono);font-size:27px;font-weight:750;line-height:1.1;letter-spacing:-.03em;
+    color:var(--text);font-variant-numeric:tabular-nums
+  }
+  .score-label{font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+  .score-track{width:100%;max-width:112px;height:3px;border-radius:3px;background:rgba(148,177,214,.14);overflow:hidden;margin-top:2px}
+  .score-fill{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#4f8cff,#7cf2c6)}
+
+  /* shadow view: clearly observational */
+  .observe-card{border-style:dashed;background:linear-gradient(165deg,rgba(22,25,40,.92),rgba(12,16,26,.97))}
+  .observe-card:hover{border-color:rgba(179,157,255,.4)}
+  .observe-card::before{background:rgba(179,157,255,.3)}
+  .observe-card .rank-num{color:#c8bcff;opacity:.9}
+  .observe-card .rank-1 .rank-num,.observe-card.rank-1 .rank-num{color:#e6ddff}
+
+  /* ---------- states ---------- */
+  .state{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+    padding:56px 22px;text-align:center;border:1px dashed var(--line);border-radius:var(--radius);
+    background:rgba(11,16,25,.5);color:var(--muted);min-width:0
+  }
+  .state h3{margin:2px 0 0;font-size:15.5px;color:var(--text);font-weight:650;line-height:1.5}
+  .state p{margin:0;max-width:62ch;font-size:12.5px;line-height:1.75;overflow-wrap:anywhere}
+  .state code{color:var(--text-soft);background:rgba(148,177,214,.07);border-radius:5px;padding:1px 6px;overflow-wrap:anywhere}
+  .state .spinner{width:22px;height:22px;border-radius:50%;border:2px solid rgba(148,177,214,.22);border-top-color:var(--accent);animation:spin .9s linear infinite}
+  .state .state-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+  .state .btn{min-height:32px;font-size:12px;padding:5px 13px}
+
+  /* ---------- details drawer ---------- */
+  .report-details{
+    margin:24px 0 0;border:1px solid var(--line);border-radius:14px;
+    background:rgba(11,16,25,.62);overflow:hidden
+  }
+  .report-details>summary{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;cursor:pointer;list-style:none;
+    padding:13px 16px;font-size:13px;font-weight:600;color:var(--text-soft);
+    transition:background .15s ease
+  }
+  .report-details>summary::-webkit-details-marker{display:none}
+  .report-details>summary::before{content:"▸";font-size:11px;color:var(--dim);transition:transform .15s ease}
+  .report-details[open]>summary::before{transform:rotate(90deg)}
+  .report-details>summary:hover{background:rgba(148,177,214,.05)}
+  .report-details>summary .sum-hint{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:500}
+  .detail-body{padding:2px 16px 18px;display:grid;gap:18px}
+  .detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px 24px}
+  .detail-block{min-width:0}
+  .detail-block h3{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 8px;font-weight:650}
+  .kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0;font-size:11.5px;line-height:1.65}
+  .kv dt{color:var(--muted);white-space:nowrap}
+  .kv dd{margin:0;color:var(--text-soft);font-family:var(--mono);font-size:11px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .detail-empty{margin:0;font-size:11.5px;color:var(--dim);font-style:italic}
+
+  /* ---------- footer ---------- */
+  .site-footer{
+    margin:32px 0 0;padding:20px 0 0;border-top:1px solid var(--line);
+    color:var(--dim);font-size:11.5px;line-height:1.8
+  }
+  .foot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px 28px}
+  .foot-sec h2{margin:0 0 7px;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:650}
+  .foot-sec p{margin:0 0 5px}
+  .foot-sec ul{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+  .foot-sec li{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+  .foot-sec .tag{font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--text-soft);white-space:nowrap}
+  .foot-meta{margin-top:18px;padding-top:12px;border-top:1px dashed var(--line);display:flex;gap:5px 14px;flex-wrap:wrap;font-size:10.5px;color:var(--dim)}
+  .foot-meta code{color:var(--muted);overflow-wrap:anywhere}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:900px){
+    .board-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .board-cell:nth-child(3n){border-right:1px solid var(--line)}
+    .board-cell:nth-child(2n){border-right:0}
+    .board-cell:nth-child(n+3){border-bottom:1px solid var(--line)}
+    .board-cell:nth-last-child(-n+2){border-bottom:0}
+    .meme-card{grid-template-columns:50px minmax(0,1fr);gap:4px 14px;padding:16px}
+    .meme-main{grid-column:2}
+    .meme-score{
+      grid-column:1 / -1;grid-row:auto;flex-direction:row;align-items:center;justify-content:flex-start;
+      gap:10px;text-align:left;padding-top:4px;border-top:1px dashed rgba(148,177,214,.12);margin-top:8px
+    }
+    .score-value{font-size:20px}
+    .score-track{width:auto;flex:1;max-width:280px}
+    .viewbar-hint{text-align:left}
+  }
+  @media (max-width:600px){
+    .page{padding:20px 14px 44px}
+    h1{font-size:19px}
+    h1 .en{display:none}
+    .brand-mark{width:34px;height:34px;font-size:16px;border-radius:10px}
+    .hero{align-items:flex-start;gap:14px;margin-bottom:16px}
+    .hero-tools{width:100%;justify-content:space-between}
+    .conn-pill{flex:1;min-width:0}
+    .board-cell{padding:12px 13px}
+    .cell-value{font-size:15px}
+    .cell-value .mono,.cell-value.mono{font-size:14px}
+    .board-cell.emphasis .cell-value{font-size:16px}
+    .board-foot{padding:9px 13px;font-size:10.5px}
+    .tabs{width:100%}
+    .tab{flex:1;padding:8px 8px;font-size:12px;gap:6px}
+    .tab .tab-note{display:none}
+    .viewbar{margin-bottom:10px}
+    .policy,.notice{font-size:11.5px;padding:9px 11px}
+    .meme-card{padding:14px 13px;grid-template-columns:38px minmax(0,1fr);gap:3px 11px}
+    .rank-num{font-size:23px}
+    .rank-label{font-size:7.5px}
+    .meme-head h3{font-size:16px}
+    .badge{font-size:10px;padding:3px 7px}
+    .llm-box{padding:8px 10px 9px}
+    .llm-head{gap:4px 10px}
+    .llm-reason{font-size:11.5px}
+    .ev-quote{font-size:11px}
+    .ev-meta{font-size:10px;white-space:normal}
+    .panel-title{font-size:16px}
+    .panel-counter{font-size:10.5px;padding:3px 9px}
+    .state{padding:44px 16px}
+    .detail-body{padding:2px 13px 16px}
+    .report-details>summary{padding:12px 13px;font-size:12px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.001ms !important;animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;scroll-behavior:auto !important
+    }
+    .meme-card:hover{transform:none}
+    .state .spinner,.btn .spin{animation:none;border-top-color:var(--muted)}
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>网络热梗 · 实时 <span>Top10</span></h1>
-      <div class="sub">B站 分区榜 + 评论 + 弹幕语料 · 规则判定 + LLM 审核（新梗榜） · 10 分钟一轮<br>
-        热度 = 曝光 · 互动 · 广度 · 增速 · 梗性 的分位加权 × 时间衰减</div>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<div class="page">
+  <header class="hero">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">梗</span>
+      <div class="brand-text">
+        <h1>热梗雷达 <span class="en">hot meme radar</span></h1>
+        <p class="tagline">B站公开语料 · 只读模块报告 · 新梗榜（publishable）/ 模块 shadow（全量观察）</p>
+      </div>
     </div>
-    <div class="status">
-      <span class="dot" id="dot"></span>
-      <span id="statusText" aria-live="polite">连接中…</span>
-      <span id="cycleMeta">尚无轮次</span>
-      <span id="updatedAt"></span>
+    <div class="hero-tools">
+      <span class="conn-pill" id="connPill" role="status" aria-live="polite">
+        <span class="dot" id="connDot" aria-hidden="true"></span>
+        <span id="connText">读取中…</span>
+      </span>
+      <button class="btn" id="refreshBtn" type="button">刷新</button>
     </div>
   </header>
 
-  <div class="tabs" id="tabs" role="tablist" aria-label="榜单切换">
-    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="true" aria-controls="newView" tabindex="0">新梗榜<span class="tab-badge" title="模块版：GET /api/meme-info?only=publishable&amp;limit=8">模块版</span></button>
-    <button class="tab" id="tab-shadow" role="tab" data-tab="shadow" aria-selected="false" aria-controls="shadowView" tabindex="-1">模块 shadow</button>
-  </div>
+  <main id="main">
+    <section class="report-board" aria-label="报告状态">
+      <div class="board-grid">
+        <div class="board-cell emphasis">
+          <div class="cell-label">报告状态 · status</div>
+          <div class="cell-value"><span class="dot" id="boardDot" aria-hidden="true"></span><span id="boardStatus">读取中…</span></div>
+          <div class="cell-sub" id="boardStatusSub">正在读取 /api/meme-info</div>
+        </div>
+        <div class="board-cell">
+          <div class="cell-label">生成时间 · generated_at</div>
+          <div class="cell-value mono" id="boardGenerated">—</div>
+          <div class="cell-sub" id="boardGeneratedSub">—</div>
+        </div>
+        <div class="board-cell">
+          <div class="cell-label">报告年龄 · age</div>
+          <div class="cell-value" id="boardAge">—</div>
+          <div class="cell-sub" id="boardAgeSub">max_age —</div>
+        </div>
+        <div class="board-cell">
+          <div class="cell-label">可发布 / 总条数</div>
+          <div class="cell-value mono" id="boardPublishable">—</div>
+          <div class="cell-sub">publishable_count / total_memes</div>
+        </div>
+        <div class="board-cell">
+          <div class="cell-label">本页条数 · 当前视图</div>
+          <div class="cell-value" id="boardPageCount">—</div>
+          <div class="cell-sub mono" id="boardPageScope">only=…</div>
+        </div>
+        <div class="board-cell">
+          <div class="cell-label">LLM 审核 · 通过 / 已审</div>
+          <div class="cell-value mono" id="boardLlm">—</div>
+          <div class="cell-sub" id="boardLlmSub">报告未提供审核统计</div>
+        </div>
+      </div>
+      <div class="board-foot">
+        <span id="boardFetch">尚未读取报告</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>每 30 秒轮询 <code>/api/meme-info</code>（仅当前视图）</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>只读报告，不写库、不触发采集</span>
+      </div>
+    </section>
 
-  <div id="llmBar" class="llmbar" aria-live="polite">
-    <span class="llm-badge off">规则版</span>
-    <span class="llm-desc">正在读取 LLM 审核状态…</span>
-  </div>
-  <div id="llmNotice" class="notice llm" role="status" aria-live="polite" hidden></div>
-  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-
-  <section id="newView" class="shadow-view" role="tabpanel" aria-labelledby="tab-new" hidden>
-    <div class="shadow-banner new-banner" role="note">
-      <b>模块 publishable · hot/rising + LLM 通过；2×2 是证据徽标</b>
-      <span class="sb-sub">数据来自 <code>GET /api/meme-info?only=publishable&amp;limit=8</code>（只读报告，<b>不回退旧 /api/top?list=new</b>）：
-        展示 status=hot/rising 且（2×2 证据成立或 LLM is_meme/is_current 通过）的条目；2×2 徽标单独标注，未达标项去「模块 shadow」看全量。本轮不 top-up。</span>
+    <div class="viewbar">
+      <div class="tabs" id="tabs" role="tablist" aria-label="视图切换">
+        <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="true" aria-controls="panel-new" tabindex="0">
+          新梗榜<span class="tab-count" id="newCount">–</span><span class="tab-note">publishable</span>
+        </button>
+        <button class="tab" id="tab-shadow" role="tab" data-tab="shadow" aria-selected="false" aria-controls="panel-shadow" tabindex="-1">
+          模块 shadow<span class="tab-count" id="shadowCount">–</span><span class="tab-note">only=all</span>
+        </button>
+      </div>
+      <p class="viewbar-hint">数据仅来自 <code>/api/meme-info</code> 轮询 · 无历史曲线 / 无 SSE 推送</p>
     </div>
-    <div id="newHead" class="shadow-head" aria-live="polite"></div>
-    <div id="newAlert" class="notice" role="status" aria-live="polite" hidden></div>
-    <div id="newList" aria-busy="false"><div class="empty"><div class="spinner"></div>正在读取模块 publishable…</div></div>
-  </section>
 
-  <section id="shadowView" class="shadow-view" role="tabpanel" aria-labelledby="tab-shadow" hidden>
-    <div class="shadow-banner" role="note">
-      <b>模块 shadow · 仅对比，不参与发布</b>
-      <span class="sb-sub">数据来自 <code>GET /api/meme-info</code> 的只读报告：不写库、不触发采集。
-        「可发布标记」只是模块发布门结论（hot/rising + 2×2 证据或 LLM 通过），<b>不等于已发布</b>。</span>
+    <p class="policy" role="note">
+      <span class="p-key">发布门</span>
+      <span><strong>publishable 是发布门标记，不等于已发布。</strong>
+        判定：<code>status ∈ {hot, rising}</code> 且（<code>2×2 证据成立</code> 或 <code>LLM 梗性/当下均通过</code>）。
+        本页只展示报告结论，不写库、不上线；标了 publishable 只说明“满足发布门”，不代表已经发布。</span>
+    </p>
+
+    <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+
+    <section class="view-panel" id="panel-new" role="tabpanel" aria-labelledby="tab-new">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">新梗榜 <span class="en">publishable</span></h2>
+          <p class="panel-sub"><code>GET /api/meme-info?only=publishable&amp;limit=8</code> · 只展示满足发布门的条目；不 top-up 补位，编号沿用报告全量排序，过滤后可能跳号。</p>
+        </div>
+        <span class="panel-counter" id="newCounter">读取中…</span>
+      </div>
+      <div id="newList" aria-busy="true"></div>
+    </section>
+
+    <section class="view-panel" id="panel-shadow" role="tabpanel" aria-labelledby="tab-shadow" hidden>
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">模块 shadow <span class="en">observation</span></h2>
+          <p class="panel-sub"><code>GET /api/meme-info?only=all&amp;limit=10</code> · 全量 / 观察视图，仅用于对比排查，不参与发布；含未达发布门与被否决条目。</p>
+        </div>
+        <span class="panel-counter" id="shadowCounter">读取中…</span>
+      </div>
+      <div class="observe-banner" role="note">
+        <span class="ob-key">OBSERVE</span>
+        <span>观察视图：以下为报告全量条目，可发布标记同样只是发布门结论，<strong>不代表已上线、已发布</strong>；与「新梗榜」刻意区分。</span>
+      </div>
+      <div id="shadowList" aria-busy="true"></div>
+    </section>
+
+    <details class="report-details" id="reportDetails">
+      <summary>报告与审核明细 <span class="sum-hint">stats · llm · path</span></summary>
+      <div class="detail-body" id="reportDetailBody">
+        <p class="detail-empty">尚无报告数据。</p>
+      </div>
+    </details>
+  </main>
+
+  <footer class="site-footer">
+    <div class="foot-grid">
+      <div class="foot-sec">
+        <h2>字段口径</h2>
+        <ul>
+          <li><span class="tag">status</span><span>模块状态 hot / rising / 其他（观察）</span></li>
+          <li><span class="tag">publishable</span><span>发布门标记，不等于已发布</span></li>
+          <li><span class="tag">2×2</span><span>证据覆盖 ≥2 个视频 × ≥2 个维度</span></li>
+          <li><span class="tag">age</span><span>报告生成至服务读取时的秒数</span></li>
+        </ul>
+      </div>
+      <div class="foot-sec">
+        <h2>数据来源与边界</h2>
+        <p>B站公开榜单 / 搜索 / 评论 / 弹幕语料，由 meme_info 模块生成只读报告。</p>
+        <p>页面只轮询 <code>/api/meme-info</code>；不请求历史接口、不触发采集、不保存用户身份。</p>
+      </div>
+      <div class="foot-sec">
+        <h2>已知限制</h2>
+        <p>报告由外部 worker 周期生成（约 860s），页面本身不刷新数据。</p>
+        <p>无历史曲线 / 无 SSE；报告缺失、损坏或过期时如实标注，不伪造数据、不回退旧接口。</p>
+      </div>
     </div>
-    <div id="shadowHead" class="shadow-head" aria-live="polite"></div>
-    <div id="shadowStats" class="s-stats"></div>
-    <div class="s-toolbar">
-      <label class="s-switch" for="shadowOnly"><input type="checkbox" id="shadowOnly"> 只看可发布</label>
-      <button type="button" class="s-btn" id="shadowRefresh">刷新</button>
-      <span class="s-only" id="shadowOnlyHint"></span>
-    </div>
-    <div id="shadowAlert" class="notice" role="status" aria-live="polite" hidden></div>
-    <div id="shadowList" aria-busy="false"><div class="empty"><div class="spinner"></div>正在读取模块 shadow 报告…</div></div>
-  </section>
-
-  <div id="list" hidden></div>
-
-  <footer>
-    <div id="meta"></div>
-    <div class="legend">
-      <span>点击卡片或按 Enter / 空格展开</span>
-      <span>LLM 通过 / 否决 / 待定 / 合并 为审核结论，未审核项如实标注</span>
-      <span>数据来源：B站公开榜单 / 评论 / 弹幕</span>
-      <span>仅统计公开内容，不保存用户身份</span>
+    <div class="foot-meta">
+      <span>热梗雷达 · 只读看板</span>
+      <span>报告文件：<code id="footPath">—</code></span>
+      <span>接口：<code>/api/meme-info</code></span>
     </div>
   </footer>
 </div>
 
 <script>
-const TYPE_ORDER = ["词","句式","谐音","缩写","名场面"];
-const TAB_STORAGE_KEY = "hotmeme.dashboard.tab.v2";
-const TAB_LABEL = {new:"新梗榜", shadow:"模块 shadow"};
-const VERDICT_LABEL = {
-  approve:{text:"LLM 通过", cls:"approve"},
-  reject:{text:"LLM 否决", cls:"reject"},
-  unclear:{text:"LLM 待定", cls:"unclear"},
-  merge:{text:"LLM 合并", cls:"merge"}
-};
-const MODE_LABEL = {off:"规则版", shadow:"观察", demote:"已撤下否决项", require_approve:"仅通过项发布"};
-const REASON_LABEL = {
-  seed_hit:"命中梗词典", alias_hit:"命中别名表", quoted:"被引号引用", cohesion:"独立成词",
-  suffix:"梗式后缀", breadth:"跨视频跨分区", breadth_small:"多视频出现",
-  danmaku_repeat:"弹幕重复", meme_source:"梗源视频",
-  news_like:"像新闻（降权）", marketing:"像营销（降权）",
-  common_word:"通用词（降权）", owner_name:"UP主名（降权）",
-  evergreen:"常青词（降权）", length:"长度异常（降权）",
-  numeric:"纯数字（降权）", short_ascii:"短英文（降权）", sensitive:"敏感词（剔除）",
-  lexicon:"常用词（降权）", sentence_fragment:"句子片段（降权）", proper_noun:"专有名词（降权）"
-};
+(function(){
+  "use strict";
 
-function esc(s){
-  return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-function timeAgo(iso){
-  if(!iso) return "";
-  const t = new Date(iso).getTime();
-  if(Number.isNaN(t)) return "";
-  const diff = Math.max(0, Date.now()-t)/1000;
-  if(diff < 90) return "刚刚";
-  if(diff < 3600) return Math.floor(diff/60)+" 分钟前";
-  if(diff < 86400) return Math.floor(diff/3600)+" 小时前";
-  return Math.floor(diff/86400)+" 天前";
-}
-function fmtTime(iso){
-  if(!iso) return "";
-  const d = new Date(iso);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("zh-CN",{hour12:false});
-}
-function deltaHtml(delta){
-  if(delta === null || delta === undefined) return '<span class="delta flat">NEW</span>';
-  if(delta > 0) return '<span class="delta up">▲ '+delta+'</span>';
-  if(delta < 0) return '<span class="delta down">▼ '+Math.abs(delta)+'</span>';
-  return '<span class="delta flat">—</span>';
-}
-function fmtInt(v){ const n=Number(v); return Number.isFinite(n) ? Math.round(n) : "-"; }
-function fmtSec(v){ const n=Number(v); return Number.isFinite(n) ? n.toFixed(1) : "-"; }
-function fmt2(v){ const n=Number(v); return v==null || !Number.isFinite(n) ? "-" : n.toFixed(2); }
-function clamp(v,min,max){ return Math.min(max, Math.max(min,v)); }
-function truncate(s, n){
-  const str = String(s == null ? "" : s).trim();
-  return str.length > n ? str.slice(0, n - 1) + "…" : str;
-}
-
-/* ---------- 新梗证据：components.comment（旧数据回退 raw.comment_evidence） ---------- */
-function commentEvidence(item){
-  const comp = (item && item.components) || {};
-  const raw = comp.raw && typeof comp.raw === "object" ? comp.raw : {};
-  const ev = (comp.comment && typeof comp.comment === "object") ? comp.comment
-           : (raw.comment_evidence && typeof raw.comment_evidence === "object") ? raw.comment_evidence
-           : raw;
-  return ev && typeof ev === "object" ? ev : {};
-}
-function evidenceHtml(item){
-  const ev = commentEvidence(item);
-  const parts = [];
-  const age = ev.age_days;
-  if(age !== null && age !== undefined && Number.isFinite(Number(age))){
-    parts.push('<span>梗龄 <b>' + esc(fmt2(age)) + '</b> 天</span>');
-  }
-  const c7 = ev.comment_7d_count;
-  if(c7 !== null && c7 !== undefined && Number.isFinite(Number(c7))){
-    parts.push('<span>近 7 天评论 <b>' + esc(fmtInt(c7)) + '</b></span>');
-  }
-  const lw = ev.comment_like_weighted;
-  if(lw !== null && lw !== undefined && Number.isFinite(Number(lw))){
-    parts.push('<span>评论赞加权 <b>' + esc(fmt2(lw)) + '</b></span>');
-  }
-  return parts.length ? '<div class="evidence">' + parts.join("") + '</div>' : "";
-}
-function verdictTag(review, inactive){
-  if(!review || !review.verdict) return "";
-  const v = VERDICT_LABEL[review.verdict] || {text:"LLM " + review.verdict, cls:"pending"};
-  const reason = truncate(review.reason || "", 84);
-  return '<div class="llm-line"><span class="verdict ' + esc(v.cls) + '" title="' +
-    esc("verdict=" + review.verdict + (review.mode ? " · mode=" + review.mode : "") + (review.model ? " · model=" + review.model : "")) + '">' +
-    esc(v.text) + (review.merge_into ? esc(" → " + review.merge_into) : "") + '</span>' +
-    (inactive ? '<span class="verdict pending">本轮未生效</span>' : "") +
-    (reason ? '<span class="reason" title="' + esc(review.reason) + '">' + esc(reason) + '</span>' : "") +
-    '</div>';
-}
-function reviewDetail(review){
-  if(!review || !review.verdict) return "";
-  const v = VERDICT_LABEL[review.verdict] || {text:"LLM " + review.verdict};
-  const bits = [v.text];
-  if(review.mode) bits.push("mode=" + review.mode);
-  if(review.model) bits.push("model=" + review.model);
-  if(review.merge_into) bits.push("合并至 " + review.merge_into);
-  const reason = String(review.reason || "").trim();
-  return "LLM 审核：" + bits.join(" · ") + (reason ? "；理由：" + reason : "；无理由");
-}
-
-/* ---------- 榜单 tab（localStorage 记忆） ---------- */
-let currentTab = "new";
-let currentLlm = null;
-function readTab(){
-  try{
-    const v = window.localStorage.getItem(TAB_STORAGE_KEY);
-    return TAB_LABEL[v] ? v : "new";
-  }catch(_){ return "new"; }
-}
-function saveTab(tab){
-  try{ window.localStorage.setItem(TAB_STORAGE_KEY, tab); }catch(_){}
-}
-
-/* ---------- LLM 摘要（/api/top 的 llm 字段；缺失时按规则版兼容） ---------- */
-function llmSummary(data){
-  if(data && data.llm && typeof data.llm === "object") return data.llm;
-  return null;
-}
-
-// 新晋：优先用 API 的 is_new（Wave 2A），字段缺失时回退 first_seen < 36h
-function isNew(item){
-  if(item && typeof item.is_new === "boolean") return item.is_new;
-  if(item && item.is_new !== null && item.is_new !== undefined) return !!item.is_new;
-  if(!item || !item.first_seen) return false;
-  const t = new Date(item.first_seen).getTime();
-  return !Number.isNaN(t) && Date.now()-t < 36*3600*1000;
-}
-
-/* ---------- 历史走势：展开时懒加载 + 同 key 缓存 ---------- */
-const historyCache = new Map(); // family_key -> {epoch, state:"loading"|"ok"|"err", points:[]}
-let historyEpoch = null; // 轮次 + 榜单来源：切 tab / 沿用上一轮时失效
-
-function histEmpty(text){
-  return '<div class="spark-empty">'+esc(text || "暂无历史")+'</div>';
-}
-
-function sparkHtml(points){
-  if(!points || !points.length) return histEmpty("暂无历史");
-  const W = 340, H = 76, L = 30, R = W - 10, T = 8, B = H - 8;
-  const n = points.length;
-  const x = i => n === 1 ? (L + R) / 2 : L + i * (R - L) / (n - 1);
-  const sVal = p => clamp(Number(p && p.score) || 0, 0, 100);
-  // 分数轴自适应区间（最小跨度 2 分），避免微小变化被画成直线
-  const scores = points.map(sVal);
-  let lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
-  if(hi - lo < 2){ const mid = (hi + lo) / 2; lo = mid - 1; hi = mid + 1; }
-  lo = clamp(lo - 0.5, 0, 100); hi = clamp(hi + 0.5, 0, 100);
-  if(hi - lo < 1){ hi = Math.min(100, lo + 1); }
-  const sy = v => B - ((clamp(v, lo, hi) - lo) / (hi - lo)) * (B - T);
-  const rankVals = points.map(p => Number(p && p.rank) || 0).filter(r => r > 0);
-  const rankMax = Math.max(10, rankVals.length ? Math.max.apply(null, rankVals) : 10);
-  const ry = r => T + ((clamp(r, 1, rankMax) - 1) / (rankMax - 1)) * (B - T);
-
-  let grid = "";
-  [hi, (hi + lo) / 2, lo].forEach((v, idx) => {
-    const y = sy(v).toFixed(1);
-    grid += '<line x1="'+L+'" y1="'+y+'" x2="'+R+'" y2="'+y+'" stroke="'+(idx === 2 ? "#2a3147" : "#1b2130")+'" stroke-width="1"></line>';
-    grid += '<text x="0" y="'+(Number(y) + 3)+'" font-size="8" fill="#5d6680">'+esc(v.toFixed(1))+'</text>';
-  });
-  const scorePoints = points.map((p, i) => x(i).toFixed(1)+","+sy(sVal(p)).toFixed(1)).join(" ");
-  let seg = [], rankPath = "";
-  points.forEach((p, i) => {
-    const r = Number(p && p.rank) || 0;
-    if(r > 0){ seg.push(x(i).toFixed(1)+","+ry(r).toFixed(1)); }
-    else if(seg.length){ rankPath += "M" + seg.join(" L"); seg = []; }
-  });
-  if(seg.length) rankPath += "M" + seg.join(" L");
-
-  const last = points[n - 1];
-  const lastRank = Number(last && last.rank) || 0;
-  const firstRankPoint = points.find(p => Number(p && p.rank) > 0);
-  const firstRank = firstRankPoint ? Number(firstRankPoint.rank) : 0;
-  const firstScore = sVal(points[0]);
-  const lastScore = sVal(last);
-  const dScore = lastScore - firstScore;
-  const dRank = (firstRank && lastRank) ? firstRank - lastRank : 0;
-  const aria = "分数 " + firstScore.toFixed(1) + " 到 " + lastScore.toFixed(1) +
-               "，名次 " + (firstRank || "-") + " 到 " + (lastRank || "-") + "，共 " + n + " 轮";
-  const arrow = (d, integer) => {
-    if(!d) return '<span class="flat">—</span>';
-    const v = Math.abs(d).toFixed(integer ? 0 : 1);
-    return d > 0 ? '<span class="up">▲'+v+'</span>' : '<span class="down">▼'+v+'</span>';
+  var TABS = {
+    "new":    { only:"publishable", limit:8,  label:"新梗榜" },
+    "shadow": { only:"all",         limit:10, label:"模块 shadow" }
   };
-  return '<div class="hist-head"><span>最近 '+n+' 轮走势</span>'+
-      '<span class="hist-legend"><span><i class="sw"></i>分数</span>'+
-      '<span><i class="sw rank"></i>名次（越靠上越前）</span></span></div>'+
-    '<svg class="spark-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+esc(aria)+'">'+
-      grid+
-      '<polyline points="'+scorePoints+'" fill="none" stroke="#7c9cff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>'+
-      (rankPath ? '<path d="'+rankPath+'" fill="none" stroke="#b48cff" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"></path>' : "")+
-      '<circle cx="'+x(n-1).toFixed(1)+'" cy="'+sy(lastScore).toFixed(1)+'" r="2.6" fill="#7c9cff"></circle>'+
-      (lastRank ? '<circle cx="'+x(n-1).toFixed(1)+'" cy="'+ry(lastRank).toFixed(1)+'" r="2.4" fill="#b48cff"></circle>' : "")+
-    '</svg>'+
-    '<div class="hist-foot"><span>分数 <b>'+firstScore.toFixed(1)+'</b> → <b>'+lastScore.toFixed(1)+'</b> '+arrow(dScore)+'</span>'+
-    (lastRank
-      ? '<span>名次 <b>'+firstRank+'</b> → <b>'+lastRank+'</b> '+arrow(dRank, true)+'</span>'
-      : '<span>名次（无排名记录）</span>')+
-    '</div>';
-}
+  var TAB_KEY = "hotmeme.ui.tab.v3";
+  var POLL_MS = 30000;
+  var MAX_SCORE = 100;
 
-function paintHistory(key){
-  const entry = historyCache.get(key);
-  if(!entry) return;
-  document.querySelectorAll(".panel.open").forEach(card => {
-    if(card.dataset.key !== key) return;
-    const box = card.querySelector(".hist");
-    if(!box) return;
-    if(entry.state === "ok") box.innerHTML = sparkHtml(entry.points);
-    else if(entry.state === "loading") box.innerHTML = histEmpty("加载历史…");
-    else box.innerHTML = histEmpty("暂无历史");
-  });
-}
+  var STATUS_META = {
+    ok:      { label:"正常", code:"ok",      tone:"ok",   sub:"报告在有效期内，可直接参考。" },
+    stale:   { label:"已过期", code:"stale", tone:"warn", sub:"报告年龄超过 max_age，仍展示最近一次数据，非实时。" },
+    missing: { label:"缺失", code:"missing", tone:"bad",  sub:"报告文件不存在，页面不展示任何条目。" },
+    invalid: { label:"损坏", code:"invalid", tone:"bad",  sub:"报告无法解析或结构不合法，页面不展示任何条目。" }
+  };
 
-function ensureHistory(card){
-  const key = card.dataset.key;
-  if(!key) return;
-  const cached = historyCache.get(key);
-  if(cached && cached.epoch === historyEpoch){ paintHistory(key); return; }
-  historyCache.set(key, {epoch: historyEpoch, state: "loading", points: []});
-  paintHistory(key);
-  fetch("/api/meme/"+encodeURIComponent(key)+"/history?limit=60", {cache: "no-store"})
-    .then(res => { if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
-    .then(data => {
-      const raw = data && Array.isArray(data.history) ? data.history : [];
-      const points = raw.filter(p => p && Number.isFinite(Number(p.score)) && Number(p.rank) >= 0);
-      historyCache.set(key, {epoch: historyEpoch, state: "ok", points: points});
-      paintHistory(key);
-    })
-    .catch(() => {
-      historyCache.set(key, {epoch: historyEpoch, state: "err", points: []});
-      paintHistory(key);
+  var state = {
+    tab: "new",
+    data: { "new": newEntry(), "shadow": newEntry() },
+    reqSeq: 0,
+    timer: null
+  };
+
+  function newEntry(){ return { data:null, error:null, loading:false, fetchedAt:null }; }
+
+  /* ---------------- element cache ---------------- */
+  var el = {};
+  function cacheEls(){
+    ["connPill","connDot","connText","refreshBtn","boardDot","boardStatus","boardStatusSub",
+     "boardGenerated","boardGeneratedSub","boardAge","boardAgeSub","boardPublishable",
+     "boardPageCount","boardPageScope","boardLlm","boardLlmSub","boardFetch","tabs",
+     "tab-new","tab-shadow","newCount","shadowCount","notice","panel-new","panel-shadow",
+     "newCounter","shadowCounter","newList","shadowList","reportDetails",
+     "reportDetailBody","footPath"].forEach(function(id){
+      el[id] = document.getElementById(id);
     });
-}
-
-/* ---------- 展开状态 + 键盘操作 ---------- */
-const openKeys = new Set();
-function toggleCard(card, next){
-  const open = typeof next === "boolean" ? next : !card.classList.contains("open");
-  card.classList.toggle("open", open);
-  card.setAttribute("aria-expanded", open ? "true" : "false");
-  const key = card.dataset.key;
-  if(key){ if(open) openKeys.add(key); else openKeys.delete(key); }
-  if(open) ensureHistory(card);
-}
-
-const listEl = document.getElementById("list");
-listEl.addEventListener("click", ev => {
-  const tabBtn = ev.target.closest("[data-tab]");
-  if(tabBtn){ setTab(tabBtn.dataset.tab); return; }
-  const card = ev.target.closest(".panel");
-  if(!card || ev.target.closest("a")) return;
-  toggleCard(card);
-});
-listEl.addEventListener("keydown", ev => {
-  if(ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
-  const card = ev.target.closest(".panel");
-  if(!card || ev.target !== card) return;
-  ev.preventDefault();
-  toggleCard(card);
-});
-
-let lastSig = "";
-let dataMsg = "", dataBad = false;
-let connMode = "";        // ""=SSE 正常 | "poll"=轮询兜底 | "offline"=服务不可达
-let pollTimer = null;
-let sseOpen = false;
-
-function paintNotice(){
-  const box = document.getElementById("notice");
-  const connText = connMode === "offline" ? "无法连接服务，正在每 30 秒重试…"
-                 : connMode === "poll" ? "实时推送不可用，已切换为 30 秒轮询"
-                 : "";
-  const parts = [];
-  if(connText) parts.push(connText);
-  if(dataMsg) parts.push(dataMsg);
-  box.hidden = parts.length === 0;
-  box.textContent = parts.join(" · ");
-  box.className = "notice" + (dataBad && !connText ? " bad" : "");
-}
-function setDataNotice(msg, bad){
-  dataMsg = msg || "";
-  dataBad = !!bad;
-  paintNotice();
-}
-
-function updateStatus(data, top){
-  const dot = document.getElementById("dot");
-  const st = document.getElementById("statusText");
-  st.removeAttribute("title");
-  if(data && data.error){
-    dot.className = "dot warn";
-    st.textContent = "采集异常";
-    st.title = String(data.error);
-    setDataNotice("采集异常：" + String(data.error).slice(0, 120) + "；下一轮会自动重试", true);
-    return;
-  }
-  if(data && data.running){
-    dot.className = "dot warn";
-    st.textContent = top.length ? "本轮采集中…" : "首轮采集中…";
-    setDataNotice("");
-    return;
-  }
-  if(!data || !data.cycle || data.status === "empty"){
-    dot.className = "dot warn";
-    st.textContent = "首轮采集中…";
-    st.title = "服务已连接，等待第一轮采集完成（约 1–3 分钟）";
-    setDataNotice("");
-    return;
-  }
-  if(data.status === "failed"){
-    dot.className = "dot warn";
-    st.textContent = "采集异常";
-    setDataNotice("上一轮采集失败，等待自动重试", true);
-    return;
-  }
-  const errs = data.health && Array.isArray(data.health.errors) ? data.health.errors : [];
-  if(data.status === "degraded" || errs.length){
-    dot.className = "dot warn";
-    st.textContent = errs.length ? "降级 · " + errs.length + " 个数据源异常" : "部分数据源降级";
-    if(errs.length){
-      st.title = errs.map(e => String((e && e.source) || "未知源") + "：" + String((e && e.error) || "")).join("\n");
-    }
-    setDataNotice(errs.length
-      ? "降级：仅部分数据源可用（" + errs.map(e => String((e && e.source) || "未知源")).join("、") + "），榜单可能不完整"
-      : "部分数据源降级，榜单可能不完整");
-    return;
-  }
-  dot.className = "dot";
-  st.textContent = "数据正常";
-  setDataNotice("");
-}
-
-function updateMeta(data){
-  const cycle = (data && data.cycle) || {};
-  const stats = cycle.stats || {};
-  const head = [cycle.id != null ? "第 " + fmtInt(cycle.id) + " 轮" : "尚无轮次"];
-  if(stats.elapsed != null) head.push(fmtSec(stats.elapsed) + "s");
-  if(stats.requests != null) head.push("请求 " + fmtInt(stats.requests));
-  document.getElementById("cycleMeta").textContent = head.join(" · ");
-  document.getElementById("updatedAt").textContent = cycle.finished_at ? fmtTime(cycle.finished_at) + " 更新" : "";
-
-  const meta = document.getElementById("meta");
-  if(cycle.id == null){ meta.textContent = ""; return; }
-  meta.innerHTML =
-    "第 " + esc(fmtInt(cycle.id)) + " 轮 · 视频 " + esc(fmtInt(stats.videos)) + " 条 · 评论 " + esc(fmtInt(stats.comments)) + " 条 · " +
-    "弹幕 " + esc(fmtInt(stats.danmaku)) + " 条 · 候选 " + esc(fmtInt(stats.candidates)) + " 个 · " +
-    "请求 " + esc(fmtInt(stats.requests)) + " 次 · 耗时 " + esc(fmtSec(stats.elapsed)) + " 秒" +
-    (cycle.finished_at ? " · 更新于 " + esc(fmtTime(cycle.finished_at)) : "");
-}
-
-function cardHtml(item, idx){
-  const comp = item.components || {};
-  const reasons = comp.reasons || {};
-  const reasonText = Object.entries(reasons)
-    .filter(([k]) => REASON_LABEL[k])
-    .map(([k, v]) => REASON_LABEL[k] + (Number(v) > 0 ? " +" : " ") + fmt2(v))
-    .join(" · ");
-  const score = Number.isFinite(Number(item.score)) ? Number(item.score) : 0;
-  const width = clamp(score, 4, 100);
-  const chips = [
-    ["曝光", comp.exposure], ["互动", comp.engagement], ["广度", comp.breadth],
-    ["增速", comp.velocity], ["梗性", comp.meme], ["衰减", comp.decay]
-  ].map(([k, v]) => '<span class="chip">' + k + '<b>' + esc(fmt2(v)) + '</b></span>').join("");
-  const canonical = item.canonical || item.family_key || "未命名";
-  const seen = timeAgo(item.first_seen);
-  const rank = Number(item.rank);
-  const observing = !(Number.isFinite(rank) && rank > 0);
-  const rankText = observing ? "观察" : fmtInt(rank);
-  const listLabel = item.list === "new" ? "新梗" : item.list === "classic" ? "经典" : "";
-  const listTag = listLabel
-    ? '<span class="tag lst-' + esc(item.list) + '">' + esc(listLabel) + '</span>' : "";
-  const review = item.llm_review && item.llm_review.verdict ? item.llm_review : null;
-  const llmActive = !!(currentLlm && String(currentLlm.mode || "off") !== "off");
-  const llmFallback = !!(currentLlm && (currentLlm.fallback || currentLlm.fallback_reason));
-  const reviewTag = review
-    ? verdictTag(review, llmFallback)
-    : (llmActive && !llmFallback && item.list === "new"
-        ? '<div class="llm-line"><span class="verdict pending">LLM 未审核</span></div>' : "");
-  const detailReview = review ? '<div class="reasons">' + esc(reviewDetail(review)) + '</div>' : "";
-  const ariaRank = observing ? "观察项" : "第 " + rank + " 名";
-  return `
-  <article class="panel ${(!observing && rank <= 3) ? "top" + rank : ""}${observing ? " observing" : ""}"
-           data-key="${esc(item.family_key)}"
-           tabindex="0" role="button" aria-expanded="false" aria-controls="detail-${idx}"
-           aria-label="${esc(ariaRank + " " + canonical + "，" + score.toFixed(1) + " 分" +
-             (review ? "，LLM 审核 " + ((VERDICT_LABEL[review.verdict] || {}).text || review.verdict) : "") +
-             "，展开查看分项与走势")}">
-    <div class="rank">${esc(rankText)}</div>
-    <div>
-      <div class="name">
-        <span class="title">${esc(canonical)}</span>
-        <span class="tag type">${esc(item.type || "词")}</span>
-        ${listTag}
-        ${isNew(item) ? '<span class="tag new">新晋</span>' : ''}
-        ${seen ? '<span class="tag">' + esc(seen) + '</span>' : ''}
-      </div>
-      <div class="sample">${item.sample ? '<em>“' + esc(item.sample) + '”</em>' : "暂无代表用法"}</div>
-      ${evidenceHtml(item)}
-      ${reviewTag}
-      <div class="bar"><i style="width:${width.toFixed(1)}%"></i></div>
-    </div>
-    <div class="score">
-      <div class="num">${score.toFixed(1)}</div>
-      ${observing ? "" : deltaHtml(item.delta)}
-    </div>
-    <div class="detail" id="detail-${idx}" role="region" aria-label="分项与走势">
-      <div class="chips">${chips}</div>
-      ${detailReview}
-      <div class="hist" data-hist="${esc(item.family_key)}">${histEmpty("展开后加载走势…")}</div>
-      <div class="reasons">判定依据：${esc(reasonText || "仅统计信号")}</div>
-    </div>
-    <span class="toggle" aria-hidden="true">展开 / 收起</span>
-  </article>`;
-}
-
-function listSignature(top){
-  return currentTab + "|" + String(historyEpoch) + "|" + top.map(i =>
-    [i.family_key, i.rank, Math.round(Number(i.score || 0) * 10), isNew(i) ? 1 : 0,
-     i.list || "", (i.llm_review && i.llm_review.verdict) || ""].join(":")
-  ).join(",");
-}
-
-function renderList(top){
-  const active = document.activeElement;
-  const focusKey = active && active.classList && active.classList.contains("panel") ? active.dataset.key : null;
-  listEl.innerHTML = top.map((item, idx) => cardHtml(item, idx)).join("");
-  listEl.querySelectorAll(".panel").forEach(card => {
-    if(openKeys.has(card.dataset.key)){
-      card.classList.add("open");
-      card.setAttribute("aria-expanded", "true");
-      ensureHistory(card);
-    }
-  });
-  if(focusKey){
-    const again = Array.from(listEl.querySelectorAll(".panel")).find(c => c.dataset.key === focusKey);
-    if(again) again.focus({preventScroll: true});
-  }
-}
-
-function emptyActions(){
-  return '<div class="empty-actions">' +
-    '<button type="button" data-tab="shadow">去模块 shadow 看全部</button></div>';
-}
-
-function renderEmpty(data){
-  if(data && data.error){
-    listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>' + esc(String(data.error).slice(0, 160)) + '</p><p>下一轮会自动重试</p></div>';
-    return;
-  }
-  if(data && data.status === "failed"){
-    listEl.innerHTML = '<div class="empty"><h2>采集异常</h2><p>上一轮采集失败，等待自动重试</p></div>';
-    return;
-  }
-  if(data && data.running){
-    listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>本轮采集中</h2><p>完成后会自动刷新</p></div>';
-    return;
-  }
-  if(data && data.cycle){
-    const label = currentTab === "classic" ? "经典榜" : "榜单";
-    listEl.innerHTML = '<div class="empty"><h2>本轮' + label + '暂无上榜</h2><p>语料不足或判定阈值偏高，等待下一轮</p></div>';
-    return;
-  }
-  listEl.innerHTML = '<div class="empty"><div class="spinner"></div><h2>首轮采集中</h2><p>约需 1–3 分钟，完成后会自动刷新</p></div>';
-}
-
-function renderOffline(){
-  if(listEl.querySelector(".panel")) return;
-  lastSig = "";
-  listEl.innerHTML = '<div class="empty"><h2>服务未连接</h2><p>请确认服务已启动（默认 127.0.0.1:8000）</p><p>连接恢复后会自动更新</p></div>';
-}
-
-function updateLlm(data){
-  const llm = llmSummary(data);
-  const bar = document.getElementById("llmBar");
-  const notice = document.getElementById("llmNotice");
-  currentLlm = llm;
-  const mode = llm ? String(llm.mode || "off") : "off";
-  const active = mode !== "off";
-  const fallbackReason = llm ? String(llm.fallback_reason || "") : "";
-  const fallback = !!(llm && (llm.fallback || fallbackReason));
-  let noticeText = "";
-
-  if(!llm){
-    bar.innerHTML = '<span class="llm-badge off">规则版</span>' +
-      '<span class="llm-desc">接口未返回 llm 字段，按规则榜展示（兼容旧版 API）</span>';
-  } else if(fallback){
-    bar.innerHTML = '<span class="llm-badge fallback">规则版（降级）</span>' +
-      '<span class="llm-desc">LLM mode=<b>' + esc(mode) + '</b> 本轮未生效，已回退规则榜</span>' +
-      '<span class="llm-counts">通过 <b>' + esc(fmtInt(llm.approved)) + '</b> · 否决 <b>' +
-      esc(fmtInt(llm.rejected)) + '</b> · 已审 <b>' + esc(fmtInt(llm.reviewed)) + '</b></span>';
-    noticeText = "LLM 未启用/降级，当前为规则版" + (fallbackReason ? "：" + fallbackReason : "");
-  } else if(!active){
-    bar.innerHTML = '<span class="llm-badge off">规则版</span>' +
-      '<span class="llm-desc">LLM 审核未启用（mode=off），榜单为规则判定结果</span>';
-  } else {
-    const desc = mode === "shadow" ? "只审核、不改榜（观察）"
-               : mode === "demote" ? "否决/合并项已从新梗榜撤下"
-               : mode === "require_approve" ? "新梗榜仅发布审核通过的条目"
-               : "LLM 审核状态已记录";
-    bar.innerHTML = '<span class="llm-badge active">LLM ' + esc(mode) + '</span>' +
-      '<span class="llm-desc">mode=<b>' + esc(mode) + '</b> · ' + esc(desc) +
-      (llm.gate_applied ? " · 发布门已生效" : " · 发布门未生效") + '</span>' +
-      '<span class="llm-counts">通过 <b>' + esc(fmtInt(llm.approved)) + '</b> · 否决 <b>' +
-      esc(fmtInt(llm.rejected)) + '</b> · 已审 <b>' + esc(fmtInt(llm.reviewed)) + '</b>' +
-      (Number(llm.shortfall) > 0 ? ' · 缺口 <b>' + esc(fmtInt(llm.shortfall)) + '</b>' : '') + '</span>' +
-      (llm.new_list_cycle != null
-        ? '<span class="llm-desc">新梗榜沿用第 ' + esc(fmtInt(llm.new_list_cycle)) + ' 轮审核结果</span>' : '');
-  }
-  notice.hidden = !noticeText;
-  notice.textContent = noticeText;
-}
-
-function render(data){
-  const top = ((data && data.top) || []).filter(
-    x => x && Number.isFinite(Number(x.rank)) && Number(x.rank) >= 0
-  );
-  const cycle = data && data.cycle;
-  const llm = llmSummary(data);
-  const carried = llm && llm.new_list_cycle != null ? String(llm.new_list_cycle) : "";
-  historyEpoch = (cycle && cycle.id != null ? String(cycle.id) : "none") +
-    "|" + currentTab + (carried ? "|c" + carried : "");
-  updateLlm(data);
-  updateStatus(data, top);
-  updateMeta(data);
-  if(!top.length){ renderEmpty(data); lastSig = ""; return; }
-  const sig = listSignature(top);
-  if(sig !== lastSig){ lastSig = sig; renderList(top); }
-  document.querySelectorAll(".panel.open").forEach(card => ensureHistory(card));
-}
-
-/* ---------- 模块 shadow：/api/meme-info 只读对比（不消费 /api/top 数据） ----------
-   边界：本 tab 只读 adapter 报告，不写库、不触发采集、不参与发布；
-   切到 shadow 时 refresh() 走 /api/meme-info，绝不会用 /api/top 数据覆盖本视图。 */
-const SHADOW_LIMIT = 10;
-const SHADOW_POLL_MS = 30000;
-const SHADOW_STATUS_LABEL = {ok:"正常", stale:"过期", missing:"缺失", invalid:"无效"};
-
-let shadowData = null;
-let shadowLoading = false;
-let shadowReqSeq = 0;
-let shadowTimer = null;
-
-const shadowViewEl = document.getElementById("shadowView");
-const shadowHeadEl = document.getElementById("shadowHead");
-const shadowStatsEl = document.getElementById("shadowStats");
-const shadowAlertEl = document.getElementById("shadowAlert");
-const shadowListEl = document.getElementById("shadowList");
-const shadowOnlyEl = document.getElementById("shadowOnly");
-const shadowOnlyHintEl = document.getElementById("shadowOnlyHint");
-
-function fmtDate(iso){
-  if(!iso) return "";
-  const d = new Date(iso);
-  if(Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",second:"2-digit"});
-}
-function fmtAge(sec){
-  const n = Number(sec);
-  if(sec === null || sec === undefined || !Number.isFinite(n)) return "-";
-  const s = Math.max(0, Math.round(n));
-  if(s < 90) return s + " 秒";
-  if(s < 3600) return Math.floor(s/60) + " 分钟";
-  if(s < 86400){
-    const h = s/3600;
-    return (h < 10 ? h.toFixed(1) : String(Math.round(h))) + " 小时";
-  }
-  return (s/86400).toFixed(1) + " 天";
-}
-function fmtCtime(ts){
-  const n = Number(ts);
-  if(!Number.isFinite(n) || n <= 0) return "";
-  const d = new Date(n*1000);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",
-    hour:"2-digit",minute:"2-digit"});
-}
-function yesNo(v){
-  if(v === true) return "是";
-  if(v === false) return "否";
-  return "未审";
-}
-function shadowStatusBadge(status){
-  const s = String(status || "");
-  const cls = SHADOW_STATUS_LABEL[s] ? s : "missing";
-  return '<span class="s-badge ' + esc(cls) + '" title="adapter status=' + esc(s || "-") + '">status ' +
-    esc(s || "未知") + (SHADOW_STATUS_LABEL[s] ? " · " + esc(SHADOW_STATUS_LABEL[s]) : "") + '</span>';
-}
-
-function setAlert(el, text, bad){
-  if(!text){ el.hidden = true; el.textContent = ""; return; }
-  el.hidden = false;
-  el.className = "notice" + (bad ? " bad" : "");
-  el.textContent = String(text);
-}
-function setShadowAlert(text, bad){ setAlert(shadowAlertEl, text, bad); }
-
-function moduleHeadHtml(data, only){
-  const verify = (data && data.verification) || {};
-  const llm = verify.llm || {};
-  const generated = (data && data.generated_at)
-    ? fmtDate(data.generated_at) + "（" + (timeAgo(data.generated_at) || "时间不明") + "）"
-    : "未提供（按文件 mtime 估龄）";
-  const age = (data && data.age_seconds !== null && data.age_seconds !== undefined)
-    ? fmtAge(data.age_seconds) : "-";
-  const maxAge = (data && data.max_age_seconds !== null && data.max_age_seconds !== undefined)
-    ? fmtAge(data.max_age_seconds) : "-";
-  return '<div class="s-row">' + shadowStatusBadge(data && data.status) +
-      '<span class="s-kv">generated_at <b>' + esc(generated) + '</b></span>' +
-      '<span class="s-kv">age <b>' + esc(age) + '</b> / max_age <b>' + esc(maxAge) + '</b></span>' +
-      '<span class="s-kv">publishable_count <b>' + esc(fmtInt(data && data.publishable_count)) + '</b>' +
-        ' / total_memes <b>' + esc(fmtInt(data && data.total_memes)) + '</b></span>' +
-      '<span class="s-kv">本页 <b>' + esc(fmtInt(data && data.count)) + '</b> 条 · only=<b>' + esc(only) + '</b></span>' +
-    '</div>' +
-    '<div class="s-row"><span class="s-kv">report_path <code>' +
-      esc((data && data.report_path) || "(未配置)") + '</code></span></div>' +
-    '<div class="s-row">' +
-      '<span class="s-kv">LLM 审核：已审 <b>' + esc(fmtInt(verify.attempted)) + '</b> · 通过 <b>' +
-        esc(fmtInt(verify.ok)) + '</b> · 否决 <b>' + esc(fmtInt(verify.rejected)) + '</b> · 错误 <b>' +
-        esc(fmtInt(verify.errors)) + '</b></span>' +
-      '<span class="s-kv">LLM 调用 <b>' + esc(fmtInt(llm.calls)) + '</b> 次</span>' +
-      '<span class="s-kv">model <b>' + esc(verify.model || "未配置") + '</b></span>' +
-      '<span class="s-kv">key 已配置 <b>' + (verify.configured ? "是" : "否") + '</b></span>' +
-    '</div>';
-}
-
-function renderShadowHead(data){
-  shadowHeadEl.innerHTML = moduleHeadHtml(data, shadowOnlyEl.checked ? "publishable" : "all");
-}
-
-function renderShadowStats(data){
-  const stats = (data && data.stats) || {};
-  const defs = [
-    ["videos","视频"], ["comments","评论"], ["danmaku","弹幕"],
-    ["current_families","当前梗族"], ["current_2x2","2×2 证据族"], ["requests_total","采集请求"]
-  ];
-  const parts = defs.filter(([k]) => stats[k] !== null && stats[k] !== undefined)
-    .map(([k, label]) => '<span class="s-stat">' + esc(label) + '<b>' + esc(fmtInt(stats[k])) + '</b></span>');
-  if(stats.budget_exhausted === true) parts.push('<span class="s-stat">预算耗尽<b>是</b></span>');
-  shadowStatsEl.innerHTML = parts.length ? parts.join("") : '<span class="s-stat">报告未提供 stats</span>';
-}
-
-function applyModuleStatus(data, label, footerNote){
-  const st = String((data && data.status) || "");
-  const dot = document.getElementById("dot");
-  const statusEl = document.getElementById("statusText");
-  const badgeLabel = SHADOW_STATUS_LABEL[st] || st || "未知";
-  statusEl.removeAttribute("title");
-  if(st === "ok"){
-    dot.className = "dot";
-  } else {
-    dot.className = "dot warn";
-    if(data && data.error) statusEl.title = String(data.error);
-  }
-  statusEl.textContent = label + " · 报告" + badgeLabel;
-  document.getElementById("cycleMeta").textContent = (data && data.generated_at)
-    ? "报告生成 " + fmtDate(data.generated_at) : "报告生成时间未知";
-  document.getElementById("updatedAt").textContent =
-    (data && data.age_seconds !== null && data.age_seconds !== undefined)
-      ? "age " + fmtAge(data.age_seconds) : "";
-  document.getElementById("meta").textContent = label + " · 报告 " +
-    ((data && data.report_path) || "-") + " · 可发布标记 " +
-    fmtInt(data && data.publishable_count) + " / 共 " + fmtInt(data && data.total_memes) +
-    " 条 · " + footerNote;
-}
-
-function applyShadowStatus(data){
-  applyModuleStatus(data, "模块 shadow", "仅对比，不参与发布（可发布标记 ≠ 已发布）");
-}
-
-function shadowEvidenceHtml(meme){
-  const ev = (meme && Array.isArray(meme.evidence)) ? meme.evidence : [];
-  if(!ev.length) return '<div class="s-ev"><div class="s-ev-item">报告未提供评论证据</div></div>';
-  const rows = ev.slice(0, 2).map(e => {
-    const quote = truncate((e && e.quote) || "", 120);
-    const ctime = fmtCtime(e && e.ctime);
-    return '<div class="s-ev-item"><span class="q">“' + esc(quote) + '”</span>' +
-      ' · 赞 <b>' + esc(fmtInt(e && e.like)) + '</b>' +
-      (ctime ? ' · ' + esc(ctime) : '') +
-      (e && e.bvid ? ' · ' + esc(e.bvid) : '') + '</div>';
-  });
-  return '<div class="s-ev"><div class="s-ev-item"><b>评论证据</b>（前 ' + ev.length + ' 条）</div>' +
-    rows.join("") + '</div>';
-}
-
-function shadowCardHtml(meme, idx){
-  const m = meme || {};
-  const rank = Number(m.rank);
-  const hasRank = Number.isFinite(rank) && rank > 0;
-  const top = hasRank && rank <= 3 ? " top" + rank : "";
-  const score = Number(m.score);
-  const status = String(m.status || "");
-  const statusCls = status === "hot" ? "hot" : status === "rising" ? "rising"
-    : status === "observing" ? "observing" : "nopub";
-  const v = m.verified || {};
-  const chips = [];
-  chips.push('<span class="s-chip">来源视频<b>' + esc(fmtInt(m.meta_count)) + '</b></span>');
-  chips.push('<span class="s-chip">用法<b>' + esc(fmtInt(m.usage_count)) + '</b></span>');
-  if(v.is_meme !== undefined && v.is_meme !== null) chips.push('<span class="s-chip">梗性<b>' + esc(yesNo(v.is_meme)) + '</b></span>');
-  if(v.is_current !== undefined && v.is_current !== null) chips.push('<span class="s-chip">当下<b>' + esc(yesNo(v.is_current)) + '</b></span>');
-  if(v.heat !== undefined && v.heat !== null) chips.push('<span class="s-chip">热度<b>' + esc(fmt2(v.heat)) + '</b></span>');
-  if(v.confidence !== undefined && v.confidence !== null) chips.push('<span class="s-chip">置信<b>' + esc(fmt2(v.confidence)) + '</b></span>');
-  const hasVerified = (v.is_meme !== undefined && v.is_meme !== null) ||
-    (v.is_current !== undefined && v.is_current !== null) ||
-    (v.heat !== undefined && v.heat !== null) ||
-    (v.confidence !== undefined && v.confidence !== null) || !!v.reason;
-  if(!hasVerified) chips.push('<span class="s-chip" title="报告里的 verified 为空/null：本轮未对该条给出 LLM 审核结论">LLM 审核<b>报告未提供</b></span>');
-  const reason = v.reason || v.error
-    ? '<div class="s-reason"><b>LLM 理由</b>：' + esc(truncate(v.reason || "", 200)) +
-      (v.error ? '（error：' + esc(truncate(v.error, 120)) + '）' : '') + '</div>' : "";
-  const aria = (hasRank ? "第 " + rank + " 名：" : "") + (m.canonical || m.family_key || "未命名") +
-    "，" + (Number.isFinite(score) ? score.toFixed(2) : "-") + " 分，status " + (status || "未知") +
-    (m.publishable ? "，带可发布标记（≠ 已发布）" : "，无可发布标记");
-  return '<article class="s-card' + top + '" role="group" aria-label="' + esc(aria) + '">' +
-    '<div class="s-rank">' + esc(hasRank ? fmtInt(rank) : "—") + '</div>' +
-    '<div class="s-main">' +
-      '<div class="s-name"><span class="title">' + esc(m.canonical || m.family_key || "未命名") + '</span>' +
-        '<span class="s-badge ' + esc(statusCls) + '">' + esc(status || "status 未知") + '</span>' +
-        (m.publishable
-          ? '<span class="s-badge pub" title="发布门标记：status∈(hot,rising) 且 2×2 证据成立；仅表示可发布候选，本轮未上线、未写库">可发布标记</span>'
-          : '<span class="s-badge nopub" title="未满足发布门标记（需 status=hot/rising 且 evidence_rate_2x2=true）">无可发布标记</span>') +
-        (m.evidence_rate_2x2
-          ? '<span class="s-badge two" title="evidence_rate_2x2=true：证据覆盖 2 个视频 × 2 个维度">2×2 证据 ✓</span>'
-          : '<span class="s-badge notwo" title="evidence_rate_2x2=false：证据未同时覆盖 2 视频 × 2 维度">2×2 证据 —</span>') +
-        (m.type ? '<span class="s-chip">' + esc(m.type) + '</span>' : '') +
-      '</div>' +
-      (m.meaning ? '<div class="s-reason">含义：' + esc(truncate(m.meaning, 200)) + '</div>' : "") +
-      '<div class="s-chips">' + chips.join("") + '</div>' +
-      reason +
-      shadowEvidenceHtml(m) +
-    '</div>' +
-    '<div class="s-score"><div class="num">' + esc(Number.isFinite(score) ? score.toFixed(2) : "-") +
-      '</div><div class="unit">score</div></div>' +
-    '</article>';
-}
-
-function renderShadow(data){
-  shadowData = data;
-  const st = String((data && data.status) || "");
-  renderShadowHead(data);
-  renderShadowStats(data);
-  applyShadowStatus(data);
-  shadowOnlyHintEl.textContent = shadowOnlyEl.checked
-    ? "only=publishable · 仅显示可发布标记条目"
-    : "only=all · 全量对比（默认）";
-
-  if(st === "missing"){
-    setShadowAlert("status=missing：报告文件不存在，adapter 返回空数据（不抛异常、不 500）。请先运行 tools/meme_info_shadow.py 生成报告；shadow 不影响线上榜单。", true);
-    shadowListEl.innerHTML = '<div class="empty"><h2>模块 shadow 报告缺失</h2>' +
-      '<p>未找到报告文件：' + esc((data && data.report_path) || "(未配置)") + '</p>' +
-      '<p>生成方式：<code>python -m tools.meme_info_shadow --out ' +
-      esc((data && data.report_path) || "/tmp/meme_info_latest.json") + '</code></p>' +
-      '<p>本页只读对比，不影响 /api/top 与线上发布。</p></div>';
-    return;
-  }
-  if(st === "invalid"){
-    setShadowAlert("status=invalid：报告文件存在但不合法，adapter 已拒绝解析，不渲染任何条目（不猜测、不修复）。", true);
-    shadowListEl.innerHTML = '<div class="empty"><h2>模块 shadow 报告无效</h2><p>' +
-      esc((data && data.error) || "报告结构不符合 schema") + '</p>' +
-      '<p>请重新生成报告后再看；shadow 不影响线上榜单。</p></div>';
-    return;
-  }
-  if(st === "stale"){
-    setShadowAlert("status=stale：报告已过期（generated_at=" +
-      ((data && data.generated_at) ? fmtDate(data.generated_at) : "未知") +
-      "，age=" + fmtAge(data && data.age_seconds) +
-      "，超过 max_age=" + fmtAge(data && data.max_age_seconds) +
-      "）。以下仍展示最近一次数据，未做实时判断，仅供对比参考。", false);
-  } else {
-    setShadowAlert("", false);
   }
 
-  const memes = (data && Array.isArray(data.memes)) ? data.memes : [];
-  if(!memes.length){
-    const only = shadowOnlyEl.checked;
-    shadowListEl.innerHTML = '<div class="empty"><h2>本轮没有' + (only ? "可发布标记" : "") + '条目</h2>' +
-      '<p>' + esc(only
-        ? "only=publishable 下没有命中「hot/rising + 2×2 证据」的条目；可关掉「只看可发布」查看全量对比。"
-        : "status=" + st + "，报告 memes 为空（adapter 不伪造数据）。") + '</p>' +
-      (only ? '<div class="empty-actions"><button type="button" id="shadowClearOnly">查看全部（only=all）</button></div>' : "") +
-      '</div>';
-    return;
+  /* ---------------- small helpers ---------------- */
+  function esc(value){
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch];
+    });
   }
-  shadowListEl.innerHTML = memes.map(shadowCardHtml).join("");
-}
-
-function startShadowTimer(){
-  if(shadowTimer) return;
-  shadowTimer = setInterval(() => { if(currentTab === "shadow") refreshShadow(); }, SHADOW_POLL_MS);
-}
-function stopShadowTimer(){
-  if(shadowTimer){ clearInterval(shadowTimer); shadowTimer = null; }
-}
-
-async function refreshShadow(){
-  if(shadowLoading) return;
-  const seq = ++shadowReqSeq;
-  shadowLoading = true;
-  shadowListEl.setAttribute("aria-busy", "true");
-  try{
-    const only = shadowOnlyEl.checked ? "publishable" : "all";
-    const res = await fetch("/api/meme-info?limit=" + SHADOW_LIMIT + "&only=" + only, {cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    if(seq !== shadowReqSeq || currentTab !== "shadow") return;
-    if(connMode === "offline") connMode = sseOpen ? "" : "poll";
-    renderShadow(data);
-    paintNotice();
-    shadowListEl.setAttribute("aria-busy", "false");
-  }catch(_){
-    if(seq !== shadowReqSeq || currentTab !== "shadow") return;
-    shadowListEl.setAttribute("aria-busy", "false");
-    connMode = "offline";
-    document.getElementById("dot").className = "dot off";
-    document.getElementById("statusText").textContent = "服务未连接";
-    document.getElementById("cycleMeta").textContent = "shadow 报告不可达";
-    document.getElementById("updatedAt").textContent = "";
-    paintNotice();
-    if(!shadowListEl.querySelector(".s-card")){
-      shadowListEl.innerHTML = '<div class="empty"><h2>模块 shadow 服务未连接</h2>' +
-        '<p>请确认服务已启动；连接恢复后会自动重试（每 30 秒）</p></div>';
-    }
-    startPolling();
-  }finally{
-    shadowLoading = false;
+  function obj(value){
+    return (value && typeof value === "object" && !Array.isArray(value)) ? value : {};
   }
-}
-
-function applyTabChrome(){
-  const shadow = currentTab === "shadow";
-  const isNew = currentTab === "new";
-  shadowViewEl.hidden = !shadow;
-  newViewEl.hidden = !isNew;
-  listEl.hidden = true;
-  document.getElementById("llmBar").hidden = true;
-  if(shadow){ startShadowTimer(); } else { stopShadowTimer(); }
-  if(isNew){ startNewTimer(); } else { stopNewTimer(); }
-}
-
-shadowOnlyEl.addEventListener("change", refreshShadow);
-document.getElementById("shadowRefresh").addEventListener("click", refreshShadow);
-shadowListEl.addEventListener("click", ev => {
-  if(ev.target.closest("#shadowClearOnly")){
-    shadowOnlyEl.checked = false;
-    refreshShadow();
+  function arr(value){ return Array.isArray(value) ? value : []; }
+  function num(value){
+    if(value === null || value === undefined || value === "" || typeof value === "boolean") return null;
+    var n = Number(value);
+    return Number.isFinite(n) ? n : null;
   }
-});
-
-/* ---------- 新梗榜（模块版）：GET /api/meme-info?only=publishable&limit=8 ----------
-   旧 /api/top?list=new 已从 UI 下线：本 tab 只读模块报告、绝不请求 /api/top；
-   模块 shadow 保持 only=all 全量。两者共用卡片/头部渲染，但各自容器与请求互不覆盖。 */
-const NEW_LIMIT = 8;
-const NEW_POLL_MS = 30000;
-const newViewEl = document.getElementById("newView");
-const newHeadEl = document.getElementById("newHead");
-const newAlertEl = document.getElementById("newAlert");
-const newListEl = document.getElementById("newList");
-
-let newLoading = false;
-let newReqSeq = 0;
-let newTimer = null;
-
-function newEmptyActions(){
-  return '<div class="empty-actions">' +
-    '<button type="button" data-tab="shadow">去模块 shadow 看全部/观察</button></div>';
-}
-
-function renderNew(data){
-  const st = String((data && data.status) || "");
-  newHeadEl.innerHTML = moduleHeadHtml(data, "publishable");
-  applyModuleStatus(data, "新梗榜", "模块 publishable；旧 /api/top?list=new 已从 UI 下线");
-  newListEl.setAttribute("aria-busy", "false");
-
-  if(st === "missing"){
-    setAlert(newAlertEl, "status=missing：报告文件不存在，adapter 返回空数据（不抛异常、不 500）。" +
-      "新梗榜不回退旧 /api/top?list=new；请先运行 tools/meme_info_shadow.py 生成报告。", true);
-    newListEl.innerHTML = '<div class="empty"><h2>模块 publishable 报告缺失</h2>' +
-      '<p>未找到报告文件：' + esc((data && data.report_path) || "(未配置)") + '</p>' +
-      '<p>生成方式：<code>python -m tools.meme_info_shadow --out ' +
-      esc((data && data.report_path) || "/tmp/meme_info_latest.json") + '</code></p>' +
-      '<p>新梗榜只读模块报告；可先切「模块 shadow」（同样缺报告）。</p>' +
-      newEmptyActions() + '</div>';
-    return;
+  function int(value){
+    var n = num(value);
+    return n === null ? null : Math.round(n);
   }
-  if(st === "invalid"){
-    setAlert(newAlertEl, "status=invalid：报告文件存在但不合法，adapter 已拒绝解析，不渲染任何条目" +
-      "（不猜测、不修复）。新梗榜不回退旧 /api/top?list=new。", true);
-    newListEl.innerHTML = '<div class="empty"><h2>模块 publishable 报告无效</h2><p>' +
-      esc((data && data.error) || "报告结构不符合 schema") + '</p>' +
-      '<p>请重新生成报告后再看；可先切「模块 shadow」排查。</p>' +
-      newEmptyActions() + '</div>';
-    return;
+  function text(value){
+    if(value === null || value === undefined) return "";
+    return String(value).trim();
   }
-  if(st === "stale"){
-    setAlert(newAlertEl, "status=stale：报告已过期（generated_at=" +
-      ((data && data.generated_at) ? fmtDate(data.generated_at) : "未知") +
-      "，age=" + fmtAge(data && data.age_seconds) +
-      "，超过 max_age=" + fmtAge(data && data.max_age_seconds) +
-      "）。以下仍展示最近一次数据并标注 age，未做实时判断，仅供发布参考。", false);
-  } else {
-    setAlert(newAlertEl, "", false);
+  function fixed(value, digits){
+    var n = num(value);
+    return n === null ? null : n.toFixed(digits);
   }
+  function clamp(value, min, max){ return Math.min(max, Math.max(min, value)); }
+  function plural(n, unit){ return String(n) + " " + unit; }
 
-  const memes = (data && Array.isArray(data.memes)) ? data.memes : [];
-  if(!memes.length){
-    newListEl.innerHTML = '<div class="empty"><h2>本轮无 publishable</h2>' +
-      '<p>only=publishable 下没有命中「status=hot/rising + 2×2 证据 + LLM gate」的条目；' +
-      '本轮不 top-up、不回退旧新梗榜。</p>' +
-      '<p>去「模块 shadow」看全部 / 观察项（only=all）。</p>' +
-      newEmptyActions() + '</div>';
-    return;
+  function parseDate(iso){
+    if(!iso) return null;
+    var d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
   }
-  newListEl.innerHTML = memes.map(shadowCardHtml).join("");
-}
-
-function startNewTimer(){
-  if(newTimer) return;
-  newTimer = setInterval(() => { if(currentTab === "new") refreshNew(); }, NEW_POLL_MS);
-}
-function stopNewTimer(){
-  if(newTimer){ clearInterval(newTimer); newTimer = null; }
-}
-
-async function refreshNew(){
-  if(newLoading) return;
-  const seq = ++newReqSeq;
-  newLoading = true;
-  newListEl.setAttribute("aria-busy", "true");
-  try{
-    const res = await fetch("/api/meme-info?limit=" + NEW_LIMIT + "&only=publishable", {cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    if(seq !== newReqSeq || currentTab !== "new") return;
-    if(connMode === "offline") connMode = sseOpen ? "" : "poll";
-    renderNew(data);
-    paintNotice();
-    newListEl.setAttribute("aria-busy", "false");
-  }catch(_){
-    if(seq !== newReqSeq || currentTab !== "new") return;
-    newListEl.setAttribute("aria-busy", "false");
-    connMode = "offline";
-    document.getElementById("dot").className = "dot off";
-    document.getElementById("statusText").textContent = "服务未连接";
-    document.getElementById("cycleMeta").textContent = "新梗榜报告不可达";
-    document.getElementById("updatedAt").textContent = "";
-    paintNotice();
-    if(!newListEl.querySelector(".s-card")){
-      newListEl.innerHTML = '<div class="empty"><h2>新梗榜服务未连接</h2>' +
-        '<p>请确认服务已启动；连接恢复后会自动重试（每 30 秒）</p></div>';
-    }
-    startPolling();
-  }finally{
-    newLoading = false;
-  }
-}
-
-newListEl.addEventListener("click", ev => {
-  const btn = ev.target.closest("[data-tab]");
-  if(btn){ setTab(btn.dataset.tab); }
-});
-
-/* ---------- 榜单 tab 交互（点击 + 方向键），选择写入 localStorage ---------- */
-const tabsEl = document.getElementById("tabs");
-const tabButtons = Array.from(tabsEl.querySelectorAll('[role="tab"]'));
-
-function syncTabs(){
-  tabButtons.forEach(btn => {
-    const on = btn.dataset.tab === currentTab;
-    btn.setAttribute("aria-selected", on ? "true" : "false");
-    btn.tabIndex = on ? 0 : -1;
-  });
-}
-function setTab(tab){
-  if(!TAB_LABEL[tab]) tab = "new";
-  if(tab === currentTab) return;
-  currentTab = tab;
-  saveTab(tab);
-  syncTabs();
-  applyTabChrome();
-  lastSig = "";
-  historyEpoch = null;
-  if(tab === "new"){ newListEl.setAttribute("aria-busy", "true"); }
-  refresh();
-}
-tabsEl.addEventListener("click", ev => {
-  const btn = ev.target.closest('[role="tab"]');
-  if(btn) setTab(btn.dataset.tab);
-});
-tabsEl.addEventListener("keydown", ev => {
-  const idx = tabButtons.indexOf(document.activeElement);
-  if(idx < 0) return;
-  let next = -1;
-  if(ev.key === "ArrowRight") next = (idx + 1) % tabButtons.length;
-  else if(ev.key === "ArrowLeft") next = (idx - 1 + tabButtons.length) % tabButtons.length;
-  else if(ev.key === "Home") next = 0;
-  else if(ev.key === "End") next = tabButtons.length - 1;
-  if(next < 0) return;
-  ev.preventDefault();
-  tabButtons[next].focus();
-  setTab(tabButtons[next].dataset.tab);
-});
-
-function startPolling(){
-  if(pollTimer) return;
-  pollTimer = setInterval(refresh, 30000);
-}
-function stopPolling(){
-  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
-}
-
-let reqSeq = 0;
-async function refresh(){
-  // 模块数据源（新梗榜 / 模块 shadow）走 /api/meme-info：此处直接分派，
-  // 绝不用 /api/top 数据覆盖，也绝不请求已下线的 /api/top?list=new。
-  if(currentTab === "shadow"){ return refreshShadow(); }
-  if(currentTab === "new"){ return refreshNew(); }
-  return;
-  const tab = currentTab;
-  try{
-    const res = await fetch("/api/top?list=" + encodeURIComponent(tab) + "&limit=10", {cache: "no-store"});
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    if(seq !== reqSeq || tab !== currentTab) return; // 切换 tab 后丢弃过期响应
-    if(connMode === "offline") connMode = sseOpen ? "" : "poll";
-    render(data);
-    listEl.setAttribute("aria-busy", "false");
-    paintNotice();
-  }catch(_){
-    if(seq !== reqSeq) return;
-    listEl.setAttribute("aria-busy", "false");
-    document.getElementById("dot").className = "dot off";
-    const st = document.getElementById("statusText");
-    st.textContent = "服务未连接";
-    st.removeAttribute("title");
-    document.getElementById("cycleMeta").textContent = "尚无轮次";
-    document.getElementById("updatedAt").textContent = "";
-    setDataNotice("");
-    connMode = "offline";
-    paintNotice();
-    renderOffline();
-    startPolling();
-  }
-}
-
-function subscribe(){
-  if(typeof EventSource === "undefined"){
-    connMode = "poll"; paintNotice(); startPolling(); return;
-  }
-  let source;
-  try{ source = new EventSource("/api/stream"); }
-  catch(_){ connMode = "poll"; paintNotice(); startPolling(); return; }
-  source.onopen = () => { sseOpen = true; connMode = ""; stopPolling(); paintNotice(); };
-  source.onmessage = ev => {
+  function fmtDateTime(iso){
+    var d = parseDate(iso);
+    if(!d) return null;
     try{
-      const data = JSON.parse(ev.data);
-      if(!data || !Array.isArray(data.top)) return;
-      sseOpen = true;
-      if(connMode === "offline") connMode = "";
-      stopPolling();
-      // 模块 tab（新梗榜 / 模块 shadow）不消费 /api/top 快照：只维持连接状态，
-      // 数据由各自 30s 定时器走 /api/meme-info 刷新。
-      if(currentTab === "shadow" || currentTab === "new"){ paintNotice(); return; }
-      refresh(); // SSE 只作通知：按当前 tab 重新拉取，保证 list/llm 字段一致
-    }catch(_){}
-  };
-  source.onerror = () => {
-    sseOpen = false;
-    startPolling();
-    if(connMode !== "poll"){ connMode = "poll"; paintNotice(); }
-  };
-  setTimeout(() => {
-    if(!sseOpen && connMode === ""){ connMode = "poll"; startPolling(); paintNotice(); }
-  }, 12000);
-}
+      return d.toLocaleString("zh-CN", { year:"numeric", month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false });
+    }catch(_){ return d.toISOString(); }
+  }
+  function fmtClock(ms){
+    var d = new Date(ms);
+    if(Number.isNaN(d.getTime())) return null;
+    try{
+      return d.toLocaleTimeString("zh-CN", { hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false });
+    }catch(_){ return null; }
+  }
+  function fmtAge(seconds){
+    var n = num(seconds);
+    if(n === null) return null;
+    var s = Math.max(0, Math.round(n));
+    if(s < 60) return s + " 秒";
+    if(s < 3600) return Math.floor(s / 60) + " 分钟";
+    if(s < 86400) return (s / 3600).toFixed(1) + " 小时";
+    return (s / 86400).toFixed(1) + " 天";
+  }
+  function fmtCtime(ts){
+    var n = num(ts);
+    if(n === null || n <= 0) return null;
+    var d = new Date(n * 1000);
+    if(Number.isNaN(d.getTime())) return null;
+    try{
+      return d.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", hour12:false });
+    }catch(_){ return null; }
+  }
+  function statusMeta(status){
+    var key = text(status);
+    if(STATUS_META[key]) return STATUS_META[key];
+    return { label: key ? key : "未知", code: key || "unknown", tone:"warn",
+             sub:"未知报告状态，按未验证处理，不推断数据。" };
+  }
+  function entryOf(tab){ return state.data[tab]; }
 
-currentTab = readTab();
-syncTabs();
-applyTabChrome();
-refresh();
-subscribe();
+  /* ---------------- header + board ---------------- */
+  function renderConnection(){
+    var entry = entryOf(state.tab);
+    var pill = el.connPill, dot = el.connDot, label = el.connText;
+    var cls = "conn-pill", dotCls = "dot", msg = "";
+    if(entry.error){
+      cls += " bad"; dotCls += " bad";
+      msg = "服务连接失败";
+    }else if(entry.loading && !entry.data){
+      msg = "读取中…";
+    }else if(!entry.data){
+      msg = "等待报告";
+    }else{
+      var meta = statusMeta(entry.data.status);
+      cls += " " + meta.tone; dotCls += " " + meta.tone;
+      msg = "已连接 · 报告" + meta.label;
+    }
+    pill.className = cls;
+    dot.className = dotCls;
+    label.textContent = msg;
+
+    var busy = entryOf(state.tab).loading;
+    el.refreshBtn.disabled = busy;
+    el.refreshBtn.setAttribute("aria-busy", busy ? "true" : "false");
+    el.refreshBtn.innerHTML = busy
+      ? '<span class="spin" aria-hidden="true"></span>刷新中…'
+      : '刷新';
+  }
+
+  function clearBoardPlaceholders(){
+    el.boardDot.className = "dot";
+    el.boardStatus.textContent = "读取中…";
+    el.boardStatusSub.textContent = "正在读取 /api/meme-info";
+    el.boardGenerated.textContent = "—";
+    el.boardGeneratedSub.textContent = "—";
+    el.boardAge.textContent = "—";
+    el.boardAgeSub.textContent = "max_age —";
+    el.boardPublishable.textContent = "—";
+    el.boardPageCount.textContent = "—";
+    var view = TABS[state.tab];
+    el.boardPageScope.textContent = "only=" + view.only + " · limit=" + view.limit;
+    el.boardLlm.textContent = "—";
+    el.boardLlmSub.textContent = "报告未提供审核统计";
+    el.boardFetch.textContent = "尚未读取报告";
+    el.footPath.textContent = "—";
+  }
+
+  function renderBoard(){
+    var entry = entryOf(state.tab);
+    var view = TABS[state.tab];
+    var data = entry.data;
+    if(!data){
+      clearBoardPlaceholders();
+      if(entry.error){
+        el.boardStatus.textContent = "不可达";
+        el.boardStatusSub.textContent = "无法读取报告：" + entry.error;
+        el.boardDot.className = "dot bad";
+      }
+      el.boardPageScope.textContent = "only=" + view.only + " · limit=" + view.limit;
+      return;
+    }
+
+    var meta = statusMeta(data.status);
+    el.boardDot.className = "dot " + (meta.tone === "ok" ? "ok" : meta.tone);
+    el.boardStatus.textContent = meta.label + "（" + (meta.code || "?") + "）";
+    el.boardStatusSub.textContent = meta.sub;
+
+    var generated = fmtDateTime(data.generated_at);
+    if(generated){
+      el.boardGenerated.textContent = generated;
+      el.boardGeneratedSub.textContent = "report generated_at";
+    }else{
+      el.boardGenerated.textContent = "未提供";
+      el.boardGeneratedSub.textContent = "时间不可解析，age 按文件 mtime 估算";
+    }
+
+    var age = fmtAge(data.age_seconds);
+    el.boardAge.textContent = age === null ? "—" : age;
+    var maxAge = fmtAge(data.max_age_seconds);
+    el.boardAgeSub.textContent = "max_age " + (maxAge === null ? "—" : maxAge) +
+      (age === null ? "" : " · age_seconds=" + int(data.age_seconds));
+
+    var pub = int(data.publishable_count);
+    var total = int(data.total_memes);
+    el.boardPublishable.textContent = (pub === null ? "—" : pub) + " / " + (total === null ? "—" : total);
+
+    el.boardPageCount.textContent = int(data.count) === null ? "—" : plural(int(data.count), "条");
+    el.boardPageScope.textContent = "only=" + view.only + " · limit=" + view.limit;
+
+    var verify = obj(data.verification);
+    var attempted = int(verify.attempted);
+    var passed = int(verify.ok);
+    if(attempted === null && passed === null){
+      el.boardLlm.textContent = "—";
+      el.boardLlmSub.textContent = "报告未提供审核统计";
+    }else{
+      el.boardLlm.textContent = (passed === null ? "—" : passed) + " / " + (attempted === null ? "—" : attempted);
+      var rejected = int(verify.rejected);
+      var errors = int(verify.errors);
+      el.boardLlmSub.textContent = "通过 / 已审 · 否决 " + (rejected === null ? "—" : rejected) +
+        " · 错误 " + (errors === null ? "—" : errors) +
+        (text(verify.model) ? " · " + text(verify.model) : "");
+    }
+
+    if(entry.fetchedAt){
+      el.boardFetch.textContent = "最近刷新 " + (fmtClock(entry.fetchedAt) || "—");
+    }else{
+      el.boardFetch.textContent = "尚未成功读取报告";
+    }
+    el.footPath.textContent = text(data.report_path) || "(未配置)";
+  }
+
+  /* ---------------- notice ---------------- */
+  function renderNotice(){
+    var entry = entryOf(state.tab);
+    var box = el.notice;
+    var tone = "";
+    var msg = "";
+
+    if(entry.error){
+      tone = "bad";
+      msg = "无法连接服务：" + entry.error + "。页面每 30 秒自动重试；" +
+        (entry.data ? "下方为上一次成功读取的数据，可能不是最新。" : "暂无可用数据。");
+    }else if(entry.data){
+      var data = entry.data;
+      var st = text(data.status);
+      var meta = statusMeta(st);
+      var generated = fmtDateTime(data.generated_at) || "未提供";
+      var age = fmtAge(data.age_seconds) || "—";
+      var maxAge = fmtAge(data.max_age_seconds) || "—";
+      if(st === "stale"){
+        tone = "warn";
+        msg = "报告已过期：generated_at " + generated + "，年龄 " + age + "，超过 max_age " + maxAge +
+          "。以下仍展示最近一次报告数据，未做实时判断，请结合年龄谨慎参考。";
+      }else if(st === "missing"){
+        tone = "bad";
+        msg = "报告缺失：未找到报告文件 " + (text(data.report_path) || "(未配置)") +
+          "。页面不伪造数据、不回退旧接口；请先运行 tools/meme_info_shadow.py 生成报告。";
+      }else if(st === "invalid"){
+        tone = "bad";
+        msg = "报告损坏：" + (text(data.error) || "结构不符合 schema") +
+          "。adapter 已拒绝解析，页面不展示任何条目，也不猜测或修复数据。";
+      }else if(st && !STATUS_META[st]){
+        tone = "warn";
+        msg = "未知报告状态 status=" + st + "，按未验证处理。";
+      }else if(obj(data.stats).budget_exhausted === true){
+        tone = "warn";
+        msg = "本轮采集预算耗尽（budget_exhausted=true），报告中的条目可能不完整。";
+      }
+    }
+
+    if(!msg){ box.hidden = true; box.className = "notice"; box.innerHTML = ""; return; }
+    box.hidden = false;
+    box.className = "notice " + tone;
+    box.innerHTML = '<span class="notice-icon" aria-hidden="true">' + (tone === "bad" ? "✕" : "!") +
+      '</span><span class="notice-text">' + esc(msg) + "</span>";
+  }
+
+  /* ---------------- state blocks ---------------- */
+  function stateBlock(title, body, actions){
+    return '<div class="state">' +
+      (body || "") +
+      "<h3>" + esc(title) + "</h3>" +
+      (actions ? '<div class="state-actions">' + actions + "</div>" : "") +
+      "</div>";
+  }
+  function loadingBlock(label){
+    return '<div class="state"><span class="spinner" aria-hidden="true"></span>' +
+      "<h3>正在读取" + esc(label) + "…</h3>" +
+      "<p>只读请求 GET /api/meme-info；失败会自动重试，不伪造数据。</p></div>";
+  }
+
+  function renderPanel(tab){
+    var entry = entryOf(tab);
+    var view = TABS[tab];
+    var list = tab === "new" ? el.newList : el.shadowList;
+    var counter = tab === "new" ? el.newCounter : el.shadowCounter;
+    var data = entry.data;
+
+    list.setAttribute("aria-busy", entry.loading ? "true" : "false");
+
+    if(!data && entry.loading){
+      counter.textContent = "读取中…";
+      list.innerHTML = loadingBlock(view.label);
+      return;
+    }
+    if(!data && entry.error){
+      counter.textContent = "不可达";
+      list.innerHTML = stateBlock("服务未连接", "<p>无法读取报告：" + esc(entry.error) +
+        "。请确认服务已启动；页面每 30 秒自动重试。</p>",
+        '<button class="btn" type="button" data-action="retry">立即重试</button>');
+      return;
+    }
+    if(!data){
+      counter.textContent = "—";
+      list.innerHTML = loadingBlock(view.label);
+      return;
+    }
+
+    var st = text(data.status);
+    var memes = arr(data.memes);
+    var count = int(data.count);
+    var total = int(data.total_memes);
+    var pubCount = int(data.publishable_count);
+
+    if(tab === "new"){
+      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · 可发布 " +
+        (pubCount === null ? "—" : pubCount) + " 条";
+    }else{
+      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · 全量 " +
+        (total === null ? "—" : total) + " 条";
+    }
+
+    if(st === "missing"){
+      list.innerHTML = stateBlock("报告文件缺失",
+        "<p>未找到报告文件</p><p><code>" + esc(text(data.report_path) || "(未配置)") + "</code></p>" +
+        "<p>页面不伪造数据、不回退旧接口。请先运行 <code>python -m tools.meme_info_shadow --out " +
+        esc(text(data.report_path) || "/tmp/meme_info_latest.json") + "</code> 生成报告。</p>");
+      return;
+    }
+    if(st === "invalid"){
+      list.innerHTML = stateBlock("报告无法解析",
+        "<p>adapter 拒绝解析：<code>" + esc(text(data.error) || "结构不符合 schema") + "</code></p>" +
+        "<p>不猜测、不修复、不展示任何条目；请重新生成报告后再看。</p>");
+      return;
+    }
+
+    if(!memes.length){
+      if(tab === "new"){
+        list.innerHTML = stateBlock("本轮没有可发布条目",
+          "<p>only=publishable 下没有命中发布门的条目；本页不 top-up 补位，也不回退旧新梗榜。</p>" +
+          "<p>未达发布门 / 观察项 / 被否决项请到「模块 shadow」查看全量。</p>",
+          '<button class="btn" type="button" data-action="goto-shadow">去模块 shadow 看全量</button>');
+      }else{
+        list.innerHTML = stateBlock("报告全量列表为空",
+          "<p>报告 status=" + esc(st || "未知") + " 且 memes 为空，页面不伪造条目。</p>" +
+          "<p>可能是本轮无候选或报告尚未产出；等 worker 生成新报告后再看。</p>");
+      }
+      return;
+    }
+
+    var cards = memes.map(function(m, i){ return memeItemHtml(m, tab, i); }).join("");
+    list.innerHTML = '<ol class="meme-list">' + cards + "</ol>";
+  }
+
+  /* ---------------- meme card ---------------- */
+  function flagHtml(label, value){
+    if(value === true){
+      return '<span class="llm-flag yes">' + esc(label) + ' <b>✓</b> 是</span>';
+    }
+    if(value === false){
+      return '<span class="llm-flag no">' + esc(label) + ' <b>✗</b> 否</span>';
+    }
+    return '<span class="llm-flag unknown">' + esc(label) + ' <b>—</b> 未给</span>';
+  }
+
+  function llmHtml(meme){
+    var verified = obj(meme.verified);
+    var has = verified.is_meme !== undefined || verified.is_current !== undefined ||
+      verified.heat !== undefined || verified.confidence !== undefined ||
+      text(verified.reason) || text(verified.error);
+    if(!has){
+      return '<div class="llm-box is-empty"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
+        '<span class="llm-flag unknown">报告未提供该条审核结论</span></div></div>';
+    }
+    var flags = [];
+    flags.push(flagHtml("梗性", verified.is_meme === true ? true : verified.is_meme === false ? false : null));
+    flags.push(flagHtml("当下", verified.is_current === true ? true : verified.is_current === false ? false : null));
+    var heat = fixed(verified.heat, 1);
+    if(heat !== null) flags.push('<span class="llm-flag">热度 <span class="num">' + esc(heat) + "</span></span>");
+    var confidence = fixed(verified.confidence, 2);
+    if(confidence !== null) flags.push('<span class="llm-flag">置信 <span class="num">' + esc(confidence) + "</span></span>");
+
+    var reason = text(verified.reason);
+    var error = text(verified.error);
+    return '<div class="llm-box"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
+      flags.join("") + "</div>" +
+      (reason
+        ? '<p class="llm-reason">' + esc(reason) + "</p>"
+        : '<p class="llm-reason is-empty">报告未提供审核理由</p>') +
+      (error ? '<p class="llm-error">error：' + esc(error) + "</p>" : "") +
+      "</div>";
+  }
+
+  function evidenceHtml(meme){
+    var evidence = arr(meme.evidence).slice(0, 2);
+    if(!evidence.length){
+      return '<div class="evidence-block"><div class="evidence-title">评论证据</div>' +
+        '<p class="evidence-empty">报告未提供评论证据</p></div>';
+    }
+    var items = evidence.map(function(item){
+      var e = obj(item);
+      var quote = text(e.quote);
+      var like = int(e.like);
+      var ctime = fmtCtime(e.ctime);
+      var bvid = text(e.bvid);
+      var metaBits = [];
+      if(like !== null) metaBits.push("赞 " + like);
+      if(ctime) metaBits.push(ctime);
+      if(bvid) metaBits.push(bvid);
+      return '<li class="evidence-item">' +
+        '<span class="ev-quote">“' + esc(quote || "（空引用）") + "”</span>" +
+        (metaBits.length ? '<span class="ev-meta">' + esc(metaBits.join(" · ")) + "</span>" : "") +
+        "</li>";
+    }).join("");
+    return '<div class="evidence-block"><div class="evidence-title">评论证据 · 前 ' +
+      evidence.length + " 条</div><ol class=\"evidence\">" + items + "</ol></div>";
+  }
+
+  function memeItemHtml(meme, tab, index){
+    var m = obj(meme);
+    var rank = int(m.rank);
+    var canonical = text(m.canonical) || text(m.family_key) || "未命名条目";
+    var score = num(m.score);
+    var status = text(m.status);
+    var statusCls = status === "hot" || status === "rising" ? status : "other";
+    var type = text(m.type);
+    var publishable = m.publishable === true;
+    var twoX2 = m.evidence_rate_2x2 === true;
+    var metaCount = int(m.meta_count);
+    var usageCount = int(m.usage_count);
+    var meaning = text(m.meaning);
+    var rankCls = rank !== null && rank >= 1 && rank <= 3 ? " rank-" + rank : "";
+    var headingId = "meme-" + tab + "-" + index + "-title";
+    var rankText = rank !== null && rank > 0 ? String(rank) : "—";
+    var pct = score === null ? 0 : clamp(score, 0, MAX_SCORE);
+    var scoreText = score === null ? "—" : score.toFixed(2);
+
+    var pubBadge = publishable
+      ? '<span class="badge badge-pub yes" title="publishable=true：status∈(hot,rising) 且（2×2 证据成立或 LLM 梗性/当下通过）；仅是发布门标记，不等于已发布"><span class="b-dot"></span>publishable</span>'
+      : '<span class="badge badge-pub no" title="publishable=false：未满足发布门（status 非 hot/rising，或 2×2 与 LLM 均未通过）；仅可在模块 shadow 观察"><span class="b-dot"></span>未达发布门</span>';
+    var twoBadge = twoX2
+      ? '<span class="badge badge-2x2 yes" title="evidence_rate_2x2=true：评论证据覆盖至少 2 个视频 × 2 个维度">2×2 证据 ✓</span>'
+      : '<span class="badge badge-2x2 no" title="evidence_rate_2x2=false：证据未同时覆盖 2 个视频 × 2 个维度；publishable 可能仍因 LLM 通过而成立">2×2 证据 —</span>';
+
+    var head = '<div class="meme-head">' +
+      "<h3 id=\"" + esc(headingId) + "\"><span class=\"sr-only\">报告全量排序第 " + esc(rankText) + " 位，</span>" +
+      esc(canonical) + "</h3>" +
+      '<span class="badge badge-status ' + statusCls + '" title="模块 status=' + esc(status || "未提供") +
+        '">' + esc(status || "status 未提供") + "</span>" +
+      pubBadge + twoBadge +
+      (type ? '<span class="badge badge-type">' + esc(type) + "</span>" : "") +
+      (tab === "shadow" ? '<span class="badge badge-observe">观察</span>' : "") +
+      "</div>";
+
+    var metrics = '<p class="meme-metrics">' +
+      '<span>来源视频 <b>' + (metaCount === null ? "—" : metaCount) + "</b></span>" +
+      '<span class="metric-sep" aria-hidden="true">·</span>' +
+      '<span>用法 <b>' + (usageCount === null ? "—" : usageCount) + "</b></span>" +
+      "</p>";
+
+    var meaningHtml = meaning ? '<p class="meme-meaning">' + esc(meaning) + "</p>" : "";
+
+    return '<li class="meme-item"><article class="meme-card' + rankCls +
+      (tab === "shadow" ? " observe-card" : "") + '" aria-labelledby="' + esc(headingId) + '">' +
+      '<div class="rank" aria-hidden="true"><span class="rank-hash">#</span>' +
+        '<span class="rank-num">' + esc(rankText) + "</span>" +
+        '<span class="rank-label">rank</span></div>' +
+      '<div class="meme-main">' + head + meaningHtml + metrics + llmHtml(m) + evidenceHtml(m) + "</div>" +
+      '<div class="meme-score">' +
+        '<div class="score-value">' + esc(scoreText) + "</div>" +
+        '<div class="score-label">score</div>' +
+        '<div class="score-track" role="img" aria-label="' +
+          esc(score === null ? "score 未提供" : "score " + scoreText + " 满分 100") + '">' +
+          '<span class="score-fill" style="width:' + pct.toFixed(2) + '%"></span>' +
+        "</div>" +
+      "</div>" +
+      "</article></li>";
+  }
+
+  /* ---------------- details drawer ---------------- */
+  function kvRows(pairs){
+    var rows = [];
+    pairs.forEach(function(pair){
+      var key = pair[0], value = pair[1];
+      if(value === null || value === undefined || value === "") return;
+      rows.push("<dt>" + esc(key) + "</dt><dd>" + esc(value) + "</dd>");
+    });
+    return rows.length ? '<dl class="kv">' + rows.join("") + "</dl>" : '<p class="detail-empty">暂无字段</p>';
+  }
+
+  function renderDetails(){
+    var entry = entryOf(state.tab);
+    var data = entry.data;
+    var body = el.reportDetailBody;
+    if(!data){
+      body.innerHTML = '<p class="detail-empty">' +
+        (entry.error ? "报告不可达：" + esc(entry.error) : "尚无报告数据。") + "</p>";
+      return;
+    }
+    var stats = obj(data.stats);
+    var verify = obj(data.verification);
+    var llm = obj(verify.llm);
+    var defineStat = [
+      ["videos","视频"], ["comments","评论"], ["danmaku","弹幕"], ["docs","文档/语料"],
+      ["current_families","当前梗族"], ["current_2x2","2×2 证据族"],
+      ["observing_families","观察族"], ["discovery_candidates","候选"],
+      ["requests_total","采集请求"], ["elapsed_total","耗时（秒）"]
+    ];
+    var statPairs = [];
+    defineStat.forEach(function(pair){
+      var v = num(stats[pair[0]]);
+      if(v !== null){
+        statPairs.push([pair[1], pair[0] === "elapsed_total" ? v.toFixed(1) : String(int(v))]);
+      }
+    });
+    if(stats.budget_exhausted !== undefined){
+      statPairs.push(["预算耗尽", stats.budget_exhausted === true ? "是（数据可能不完整）" : "否"]);
+    }
+
+    var verifyPairs = [
+      ["已审", int(verify.attempted)],
+      ["通过", int(verify.ok)],
+      ["否决", int(verify.rejected)],
+      ["错误", int(verify.errors)]
+    ];
+    var llmCalls = int(llm.calls);
+    if(llmCalls !== null) verifyPairs.push(["LLM 调用", llmCalls]);
+    var tokens = int(llm.total_tokens);
+    if(tokens !== null) verifyPairs.push(["tokens", tokens]);
+    if(text(verify.model)) verifyPairs.push(["model", text(verify.model)]);
+    verifyPairs.push(["key 已配置", verify.configured === true ? "是" : verify.configured === false ? "否" : "未提供"]);
+
+    var sourcePairs = [
+      ["status", text(data.status) || "未提供"],
+      ["generated_at", text(data.generated_at) || "未提供（按文件 mtime 估龄）"],
+      ["age_seconds", int(data.age_seconds)],
+      ["max_age_seconds", num(data.max_age_seconds)],
+      ["report_path", text(data.report_path) || "(未配置)"]
+    ];
+    if(entry.fetchedAt) sourcePairs.push(["页面最近读取", fmtDateTime(new Date(entry.fetchedAt).toISOString())]);
+
+    body.innerHTML = '<div class="detail-grid">' +
+      '<div class="detail-block"><h3>采集统计 · stats</h3>' +
+        (statPairs.length ? kvRows(statPairs) : '<p class="detail-empty">报告未提供 stats</p>') + "</div>" +
+      '<div class="detail-block"><h3>LLM 审核 · verification</h3>' +
+        kvRows(verifyPairs) + "</div>" +
+      '<div class="detail-block"><h3>报告来源</h3>' + kvRows(sourcePairs) + "</div>" +
+      "</div>";
+  }
+
+  /* ---------------- tabs ---------------- */
+  function syncTabs(){
+    var buttons = el.tabs ? Array.prototype.slice.call(el.tabs.querySelectorAll('[role="tab"]')) : [];
+    buttons.forEach(function(btn){
+      var selected = btn.getAttribute("data-tab") === state.tab;
+      btn.setAttribute("aria-selected", selected ? "true" : "false");
+      btn.tabIndex = selected ? 0 : -1;
+    });
+    el["panel-new"].hidden = state.tab !== "new";
+    el["panel-shadow"].hidden = state.tab !== "shadow";
+  }
+
+  function renderTabCounts(){
+    el.newCount.textContent = countLabel("new");
+    el.shadowCount.textContent = countLabel("shadow");
+  }
+  function countLabel(tab){
+    var entry = entryOf(tab);
+    if(!entry.data) return "–";
+    var count = int(entry.data.count);
+    return count === null ? "–" : String(count);
+  }
+
+  function readTab(){
+    try{
+      var stored = window.localStorage.getItem(TAB_KEY);
+      return TABS[stored] ? stored : "new";
+    }catch(_){ return "new"; }
+  }
+  function saveTab(tab){
+    try{ window.localStorage.setItem(TAB_KEY, tab); }catch(_){ /* 隐私模式忽略 */ }
+  }
+
+  function selectTab(tab, opts){
+    if(!TABS[tab] || tab === state.tab) return;
+    state.tab = tab;
+    saveTab(tab);
+    syncTabs();
+    renderTabCounts();
+    render();
+    load(tab);
+    if(opts && opts.focusTab){
+      var btn = el["tab-" + tab];
+      if(btn) btn.focus({ preventScroll:true });
+    }
+  }
+
+  /* ---------------- fetch + polling ---------------- */
+  function apiUrl(tab){
+    var view = TABS[tab];
+    return "/api/meme-info?limit=" + view.limit + "&only=" + encodeURIComponent(view.only);
+  }
+
+  async function load(tab){
+    var entry = entryOf(tab);
+    if(entry.loading) return;
+    var seq = ++state.reqSeq;
+    entry.loading = true;
+    render();
+    try{
+      var res = await fetch(apiUrl(tab), { cache:"no-store", headers:{ "Accept":"application/json" } });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+      if(seq !== state.reqSeq) return;
+      if(!data || typeof data !== "object" || Array.isArray(data)) throw new Error("响应不是 JSON 对象");
+      entry.data = data;
+      entry.error = null;
+      entry.fetchedAt = Date.now();
+    }catch(err){
+      if(seq !== state.reqSeq) return;
+      entry.error = err && err.message ? err.message : String(err);
+    }finally{
+      if(seq === state.reqSeq){
+        entry.loading = false;
+        render();
+      }
+    }
+  }
+
+  function startPolling(){
+    stopPolling();
+    state.timer = window.setInterval(function(){
+      if(document.visibilityState && document.visibilityState !== "visible") return;
+      load(state.tab);
+    }, POLL_MS);
+  }
+  function stopPolling(){
+    if(state.timer){ window.clearInterval(state.timer); state.timer = null; }
+  }
+
+  /* ---------------- orchestration ---------------- */
+  function render(){
+    renderTabCounts();
+    syncTabs();
+    renderConnection();
+    renderBoard();
+    renderNotice();
+    renderPanel("new");
+    renderPanel("shadow");
+    renderDetails();
+  }
+
+  /* ---------------- events ---------------- */
+  function bindEvents(){
+    el.tabs.addEventListener("click", function(ev){
+      var btn = ev.target.closest('[role="tab"]');
+      if(btn) selectTab(btn.getAttribute("data-tab"), {});
+    });
+    el.tabs.addEventListener("keydown", function(ev){
+      var buttons = Array.prototype.slice.call(el.tabs.querySelectorAll('[role="tab"]'));
+      var idx = buttons.indexOf(document.activeElement);
+      if(idx < 0) return;
+      var next = -1;
+      if(ev.key === "ArrowRight") next = (idx + 1) % buttons.length;
+      else if(ev.key === "ArrowLeft") next = (idx - 1 + buttons.length) % buttons.length;
+      else if(ev.key === "Home") next = 0;
+      else if(ev.key === "End") next = buttons.length - 1;
+      if(next < 0) return;
+      ev.preventDefault();
+      var target = buttons[next];
+      target.focus();
+      selectTab(target.getAttribute("data-tab"), {});
+    });
+
+    el.refreshBtn.addEventListener("click", function(){ load(state.tab); });
+
+    document.addEventListener("click", function(ev){
+      var actionBtn = ev.target.closest("[data-action]");
+      if(!actionBtn) return;
+      var action = actionBtn.getAttribute("data-action");
+      if(action === "retry"){ load(state.tab); }
+      else if(action === "goto-shadow"){ selectTab("shadow", { focusTab:true }); }
+    });
+
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") load(state.tab);
+    });
+  }
+
+  /* ---------------- init ---------------- */
+  cacheEls();
+  state.tab = readTab();
+  bindEvents();
+  syncTabs();
+  render();
+  load(state.tab);
+  startPolling();
+})();
 </script>
 </body>
 </html>

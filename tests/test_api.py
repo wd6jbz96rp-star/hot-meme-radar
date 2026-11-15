@@ -31,7 +31,7 @@ def test_readonly_api_contract(tmp_path, monkeypatch):
     api_module = importlib.reload(api_module)
     with TestClient(api_module.app) as client:
         index = client.get("/")
-        assert index.status_code == 200 and "网络热梗" in index.text
+        assert index.status_code == 200 and ("热梗雷达" in index.text or "热梗" in index.text)
 
         body = client.get("/api/meme-info").json()
         assert body["status"] == "ok" and body["count"] == 1

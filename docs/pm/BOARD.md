@@ -541,3 +541,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 删除 `app/store.py`、`/api/top`、`/api/meme/{key}/history`、经典/全部 tab、sparkline 依赖。
 - `app/api.py` 仅保留 `/`、`/api/meme-info`、`/api/health`、`/api/refresh` 410、`/api/stream` 空快照。
 - `app/config.py` 去掉 DB/DATA 配置；README/LIVE-DEPLOY 重写；87 tests。
+
+## 34. 前端 UI 重做（2026-11-16 01:25）
+
+- 新子智能体 `frontend-design` 负责前端；重写 `app/static/index.html`：两 tab（新梗榜 / 模块 shadow）、状态板、证据/LLM/2×2 徽标、stale/missing/invalid/offline 状态、移动端/a11y。
+- 删除旧榜死代码：`/api/top`、history、sparkline、SSE、经典/全部残留；内联 JS 1085→708 行，文件 66→58KB。
+- 验证：8011 headless console/HTTP 0 错；1280/390 无横向溢出；XSS 插值测试通过；87 tests。
+- 截图：`docs/pm/assets/ui-desktop.png`、`ui-mobile.png`、`ui-stale.png`；报告 `docs/pm/UI-DESIGN.md`。
