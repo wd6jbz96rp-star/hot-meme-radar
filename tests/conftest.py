@@ -2,5 +2,4 @@
 import os
 
 os.environ.setdefault("HOTMEME_OFFLINE", "1")
-os.environ.setdefault("HOTMEME_DISABLE_SCHEDULER", "1")
 os.environ.setdefault("HOTMEME_DB", "/tmp/hotmeme_pytest.db")
