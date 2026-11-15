@@ -14,7 +14,6 @@
 cd /Users/wanjunqiang/Desktop/hot_meme_search
 HOTMEME_HOST=127.0.0.1 HOTMEME_PORT=8000 \
 HOTMEME_DB="$PWD/data/hotmeme.db" \
-HOTMEME_DISABLE_SCHEDULER=1 \
 HOTMEME_MEME_INFO_REPORT=/tmp/meme_info_latest.json \
   .venv/bin/python run.py
 
@@ -60,3 +59,11 @@ curl -s '127.0.0.1:8000/api/top?limit=2'
 - `/api/refresh` 已改为 **410 Gone**，不再触发旧 `pipeline.run_cycle`；避免手动刷新写生产库/抢 B站/复活种子榜。
 - `app/pipeline.py` 已标 `DEPRECATED`；scheduler 保持关闭。
 - 新梗榜仍由 `tools/meme_info_worker.sh` 刷新；回滚旧采集需要显式改代码，不再是一个 HTTP 请求。
+
+
+## 8. Phase 1–3 完成（2026-11-16）
+
+- **Phase 1**：`api.py` 已移除旧 pipeline 依赖；`/api/top` 只读 `store` 的历史快照。
+- **Phase 2**：删除 `app/pipeline.py`、`bili.py`、`http.py`、`zones.py`、`normalize.py`、`extract.py`、`judge.py`、`score.py`、`llm.py`、`review.py`、`llm_extract.py`；删除对应旧测试、`tools/shadow_run.py`、`eval/`。
+- **Phase 3**：`store.py` 重写为只读历史仓库（231 行），只服务 `/api/top`、`history`、`health`；SQLite 不再写新 cycle。
+- 测试：87 passed；旧采集/排名代码不再存在，scheduler 概念移除。

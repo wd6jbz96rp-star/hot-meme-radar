@@ -1,97 +1,93 @@
-# 网络热梗 · 实时 Top10
+# 热梗雷达 · 模块化版
 
-按**热度动态排名近期网络热梗**的最小实现：以 B站 分区榜、评论、弹幕为主要语料，用「新词发现 + 规则判定」筛出真梗，按曝光、互动、广度、增速、梗性加权打分，每 10 分钟产出一个可解释的 Top10，并提供网页实时看板。
+用 B站公开语料发现「当前网络热梗」，输出可解释的排行榜和看板。当前架构是**两进程 + 一份 JSON 报告**：
 
-## 它解决什么问题
+- `meme_info` 引擎（独立库 / worker）：采集 → 元话语 + 使用双通道发现 → 热度打分 → 可选 LLM 审核；
+- `FastAPI :8000`（只读服务）：新梗榜读模块报告，经典/全部读历史 SQLite 快照；
+- 旧的 `app/pipeline.py` 采集排名引擎已于 2026-11-15 退役并删除。
 
-热搜榜排的是**事件**，不是**梗**。真正的梗有五个特征：可复制、被模仿使用、依赖出处、有语义增量、有兴衰曲线。本项目的判定与统计规范见：
-
-- [梗的定义与判定规范](docs/01-meme-definition.md)
-- [捕获与统计](docs/02-capture-and-scoring.md)
+当前架构图：`.archify/architecture-hotmeme-20261115-232136/hotmeme-current-architecture.html`（本地生成产物）。
 
 ## 快速开始
 
 ```bash
-# 1. 安装依赖（建议虚拟环境）
+# 1. 安装
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 
-# 2. 启动（首次启动会先在后台跑一轮采集，约 1-2 分钟）
-.venv/bin/python run.py
+# 2. 先跑一轮模块报告（无 key 时自动降级为规则版）
+HOTMEME_LLM_API_KEY_FILE=~/.hotmeme_llm_key \
+  .venv/bin/python -m tools.meme_info_shadow \
+  --out /tmp/meme_info_latest.json --limit 20 --verify --verify-gate
 
-# 3. 打开看板
-open http://127.0.0.1:8000
+# 3. 启动只读服务
+.venv/bin/python run.py
+# 打开 http://127.0.0.1:8000
+
+# 4. 另开终端跑刷新 worker（每 600s 一轮；实际约 860s，见“已知限制”）
+MEME_INFO_WORKER_INTERVAL=600 bash tools/meme_info_worker.sh
 ```
 
-首轮采集完成前页面显示「采集中」。之后每 10 分钟自动刷新，页面通过 SSE 实时更新。
+新梗榜读 `/tmp/meme_info_latest.json`；经典/全部读 `data/hotmeme.db` 的历史 cycle（当前停在 cycle#24）。
 
-### 常用环境变量
+## 环境变量
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `HOTMEME_INTERVAL` | `600` | 采集间隔（秒） |
-| `HOTMEME_PORT` / `HOTMEME_HOST` | `8000` / `127.0.0.1` | 服务地址 |
-| `HOTMEME_DB` | `data/hotmeme.db` | SQLite 路径 |
-| `HOTMEME_DATA_DIR` | `data` | 数据目录（`HOTMEME_DB` 未设置时用于推导默认库路径） |
-| `HOTMEME_FIXTURES` | `tests/fixtures` | 离线回放 fixture 目录 |
-| `HOTMEME_MAX_RPS` | `2.0` | 对 B站 的最大请求频率（合规线 2 rps） |
-| `HOTMEME_TIMEOUT` | `12` | 单请求超时（秒） |
-| `HOTMEME_UA` | Chrome 120 UA | 请求 User-Agent |
-| `HOTMEME_COMMENT_CACHE_SECONDS` | `1800` | 评论缓存 TTL（秒），`0` 关闭 |
-| `HOTMEME_OFFLINE` | `0` | 置 1 用 `tests/fixtures` 回放，不触网 |
-| `HOTMEME_DISABLE_SCHEDULER` | `0` | 置 1 只提供 API，不自动采集 |
-| `HOTMEME_TOKEN` | 空 | **已弃用**：`POST /api/refresh` 已返回 410（旧 pipeline 退役） |
-| `HOTMEME_CA` | 自动 | 自定义 CA 证书路径 |
+| `HOTMEME_HOST` / `HOTMEME_PORT` | `127.0.0.1` / `8000` | 服务地址 |
+| `HOTMEME_DB` | `data/hotmeme.db` | 历史快照 SQLite（只读服务；不再写入新 cycle） |
+| `HOTMEME_DATA_DIR` | `data` | 未设置 `HOTMEME_DB` 时的数据目录 |
+| `HOTMEME_MEME_INFO_REPORT` | `/tmp/meme_info_latest.json` | 模块报告路径 |
+| `HOTMEME_MEME_INFO_MAX_AGE` | `3600` | 报告超过该秒数标 stale（仍可读） |
+| `HOTMEME_OFFLINE` | `0` | 只影响 health 展示；当前无采集入口 |
 
-## 工作原理
+模块自己的环境变量见 `meme_info/README.md`（`MEME_INFO_LLM_*` / `HOTMEME_LLM_*`）。
 
-> 2026-11-15 Phase 0：旧 `app/pipeline.py` 排名引擎已退役，新梗榜由独立 `meme_info` 模块的 worker 生成；经典/全部为历史快照。
+## 架构
 
 ```
-B站分区榜(8) + 全站热门 + 20组「热梗/梗百科」搜索视频
-        ↓
-标题 / 简介 / 标签 / 热评 / 弹幕  →  归一化  →  n-gram 新词发现 + 模式抽取
-        ↓                                        （凝固度 + 左右邻接熵 + 通用词表）
-候选  →  梗性规则判定（种子词、跨视频广度、弹幕重复、梗源覆盖、负向过滤）
-        ↓
-梗族归并  →  五信号分位加权 × 时间衰减 × EMA  →  Top10  →  SQLite / API / SSE / 看板
+meme_info worker（独立进程/会话内）
+  └─ collect → discover → heat → optional verify
+       └─ 原子写 /tmp/meme_info_latest.json
+app FastAPI :8000（只读）
+  ├─ GET /api/meme-info → meme_info_adapter 读 JSON → 新梗榜 / 模块 shadow
+  └─ GET /api/top      → SQLite cycle#24 历史快照 → 经典 / 全部
 ```
 
-- **为什么是 B站**：弹幕天然是「同一句话被大量人重复」的场所，重复率本身就是梗的证据；评论提供「这是什么梗」的语义上下文。
-- **为什么加搜索通道**：热榜标题以新闻/番剧为主，「热梗合集」「梗百科」类视频的标题、标签与弹幕才是梗的高密度来源。
-- **为什么纯规则**：零成本、可解释、离线可跑。规则先筛，后续可接 LLM 复核 Top 候选。
+- **新梗榜**：`GET /api/meme-info?only=publishable&limit=8`；旧 `/api/top?list=new` 已从 UI 下线。
+- **经典/全部**：`GET /api/top?list=classic|all`，是历史快照，不自动更新。
+- **模块 shadow**：`GET /api/meme-info?only=all`，看全量/观察项。
 
 ## 目录结构
 
 ```
 app/
-  config.py       配置与阈值
-  http.py         HTTP（Cookie、限速、重试、压缩、412 时 curl 兜底、CA 回退）
-  bili.py         B站适配：分区榜、热门、搜索、评论、弹幕、wbi 签名
-  zones.py        分区与权重
-  store.py        SQLite 表与查询
-  normalize.py    归一化、切段、常用词/词表加载
-  extract.py      n-gram 新词发现、模式抽取、梗族归并
-  judge.py        梗性规则判定
-  score.py        分位归一化、加权、衰减、EMA
-  pipeline.py     采集 → 抽取 → 判定 → 打分 → 落库
-  api.py          FastAPI、SSE、看板路由
-  static/index.html
-data/             种子梗表、别名表、黑名单、通用词表、词表
-docs/             定义规范与统计说明
-tests/            fixtures / 黄金集 / 单元与离线集成测试
-run.py            启动入口
+  api.py               FastAPI 只读服务（新梗榜 + 历史快照）
+  config.py            服务/报告/历史库路径
+  meme_info_adapter.py 只读报告 → 精简 API 响应（缓存/状态机）
+  store.py             历史 SQLite 只读查询（top/history/health）
+  static/index.html    看板（新梗 / 经典 / 全部 / 模块 shadow）
+meme_info/             独立热梗发现与打分库（见 meme_info/README.md）
+tools/
+  meme_info.py         CLI 入口（python -m tools.meme_info）
+  meme_info_shadow.py  跑一轮模块 → 原子写报告
+  meme_info_worker.sh  600s 刷新 worker
+data/                  种子/别名/黑名单/词表
+docs/                  设计规范、PM 记录、部署文档
+tests/                 test_api / test_meme_info_adapter / test_meme_info
+run.py                 启动入口
 ```
 
 ## API
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/top?limit=10` | 榜单（热度、名次变化、类型、代表用法、分项得分、判定依据） |
-| GET | `/api/meme/{family_key}/history` | 单个梗的分数/名次曲线 |
-| GET | `/api/health` | 调度状态、最近一轮、各源错误 |
-| GET | `/api/stream` | SSE 推送新一轮结果 |
-| POST | `/api/refresh` | **410 已退役**：旧 pipeline 不再触发；新梗榜由 `meme_info` worker 刷新 |
+| GET | `/api/meme-info?limit=10&only=all\|publishable` | 新梗榜/模块 shadow；只读 JSON 报告 |
+| GET | `/api/top?limit=10&list=classic\|all` | 历史快照榜（cycle#24） |
+| GET | `/api/meme/{family_key}/history` | 单个梗的历史分数/名次 |
+| GET | `/api/health` | 服务/历史库状态；`scheduler` 恒 false |
+| GET | `/api/stream` | 兼容 SSE：只推初始快照 + ping，不再有采集广播 |
+| POST | `/api/refresh` | **410 已退役**：旧采集 pipeline 不再触发 |
 
 ## 测试
 
@@ -100,27 +96,23 @@ run.py            启动入口
 .venv/bin/python -m pytest -q
 ```
 
-- 单元测试覆盖归一化、新词发现、判定、打分、存储、API。
-- 离线集成测试用 `tests/fixtures` 回放一轮完整流水线，不触网。
-- 黄金集 `tests/golden/memes.json`（30 梗 + 30 非梗）约束判定精度。
+当前 **87 passed**：
+
+- `tests/test_meme_info/`：模块的采集解析、发现、归并、打分、审核、评测；
+- `tests/test_meme_info_adapter.py`：报告状态机/精简/API 契约/只读边界；
+- `tests/test_api.py`：只读服务基础契约。
+
+旧 `tests/test_judge|score|extract|pipeline|wave2b|p3...` 随旧 pipeline 一并删除。
 
 ## 已知限制
 
-- 匿名评论接口每页只返回约 3 条，评论语料有限，主语料仍是弹幕。
-- 谐音/错别字变体依赖种子表与人工别名，无法自动发现「同音不同字」。
-- 图像梗、表情包梗、BGM 空耳不在范围内。
-- 冷启动首轮没有历史增速，榜单以跨视频广度、梗源覆盖与词典先验为主。
-- 榜单是「当前仍活跃的梗」，老梗若仍在高频被用会继续上榜；「近期」指统计窗口，不是梗的诞生年份。
+- worker 目前是**会话内 shell job**，不是 launchd/systemd 常驻；停则报告 1h 后 stale。
+- 实际周期约 **860s**（采集约 260s + sleep 600s），不是严格 10 分钟。
+- 模块只覆盖 B站；图像/表情包/BGM 梗不在范围。
+- 经典/全部是历史快照（cycle#24），不会自动更新。
+- 模块的银标/AI 补标有循环性，P@10=1.0 不是独立人工准确率。
+- LLM gate 仍可能误判泛化词/标题类；当前用用户负例 + 知识库 stopword 回归。
 
-## 数据与合规
+## 历史文档
 
-- 只访问 B站 公开接口，默认 10 分钟一轮、限速请求，不登录、不下载音视频、不保存用户身份。
-- 敏感词直接剔除；新闻、营销、专有名词强降权。
-- 通用词表 `data/lexicon.txt` 抽取自 [jieba](https://github.com/fxsjy/jieba) 的 `dict.txt`（MIT License），仅保留词频 ≥ 100、长度 2–6 的词。
-
-## 后续可做
-
-- 接入微博/抖音/头条热榜（`bili.py` 的 adapter 结构已隔离）。
-- 规则先筛 + LLM 复核 Top 20–50 候选，提升谐音梗与反讽梗的识别。
-- 图像/表情包梗与 BGM 空耳检测。
-- 生命周期阶段标注（萌芽/爆发/平台/衰退）与订阅告警。
+`docs/01-meme-definition.md`、`docs/02-capture-and-scoring.md` 描述的是**旧规则引擎**的设计，保留作历史参考；当前实现以 [`meme_info/README.md`](meme_info/README.md) 为准。部署/回滚见 [`docs/pm/LIVE-DEPLOY.md`](docs/pm/LIVE-DEPLOY.md)。

@@ -364,8 +364,9 @@ def test_api_top_unchanged_and_no_db_write(client, report_file):
     body = top.json()
     assert body["list"] == "all"
     assert set(body) == {
-        "status", "cycle", "list", "top", "health", "llm", "running", "error",
+        "status", "cycle", "list", "top", "health", "running", "error",
     }
+    assert "llm" not in body  # 旧 app LLM 摘要已随 pipeline 退役
     assert "meme" not in body  # 不能把 shadow 字段混进旧榜
 
     assert client.get("/api/meme-info").status_code == 200

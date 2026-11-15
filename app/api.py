@@ -1,4 +1,10 @@
-"""FastAPI 服务：榜单 API、SSE 推送与看板。"""
+"""FastAPI 只读服务：新梗榜读 meme_info 报告，经典/全部读历史 SQLite 快照。
+
+Phase 0-3（2026-11-15）已退役旧采集/排名 pipeline：
+- 没有 scheduler、没有 ``/api/refresh`` 采集入口；
+- ``/api/top`` 只读 ``store`` 中最后一次完成的 cycle；
+- 新梗榜完全由 ``GET /api/meme-info`` 提供。
+"""
 from __future__ import annotations
 
 import asyncio
@@ -8,26 +14,35 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from . import config, meme_info_adapter, pipeline, store
+from . import config, meme_info_adapter, store
 
 STATE: dict = {"snapshot": None, "running": False, "error": ""}
-SUBSCRIBERS: set[asyncio.Queue] = set()
-RUN_LOCK = asyncio.Lock()
-_COLLECT_TASK: asyncio.Task | None = None
-_SCHEDULER_TASK: asyncio.Task | None = None
-TOP_LISTS = ("all", "new", "classic")
+TOP_LISTS = ("all", "classic")
 
 
 def _clamp_limit(limit: int) -> int:
     return max(1, min(limit, 50))
 
 
-def _list_items(snapshot: dict, list_type: str, limit: int) -> list[dict]:
-    """按需读该轮的新/旧榜条目（含不占主榜名次的 comment_backed 观察项）。"""
-    cycle = snapshot.get("cycle") or {}
-    cycle_id = cycle.get("id")
-    if not cycle_id:
-        return []
+def _read_snapshot() -> dict:
+    """只读最近一轮完成数据；不触发任何采集。"""
+    connection = store.connect()
+    try:
+        health = store.health(connection)
+        cycle = store.latest_cycle(connection)
+        if not cycle:
+            return {"status": "empty", "cycle": None, "top": [], "health": health}
+        return {
+            "status": cycle["status"],
+            "cycle": cycle,
+            "top": store.top_items(connection, int(cycle["id"]), config.TOP_N),
+            "health": health,
+        }
+    finally:
+        connection.close()
+
+
+def _list_items(cycle_id: int, list_type: str, limit: int) -> list[dict]:
     connection = store.connect()
     try:
         return store.list_items(connection, int(cycle_id), list_type, limit)
@@ -35,97 +50,20 @@ def _list_items(snapshot: dict, list_type: str, limit: int) -> list[dict]:
         connection.close()
 
 
-def _llm_summary(snapshot: dict) -> dict:
-    """`/api/top` 回显本轮 LLM 发布门状态（off 时也存在，便于监控统一取字段）。"""
-    stats = (snapshot.get("cycle") or {}).get("stats") or {}
-    return {
-        "mode": stats.get("llm_mode", "off"),
-        "calls": stats.get("llm_calls", 0),
-        "rounds": stats.get("llm_rounds", 0),
-        "approved": stats.get("llm_approved", 0),
-        "rejected": stats.get("llm_rejected", 0),
-        "reviewed": stats.get("llm_reviewed", 0),
-        "shortfall": stats.get("llm_shortfall", 0),
-        "gate_applied": bool(stats.get("llm_gate_applied", False)),
-        "fallback": bool(stats.get("llm_fallback", False)),
-        "fallback_reason": stats.get("llm_fallback_reason", ""),
-        "new_list_cycle": stats.get("llm_new_list_cycle"),
-    }
-
-
-async def _broadcast(payload: dict) -> None:
-    for queue in list(SUBSCRIBERS):
-        try:
-            queue.put_nowait(payload)
-        except asyncio.QueueFull:
-            pass
-
-
-def _collection_active() -> bool:
-    return bool(
-        STATE["running"] or (_COLLECT_TASK is not None and not _COLLECT_TASK.done())
-    )
-
-
-async def _run_collection(reason: str) -> None:
-    """进程内唯一采集入口：scheduler 与 /api/refresh 共用，RUN_LOCK 兜底串行。"""
-    async with RUN_LOCK:
-        STATE["running"] = True
-        try:
-            snapshot = await asyncio.to_thread(pipeline.run_cycle)
-            STATE["snapshot"] = snapshot
-            STATE["error"] = ""
-            await _broadcast(snapshot)
-        except Exception as exc:  # noqa: BLE001 - 单轮失败要复位状态、继续服务
-            STATE["error"] = str(exc)[:300]
-        finally:
-            STATE["running"] = False
-
-
-def _start_collection(reason: str) -> bool:
-    """同步占位后再创建任务：检查与置位无 await 间隔，双跑窗口被消除。"""
-    global _COLLECT_TASK
-    if _collection_active():
-        return False
-    STATE["running"] = True
-    _COLLECT_TASK = asyncio.create_task(_run_collection(reason))
-    return True
-
-
-async def _scheduler() -> None:
-    while True:
-        _start_collection("scheduler")  # 手动刷新在跑时本轮 tick 跳过，不排队
-        await asyncio.sleep(config.CYCLE_INTERVAL_SECONDS)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _SCHEDULER_TASK
     connection = store.connect()
-    store.init_db(connection)
     try:
-        aborted = store.abort_running_cycles(connection)
-        if aborted:
-            STATE["error"] = f"启动时回收 {aborted} 个未收尾的采集轮次"
+        store.init_db(connection)
     finally:
         connection.close()
     try:
-        STATE["snapshot"] = await asyncio.to_thread(pipeline.snapshot)
+        STATE["snapshot"] = await asyncio.to_thread(_read_snapshot)
+        STATE["error"] = ""
     except Exception as exc:  # noqa: BLE001
         STATE["error"] = str(exc)[:300]
         STATE["snapshot"] = {"status": "empty", "top": [], "cycle": None}
-    if not config.DISABLE_SCHEDULER and not config.OFFLINE:
-        _SCHEDULER_TASK = asyncio.create_task(_scheduler())
-    try:
-        yield
-    finally:
-        if _SCHEDULER_TASK:
-            _SCHEDULER_TASK.cancel()
-            try:
-                await _SCHEDULER_TASK
-            except asyncio.CancelledError:
-                pass
-            _SCHEDULER_TASK = None
+    yield
 
 
 app = FastAPI(title="网络热梗动态 Top10", lifespan=lifespan)
@@ -143,43 +81,37 @@ async def index() -> HTMLResponse:
 @app.get("/api/top")
 async def api_top(limit: int = config.TOP_N,
                   list_filter: str = Query("all", alias="list")) -> dict:
-    """榜单 API：`?list=new|classic|all`（默认 all，保持旧行为兼容）。"""
+    """历史快照榜；``list=classic|all``，不包含旧 new。"""
     if list_filter not in TOP_LISTS:
-        raise HTTPException(status_code=400, detail="list 仅支持 new|classic|all")
+        raise HTTPException(status_code=400, detail="list 仅支持 classic|all")
     snapshot = STATE["snapshot"]
     if not snapshot or not snapshot.get("top"):
-        snapshot = await asyncio.to_thread(pipeline.snapshot)
+        snapshot = await asyncio.to_thread(_read_snapshot)
         STATE["snapshot"] = snapshot
     if list_filter == "all":
         top = [item for item in snapshot.get("top", []) if item.get("rank", 0) > 0]
     else:
+        cycle = snapshot.get("cycle") or {}
         top = await asyncio.to_thread(
-            _list_items, snapshot, list_filter, _clamp_limit(limit)
-        )
+            _list_items, int(cycle["id"]), list_filter, _clamp_limit(limit)
+        ) if cycle.get("id") else []
     return {
         "status": snapshot.get("status", "empty"),
         "cycle": snapshot.get("cycle"),
-        "list": list_filter,
         "top": top[: _clamp_limit(limit)],
+        "list": list_filter,
         "health": snapshot.get("health", {}),
-        "llm": _llm_summary(snapshot),
-        "running": STATE["running"],
+        "running": False,
         "error": STATE["error"],
     }
 
 
 @app.get("/api/meme-info")
 async def api_meme_info(limit: int = 10, only: str = "all") -> dict:
-    """只读 shadow：回显 meme_info 模块报告（不写库、不影响 /api/top）。
-
-    ``only=all|publishable``；``publishable`` 只筛「hot/rising + 2×2 证据」标记。
-    ``status=missing|invalid|stale|ok`` 始终 200，坏文件不 500。
-    """
+    """新梗榜/模块 shadow：只读 meme_info 报告，不碰 DB。"""
     if only not in meme_info_adapter.ONLY_VALUES:
         raise HTTPException(status_code=400, detail="only 仅支持 all|publishable")
-    return await asyncio.to_thread(
-        meme_info_adapter.load_report, None, limit, only
-    )
+    return await asyncio.to_thread(meme_info_adapter.load_report, None, limit, only)
 
 
 @app.get("/api/meme/{family_key}/history")
@@ -196,26 +128,21 @@ async def api_history(family_key: str, limit: int = 60) -> dict:
 async def api_health() -> dict:
     connection = store.connect()
     try:
-        scheduler_running = _SCHEDULER_TASK is not None and not _SCHEDULER_TASK.done()
-        return {"scheduler": scheduler_running,
-                "running": STATE["running"],
-                "error": STATE["error"],
-                "offline": config.OFFLINE,
-                "ready": bool(STATE["snapshot"] and STATE["snapshot"].get("top")),
-                "health": store.health(connection)}
+        return {
+            "scheduler": False,
+            "running": False,
+            "error": STATE["error"],
+            "offline": config.OFFLINE,
+            "ready": bool(STATE["snapshot"] and STATE["snapshot"].get("top")),
+            "health": store.health(connection),
+        }
     finally:
         connection.close()
 
 
 @app.post("/api/refresh", deprecated=True)
 async def api_refresh(request: Request) -> dict:
-    """旧采集入口已退役（2026-11-15 Phase 0）。
-
-    scheduler 已关闭，`/api/refresh` 不再调用旧 `pipeline.run_cycle`：
-    - 防止手动触发旧 pipeline 写生产库、抢 B站 2rps、复活种子老梗；
-    - 新梗榜由 `tools/meme_info_worker.sh` 刷新模块报告；
-    - 返回 410 Gone，便于旧客户端显式失败而不是静默跑错。
-    """
+    """旧采集入口已退役；新梗榜由 meme_info worker 刷新。"""
     raise HTTPException(
         status_code=410,
         detail="旧采集 pipeline 已退役；新梗榜由 meme_info worker 刷新（见 docs/pm/LIVE-DEPLOY.md）",
@@ -224,21 +151,13 @@ async def api_refresh(request: Request) -> dict:
 
 @app.get("/api/stream")
 async def api_stream() -> StreamingResponse:
-    queue: asyncio.Queue = asyncio.Queue(maxsize=16)
-    SUBSCRIBERS.add(queue)
-
+    """保留 SSE 兼容：只推初始快照 + ping，不再有采集广播。"""
     async def generator():
-        try:
-            initial = STATE["snapshot"] or {"status": "empty", "top": []}
-            yield f"data: {json.dumps(initial, ensure_ascii=False)}\n\n"
-            while True:
-                try:
-                    payload = await asyncio.wait_for(queue.get(), timeout=20)
-                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-        finally:
-            SUBSCRIBERS.discard(queue)
+        initial = STATE["snapshot"] or {"status": "empty", "top": []}
+        yield f"data: {json.dumps(initial, ensure_ascii=False)}\n\n"
+        while True:
+            await asyncio.sleep(20)
+            yield ": ping\n\n"
 
     return StreamingResponse(
         generator(),

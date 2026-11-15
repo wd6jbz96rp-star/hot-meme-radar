@@ -525,3 +525,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 299 tests passed；README API/env 表已同步。
 - 8000 当前未运行；下次启动即生效。经典/全部仍为 cycle#24 历史快照。
 - 下一步：Phase 1 让 `/api/top` 只依赖 store 只读 helper，Phase 2 归档旧 pipeline/LLM 代码。
+
+
+## 32. 旧 pipeline 全量清除（2026-11-16 00:50）
+
+- Phase 1：`api.py` 不再 import/调用旧 pipeline；`/api/top` 只读 `store`；SSE 只推初始快照 + ping。
+- Phase 2：删除 11 个旧 app 模块、16 个旧测试、`tools/shadow_run.py`、`eval/`；保留 `meme_info`、adapter、store、static。
+- Phase 3：`store.py` 从 900+ 行重写为 231 行只读仓库（latest/top/list/history/health），旧写库/缓存/迁移移除。
+- 当前：87 tests；`/api/refresh` 410；经典/全部读 cycle#24；新梗榜仍走模块报告。
