@@ -548,3 +548,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 删除旧榜死代码：`/api/top`、history、sparkline、SSE、经典/全部残留；内联 JS 1085→708 行，文件 66→58KB。
 - 验证：8011 headless console/HTTP 0 错；1280/390 无横向溢出；XSS 插值测试通过；87 tests。
 - 截图：`docs/pm/assets/ui-desktop.png`、`ui-mobile.png`、`ui-stale.png`；报告 `docs/pm/UI-DESIGN.md`。
+
+## 35. Aceternity 风格 UI（2026-11-16 01:40）
+
+- 按用户要求参照 ui.aceternity.com/components，原生 CSS/JS 复刻 Spotlight、Dotted Glow、Grid、Aurora、Beams、Bento、Card Hover/3D 倾斜；无 React/Tailwind/CDN。
+- Hero + 6 瓦片 Bento 状态板；新梗榜玻璃卡、指针高光、轻倾斜；shadow 保持 OBSERVE/虚线/紫 accent。
+- 未采用 Meteors/Canvas/WebGL/打字机等（看板性能与信息密度），原因写入 UI-DESIGN。
+- 87 tests；8011 headless console/HTTP 0 错；1280/390 无溢出；截图 `ui-desktop/ui-mobile/ui-hover/ui-stale.png`。
