@@ -5,3 +5,5 @@ data/hotmeme.db
 data/hotmeme.db-*
 .pytest_cache/
 .DS_Store
+
+archive/*.db

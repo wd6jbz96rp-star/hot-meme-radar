@@ -303,7 +303,6 @@ def test_bad_generated_at_falls_back_to_mtime(report_file):
 # ---------------------------------------------------------------- API 契约
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "api.db")
     importlib.reload(api_module)
     with TestClient(api_module.app) as test_client:
         yield test_client
@@ -353,25 +352,11 @@ def test_api_meme_info_status_codes(client, report_file):
     assert bad.status_code == 400
 
 
-def test_api_top_unchanged_and_no_db_write(client, report_file):
+def test_legacy_top_and_history_removed(client, report_file):
     _write(report_file, make_report())
-    db_path = config.DB_PATH
-    assert db_path.exists()
-    before = (db_path.stat().st_mtime_ns, db_path.stat().st_size)
-
-    top = client.get("/api/top")
-    assert top.status_code == 200
-    body = top.json()
-    assert body["list"] == "all"
-    assert set(body) == {
-        "status", "cycle", "list", "top", "health", "running", "error",
-    }
-    assert "llm" not in body  # 旧 app LLM 摘要已随 pipeline 退役
-    assert "meme" not in body  # 不能把 shadow 字段混进旧榜
-
+    assert client.get("/api/top").status_code == 404
+    assert client.get("/api/meme/test/history").status_code == 404
     assert client.get("/api/meme-info").status_code == 200
-    after = (db_path.stat().st_mtime_ns, db_path.stat().st_size)
-    assert after == before  # 只读接口不写 DB
 
 
 # ---------------------------------------------------------------- 边界

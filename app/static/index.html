@@ -252,9 +252,7 @@
   </header>
 
   <div class="tabs" id="tabs" role="tablist" aria-label="榜单切换">
-    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="false" aria-controls="newView" tabindex="-1">新梗榜<span class="tab-badge" title="模块版：读 GET /api/meme-info?only=publishable&amp;limit=8；旧 /api/top?list=new 已从 UI 下线">模块版</span></button>
-    <button class="tab" id="tab-classic" role="tab" data-tab="classic" aria-selected="false" aria-controls="list" tabindex="-1">经典榜</button>
-    <button class="tab" id="tab-all" role="tab" data-tab="all" aria-selected="true" aria-controls="list" tabindex="0">全部</button>
+    <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="true" aria-controls="newView" tabindex="0">新梗榜<span class="tab-badge" title="模块版：GET /api/meme-info?only=publishable&amp;limit=8">模块版</span></button>
     <button class="tab" id="tab-shadow" role="tab" data-tab="shadow" aria-selected="false" aria-controls="shadowView" tabindex="-1">模块 shadow</button>
   </div>
 
@@ -279,8 +277,8 @@
   <section id="shadowView" class="shadow-view" role="tabpanel" aria-labelledby="tab-shadow" hidden>
     <div class="shadow-banner" role="note">
       <b>模块 shadow · 仅对比，不参与发布</b>
-      <span class="sb-sub">数据来自 <code>GET /api/meme-info</code> 的只读报告：不写库、不触发采集、不替换 <code>/api/top</code>。
-        「可发布标记」只是模块发布门结论（hot/rising + 2×2 证据），<b>不等于已发布</b>；线上榜单仍由原「新梗 / 经典 / 全部」tab 决定。</span>
+      <span class="sb-sub">数据来自 <code>GET /api/meme-info</code> 的只读报告：不写库、不触发采集。
+        「可发布标记」只是模块发布门结论（hot/rising + 2×2 证据或 LLM 通过），<b>不等于已发布</b>。</span>
     </div>
     <div id="shadowHead" class="shadow-head" aria-live="polite"></div>
     <div id="shadowStats" class="s-stats"></div>
@@ -293,12 +291,12 @@
     <div id="shadowList" aria-busy="false"><div class="empty"><div class="spinner"></div>正在读取模块 shadow 报告…</div></div>
   </section>
 
-  <div id="list"><div class="empty"><div class="spinner"></div>正在加载榜单…</div></div>
+  <div id="list" hidden></div>
 
   <footer>
     <div id="meta"></div>
     <div class="legend">
-      <span>点击卡片或按 Enter / 空格展开分项与走势</span>
+      <span>点击卡片或按 Enter / 空格展开</span>
       <span>LLM 通过 / 否决 / 待定 / 合并 为审核结论，未审核项如实标注</span>
       <span>数据来源：B站公开榜单 / 评论 / 弹幕</span>
       <span>仅统计公开内容，不保存用户身份</span>
@@ -309,7 +307,7 @@
 <script>
 const TYPE_ORDER = ["词","句式","谐音","缩写","名场面"];
 const TAB_STORAGE_KEY = "hotmeme.dashboard.tab.v2";
-const TAB_LABEL = {new:"新梗榜", classic:"经典榜", all:"全部", shadow:"模块 shadow"};
+const TAB_LABEL = {new:"新梗榜", shadow:"模块 shadow"};
 const VERDICT_LABEL = {
   approve:{text:"LLM 通过", cls:"approve"},
   reject:{text:"LLM 否决", cls:"reject"},
@@ -411,13 +409,13 @@ function reviewDetail(review){
 }
 
 /* ---------- 榜单 tab（localStorage 记忆） ---------- */
-let currentTab = "all";
+let currentTab = "new";
 let currentLlm = null;
 function readTab(){
   try{
     const v = window.localStorage.getItem(TAB_STORAGE_KEY);
-    return TAB_LABEL[v] ? v : "all";
-  }catch(_){ return "all"; }
+    return TAB_LABEL[v] ? v : "new";
+  }catch(_){ return "new"; }
 }
 function saveTab(tab){
   try{ window.localStorage.setItem(TAB_STORAGE_KEY, tab); }catch(_){}
@@ -751,8 +749,7 @@ function renderList(top){
 
 function emptyActions(){
   return '<div class="empty-actions">' +
-    '<button type="button" data-tab="classic">查看经典榜</button>' +
-    '<button type="button" data-tab="all">查看全部</button></div>';
+    '<button type="button" data-tab="shadow">去模块 shadow 看全部</button></div>';
 }
 
 function renderEmpty(data){
@@ -1144,8 +1141,8 @@ function applyTabChrome(){
   const isNew = currentTab === "new";
   shadowViewEl.hidden = !shadow;
   newViewEl.hidden = !isNew;
-  listEl.hidden = shadow || isNew;
-  document.getElementById("llmBar").hidden = shadow || isNew;
+  listEl.hidden = true;
+  document.getElementById("llmBar").hidden = true;
   if(shadow){ startShadowTimer(); } else { stopShadowTimer(); }
   if(isNew){ startNewTimer(); } else { stopNewTimer(); }
 }
@@ -1175,9 +1172,7 @@ let newTimer = null;
 
 function newEmptyActions(){
   return '<div class="empty-actions">' +
-    '<button type="button" data-tab="shadow">去模块 shadow 看全部/观察</button>' +
-    '<button type="button" data-tab="classic">查看经典榜</button>' +
-    '<button type="button" data-tab="all">查看全部</button></div>';
+    '<button type="button" data-tab="shadow">去模块 shadow 看全部/观察</button></div>';
 }
 
 function renderNew(data){
@@ -1193,7 +1188,7 @@ function renderNew(data){
       '<p>未找到报告文件：' + esc((data && data.report_path) || "(未配置)") + '</p>' +
       '<p>生成方式：<code>python -m tools.meme_info_shadow --out ' +
       esc((data && data.report_path) || "/tmp/meme_info_latest.json") + '</code></p>' +
-      '<p>新梗榜只读模块报告；可先切「模块 shadow」（同样缺报告）或「经典榜 / 全部」。</p>' +
+      '<p>新梗榜只读模块报告；可先切「模块 shadow」（同样缺报告）。</p>' +
       newEmptyActions() + '</div>';
     return;
   }
@@ -1202,7 +1197,7 @@ function renderNew(data){
       "（不猜测、不修复）。新梗榜不回退旧 /api/top?list=new。", true);
     newListEl.innerHTML = '<div class="empty"><h2>模块 publishable 报告无效</h2><p>' +
       esc((data && data.error) || "报告结构不符合 schema") + '</p>' +
-      '<p>请重新生成报告后再看；可先切「模块 shadow」排查或看「经典榜 / 全部」。</p>' +
+      '<p>请重新生成报告后再看；可先切「模块 shadow」排查。</p>' +
       newEmptyActions() + '</div>';
     return;
   }
@@ -1221,7 +1216,7 @@ function renderNew(data){
     newListEl.innerHTML = '<div class="empty"><h2>本轮无 publishable</h2>' +
       '<p>only=publishable 下没有命中「status=hot/rising + 2×2 证据 + LLM gate」的条目；' +
       '本轮不 top-up、不回退旧新梗榜。</p>' +
-      '<p>去「模块 shadow」看全部 / 观察项（only=all），或切「经典榜 / 全部」。</p>' +
+      '<p>去「模块 shadow」看全部 / 观察项（only=all）。</p>' +
       newEmptyActions() + '</div>';
     return;
   }
@@ -1286,7 +1281,7 @@ function syncTabs(){
   });
 }
 function setTab(tab){
-  if(!TAB_LABEL[tab]) tab = "all";
+  if(!TAB_LABEL[tab]) tab = "new";
   if(tab === currentTab) return;
   currentTab = tab;
   saveTab(tab);
@@ -1294,8 +1289,7 @@ function setTab(tab){
   applyTabChrome();
   lastSig = "";
   historyEpoch = null;
-  if(tab === "classic" || tab === "all"){ listEl.setAttribute("aria-busy", "true"); }
-  else if(tab === "new"){ newListEl.setAttribute("aria-busy", "true"); }
+  if(tab === "new"){ newListEl.setAttribute("aria-busy", "true"); }
   refresh();
 }
 tabsEl.addEventListener("click", ev => {
@@ -1330,7 +1324,7 @@ async function refresh(){
   // 绝不用 /api/top 数据覆盖，也绝不请求已下线的 /api/top?list=new。
   if(currentTab === "shadow"){ return refreshShadow(); }
   if(currentTab === "new"){ return refreshNew(); }
-  const seq = ++reqSeq;
+  return;
   const tab = currentTab;
   try{
     const res = await fetch("/api/top?list=" + encodeURIComponent(tab) + "&limit=10", {cache: "no-store"});

@@ -533,3 +533,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - Phase 2：删除 11 个旧 app 模块、16 个旧测试、`tools/shadow_run.py`、`eval/`；保留 `meme_info`、adapter、store、static。
 - Phase 3：`store.py` 从 900+ 行重写为 231 行只读仓库（latest/top/list/history/health），旧写库/缓存/迁移移除。
 - 当前：87 tests；`/api/refresh` 410；经典/全部读 cycle#24；新梗榜仍走模块报告。
+
+## 33. 删除经典/全部与历史 DB（2026-11-16 01:10）
+
+- 用户确认：经典/全部是固定 cycle#24 旧种子榜，非当前热梗、无产品必要。
+- 已归档 `data/hotmeme.db` → `archive/hotmeme-20261114.db`（gitignored），删除运行时 DB。
+- 删除 `app/store.py`、`/api/top`、`/api/meme/{key}/history`、经典/全部 tab、sparkline 依赖。
+- `app/api.py` 仅保留 `/`、`/api/meme-info`、`/api/health`、`/api/refresh` 410、`/api/stream` 空快照。
+- `app/config.py` 去掉 DB/DATA 配置；README/LIVE-DEPLOY 重写；87 tests。
