@@ -517,3 +517,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 8000 已重启加载新规则：`/api/meme-info?only=publishable&limit=8` 返回 8 条（`publishable_count=15`），包含 `灭建国/扎啤/老实赚钱`；`/api/top` 仍 cycle#24。
 - worker 首轮 261s 完成，报告 `generated_at=01:23:23`；下一轮 600s 后。
 - 全仓 300 passed；`docs/pm/LIVE-DEPLOY.md` 已同步。
+
+
+## 31. Phase 0：旧采集入口退役（00:40）
+
+- `/api/refresh` 改为 410；不再调用 `pipeline.run_cycle`；旧 pipeline 标注 DEPRECATED。
+- 299 tests passed；README API/env 表已同步。
+- 8000 当前未运行；下次启动即生效。经典/全部仍为 cycle#24 历史快照。
+- 下一步：Phase 1 让 `/api/top` 只依赖 store 只读 helper，Phase 2 归档旧 pipeline/LLM 代码。

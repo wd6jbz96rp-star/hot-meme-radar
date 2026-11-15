@@ -1,4 +1,10 @@
-"""采集 → 抽取 → 判定 → 打分 → 落库 的完整流水线。"""
+"""采集 → 抽取 → 判定 → 打分 → 落库 的旧流水线（DEPRECATED）。
+
+Phase 0（2026-11-15）：
+- 新梗榜已由独立 ``meme_info`` worker 替代；
+- scheduler 默认关闭，``/api/refresh`` 已返回 410，不再触发本模块的 ``run_cycle``；
+- 本文件仅保留 ``snapshot`` 等只读兼容能力，rank 引擎视为 retired。
+"""
 from __future__ import annotations
 
 import hashlib

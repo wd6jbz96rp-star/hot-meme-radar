@@ -207,18 +207,19 @@ async def api_health() -> dict:
         connection.close()
 
 
-@app.post("/api/refresh")
+@app.post("/api/refresh", deprecated=True)
 async def api_refresh(request: Request) -> dict:
-    token = request.headers.get("x-token") or request.query_params.get("token")
-    if config.REFRESH_TOKEN and token != config.REFRESH_TOKEN:
-        raise HTTPException(status_code=403, detail="token 无效")
-    if _collection_active():
-        raise HTTPException(status_code=409, detail="已有采集任务在跑")
-    if config.OFFLINE:
-        raise HTTPException(status_code=400, detail="离线模式不可刷新")
-    if not _start_collection("manual"):
-        raise HTTPException(status_code=409, detail="已有采集任务在跑")
-    return {"started": True}
+    """旧采集入口已退役（2026-11-15 Phase 0）。
+
+    scheduler 已关闭，`/api/refresh` 不再调用旧 `pipeline.run_cycle`：
+    - 防止手动触发旧 pipeline 写生产库、抢 B站 2rps、复活种子老梗；
+    - 新梗榜由 `tools/meme_info_worker.sh` 刷新模块报告；
+    - 返回 410 Gone，便于旧客户端显式失败而不是静默跑错。
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="旧采集 pipeline 已退役；新梗榜由 meme_info worker 刷新（见 docs/pm/LIVE-DEPLOY.md）",
+    )
 
 
 @app.get("/api/stream")

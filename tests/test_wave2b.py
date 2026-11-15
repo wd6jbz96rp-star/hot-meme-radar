@@ -1,5 +1,4 @@
 """Wave 2B 工程修复回归：限速/curl 计数、cid 复用、评论缓存、采集单飞、health。"""
-import asyncio
 import importlib
 import os
 import threading
@@ -8,7 +7,6 @@ import types
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app import config, http, pipeline, store
@@ -262,50 +260,16 @@ def _fake_run_cycle(counter: dict):
     return run
 
 
-def test_refresh_single_flight_second_call_409(monkeypatch):
+def test_refresh_endpoint_retired_returns_410(tmp_path, monkeypatch):
+    """Phase 0：/api/refresh 不再触发旧 pipeline，返回 410。"""
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "retired.db")
     from app import api as api_module
 
-    counter = {"runs": 0}
-    monkeypatch.setattr(pipeline, "run_cycle", _fake_run_cycle(counter))
-    monkeypatch.setattr(api_module.config, "OFFLINE", False)
-    monkeypatch.setattr(api_module.config, "REFRESH_TOKEN", "")
-
-    async def main():
-        api_module.RUN_LOCK = asyncio.Lock()
-        api_module.STATE.update(running=False, snapshot=None, error="")
-        api_module._COLLECT_TASK = None
-        request = types.SimpleNamespace(headers={}, query_params={})
-        assert await api_module.api_refresh(request) == {"started": True}
-        with pytest.raises(HTTPException) as exc:
-            await api_module.api_refresh(request)
-        assert exc.value.status_code == 409
-        await asyncio.sleep(0.2)
-
-    asyncio.run(main())
-    assert counter["runs"] == 1
-
-
-def test_scheduler_and_manual_refresh_mutually_exclusive(monkeypatch):
-    from app import api as api_module
-
-    counter = {"runs": 0}
-    monkeypatch.setattr(pipeline, "run_cycle", _fake_run_cycle(counter))
-    monkeypatch.setattr(api_module.config, "OFFLINE", False)
-    monkeypatch.setattr(api_module.config, "REFRESH_TOKEN", "")
-
-    async def main():
-        api_module.RUN_LOCK = asyncio.Lock()
-        api_module.STATE.update(running=False, snapshot=None, error="")
-        api_module._COLLECT_TASK = None
-        assert api_module._start_collection("scheduler") is True
-        request = types.SimpleNamespace(headers={}, query_params={})
-        with pytest.raises(HTTPException) as exc:
-            await api_module.api_refresh(request)
-        assert exc.value.status_code == 409
-        await asyncio.sleep(0.2)
-
-    asyncio.run(main())
-    assert counter["runs"] == 1
+    api_module = importlib.reload(api_module)
+    with TestClient(api_module.app) as client:
+        resp = client.post("/api/refresh")
+        assert resp.status_code == 410
+        assert "退役" in resp.json()["detail"]
 
 
 def test_health_scheduler_false_when_offline(tmp_path, monkeypatch):

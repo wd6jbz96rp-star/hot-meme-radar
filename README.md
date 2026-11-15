@@ -40,10 +40,12 @@ open http://127.0.0.1:8000
 | `HOTMEME_COMMENT_CACHE_SECONDS` | `1800` | 评论缓存 TTL（秒），`0` 关闭 |
 | `HOTMEME_OFFLINE` | `0` | 置 1 用 `tests/fixtures` 回放，不触网 |
 | `HOTMEME_DISABLE_SCHEDULER` | `0` | 置 1 只提供 API，不自动采集 |
-| `HOTMEME_TOKEN` | 空 | 设置后 `POST /api/refresh` 需要 `x-token` |
+| `HOTMEME_TOKEN` | 空 | **已弃用**：`POST /api/refresh` 已返回 410（旧 pipeline 退役） |
 | `HOTMEME_CA` | 自动 | 自定义 CA 证书路径 |
 
 ## 工作原理
+
+> 2026-11-15 Phase 0：旧 `app/pipeline.py` 排名引擎已退役，新梗榜由独立 `meme_info` 模块的 worker 生成；经典/全部为历史快照。
 
 ```
 B站分区榜(8) + 全站热门 + 20组「热梗/梗百科」搜索视频
@@ -89,7 +91,7 @@ run.py            启动入口
 | GET | `/api/meme/{family_key}/history` | 单个梗的分数/名次曲线 |
 | GET | `/api/health` | 调度状态、最近一轮、各源错误 |
 | GET | `/api/stream` | SSE 推送新一轮结果 |
-| POST | `/api/refresh` | 手动触发一轮（可配 token） |
+| POST | `/api/refresh` | **410 已退役**：旧 pipeline 不再触发；新梗榜由 `meme_info` worker 刷新 |
 
 ## 测试
 

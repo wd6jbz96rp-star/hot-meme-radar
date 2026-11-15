@@ -53,3 +53,10 @@ curl -s '127.0.0.1:8000/api/top?limit=2'
 - 观察 1–2 小时 report age/新梗榜条数；
 - 若后续想更严格，可把 `publishable` 改回 2×2 硬门槛；当前选择是为了不误杀用户确认的弱证据真梗。
 - 将 worker 改成 launchd/systemd 常驻，或并入架构里的独立 worker。
+
+
+## 7. Phase 0（2026-11-15 00:40）
+
+- `/api/refresh` 已改为 **410 Gone**，不再触发旧 `pipeline.run_cycle`；避免手动刷新写生产库/抢 B站/复活种子榜。
+- `app/pipeline.py` 已标 `DEPRECATED`；scheduler 保持关闭。
+- 新梗榜仍由 `tools/meme_info_worker.sh` 刷新；回滚旧采集需要显式改代码，不再是一个 HTTP 请求。
