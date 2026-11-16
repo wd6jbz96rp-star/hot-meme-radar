@@ -1,0 +1,21 @@
+[Unit]
+Description=Hot Meme Readonly App
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/hotmeme
+Environment=HOTMEME_HOST=127.0.0.1
+Environment=HOTMEME_PORT=8090
+Environment=HOTMEME_MEME_INFO_REPORT=/home/ubuntu/hotmeme/var/meme_info_latest.json
+ExecStart=/home/ubuntu/hotmeme/.venv/bin/python run.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

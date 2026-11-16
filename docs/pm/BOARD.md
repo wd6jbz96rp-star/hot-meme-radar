@@ -561,3 +561,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - frontend-design 读取 `ui.aceternity.com/api/components` 与 `registry/<name>.json` 的真实 `.tsx` 源码，按源码参数复刻 SpotLight New、Dotted Glow canvas、Grid、Bento、Card Spotlight、Glowing Effect、3D Card、Text Generate。
 - 未引入 React/Tailwind/Motion；修复基础类与标题不可见；87 tests；1280/390、stale/missing/XSS 验证通过。
 - 公网临时地址仍为 localhost.run 隧道；页面完整加载约 8s，隧道延迟偏高。
+
+## 37. 云服务器上线（2026-11-16 20:55）
+
+- 腾讯云 Ubuntu 24.04 `124.220.189.74` 部署完成：`/home/ubuntu/hotmeme`，venv + systemd app(8090)/worker，Nginx `/hotmeme/` 子路径反代。
+- 公网：`http://124.220.189.74/hotmeme/`；现有 80/8080/8000 服务未动。
+- 首轮 worker 223s 完成，报告 20 条/17 publishable；公网 API 200；HTTPS/域名未配。
+- 部署文件 `deploy/`、文档 `docs/pm/CLOUD-DEPLOY.md`。
