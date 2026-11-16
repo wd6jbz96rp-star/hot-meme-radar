@@ -1416,7 +1416,7 @@
   /* ---------------- fetch + polling ---------------- */
   function apiUrl(tab){
     var view = TABS[tab];
-    return "/api/meme-info?limit=" + view.limit + "&only=" + encodeURIComponent(view.only);
+    return "api/meme-info?limit=" + view.limit + "&only=" + encodeURIComponent(view.only);
   }
 
   async function load(tab){
