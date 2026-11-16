@@ -555,3 +555,9 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - Hero + 6 瓦片 Bento 状态板；新梗榜玻璃卡、指针高光、轻倾斜；shadow 保持 OBSERVE/虚线/紫 accent。
 - 未采用 Meteors/Canvas/WebGL/打字机等（看板性能与信息密度），原因写入 UI-DESIGN。
 - 87 tests；8011 headless console/HTTP 0 错；1280/390 无溢出；截图 `ui-desktop/ui-mobile/ui-hover/ui-stale.png`。
+
+## 36. Aceternity 源码级复刻（2026-11-16 20:40）
+
+- frontend-design 读取 `ui.aceternity.com/api/components` 与 `registry/<name>.json` 的真实 `.tsx` 源码，按源码参数复刻 SpotLight New、Dotted Glow canvas、Grid、Bento、Card Spotlight、Glowing Effect、3D Card、Text Generate。
+- 未引入 React/Tailwind/Motion；修复基础类与标题不可见；87 tests；1280/390、stale/missing/XSS 验证通过。
+- 公网临时地址仍为 localhost.run 隧道；页面完整加载约 8s，隧道延迟偏高。
