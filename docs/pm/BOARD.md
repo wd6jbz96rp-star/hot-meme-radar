@@ -568,3 +568,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 公网：`http://124.220.189.74/hotmeme/`；现有 80/8080/8000 服务未动。
 - 首轮 worker 223s 完成，报告 20 条/17 publishable；公网 API 200；HTTPS/域名未配。
 - 部署文件 `deploy/`、文档 `docs/pm/CLOUD-DEPLOY.md`。
+
+
+## 38. 暂停 LLM 语义审核（2026-11-16 21:10）
+
+- 按用户要求暂停 `SemanticVerifier`：worker 增加 `MEME_INFO_VERIFY` 开关，默认 0；systemd 显式 `MEME_INFO_VERIFY=0`。
+- 不再调用 DeepSeek；报告无 `verified`，publishable 只按 2×2；UI 显示「LLM 审核已暂停」，不伪造审核理由。
+- 代码保留 `meme_info/verify.py`，后续优化方案给出后可 `MEME_INFO_VERIFY=1` 恢复。
+- 87 tests。

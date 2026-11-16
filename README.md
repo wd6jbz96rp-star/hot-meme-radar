@@ -28,7 +28,7 @@ HOTMEME_LLM_API_KEY_FILE=~/.hotmeme_llm_key \
 # http://127.0.0.1:8000
 
 # 3. 另开终端刷新报告（600s 间隔；实际约 860s）
-MEME_INFO_WORKER_INTERVAL=600 bash tools/meme_info_worker.sh
+MEME_INFO_VERIFY=0 MEME_INFO_WORKER_INTERVAL=600 bash tools/meme_info_worker.sh
 ```
 
 ## 环境变量
@@ -39,6 +39,7 @@ MEME_INFO_WORKER_INTERVAL=600 bash tools/meme_info_worker.sh
 | `HOTMEME_MEME_INFO_REPORT` | `/tmp/meme_info_latest.json` | 模块报告路径 |
 | `HOTMEME_MEME_INFO_MAX_AGE` | `3600` | 报告超过该秒数标 stale（仍可读） |
 | `HOTMEME_OFFLINE` | `0` | health 展示用 |
+| `MEME_INFO_VERIFY` | `0` | 是否启用 LLM 语义审核；当前默认暂停 |
 
 模块自己的参数见 [`meme_info/README.md`](meme_info/README.md)（`MEME_INFO_LLM_*` / `HOTMEME_LLM_*`）。
 

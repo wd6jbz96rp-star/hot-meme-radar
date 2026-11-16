@@ -9,6 +9,7 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/hotmeme
 Environment=MEME_INFO_WORKER_INTERVAL=600
+Environment=MEME_INFO_VERIFY=0
 Environment=MEME_INFO_REPORT=/home/ubuntu/hotmeme/var/meme_info_latest.json
 Environment=MEME_INFO_CACHE_DIR=/home/ubuntu/hotmeme/var/cache
 Environment=MEME_INFO_WORKER_LOG=/home/ubuntu/hotmeme/var/worker.log

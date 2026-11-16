@@ -691,7 +691,7 @@
     <p class="policy" role="note">
       <span class="p-key">发布门</span>
       <span><strong>publishable 是发布门标记，不等于已发布。</strong>
-        判定：<code>status ∈ {hot, rising}</code> 且（<code>2×2 证据成立</code> 或 <code>LLM 梗性/当下均通过</code>）。
+        判定：<code>status ∈ {hot, rising}</code> 且（<code>2×2 证据成立</code>；LLM 审核开启时，LLM 梗性/当下通过也可纳入）。
         本页只展示报告结论，不写库、不上线；标了 publishable 只说明“满足发布门”，不代表已经发布。</span>
     </p>
 
@@ -1004,7 +1004,13 @@
     var passed = int(verify.ok);
     var rejected = int(verify.rejected);
     var errors = int(verify.errors);
-    if(attempted === null && passed === null){
+    if(verify && verify.configured === false){
+      el.boardLlm.textContent = "已停用";
+      el.boardLlmSub.textContent = "LLM 审核暂停；发布门仅按 2×2 证据";
+      setMeter(el.llmMeterOk, 0);
+      setMeter(el.llmMeterNo, 0);
+      setMeter(el.llmMeterErr, 0);
+    }else if(attempted === null && passed === null){
       el.boardLlm.textContent = "—";
       el.boardLlmSub.textContent = "报告未提供审核统计";
       setMeter(el.llmMeterOk, 0);
@@ -1066,6 +1072,9 @@
       }else if(st && !STATUS_META[st]){
         tone = "warn";
         msg = "未知报告状态 status=" + st + "，按未验证处理。";
+      }else if(obj(data.verification).configured === false){
+        tone = "warn";
+        msg = "LLM 审核已暂停：当前发布门只按 2×2 独立使用证据；新梗榜可能少于 8 条，LLM 恢复后重新纳入。";
       }else if(obj(data.stats).budget_exhausted === true){
         tone = "warn";
         msg = "本轮采集预算耗尽（budget_exhausted=true），报告中的条目可能不完整。";
@@ -1187,7 +1196,7 @@
       text(verified.reason) || text(verified.error);
     if(!has){
       return '<div class="llm-box is-empty"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
-        '<span class="llm-flag unknown">报告未提供该条审核结论</span></div></div>';
+        '<span class="llm-flag unknown">LLM 审核已暂停（本条未审核）</span></div></div>';
     }
     var flags = [];
     flags.push(flagHtml("梗性", verified.is_meme === true ? true : verified.is_meme === false ? false : null));

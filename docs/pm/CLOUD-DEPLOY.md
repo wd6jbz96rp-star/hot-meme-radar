@@ -13,7 +13,7 @@
 | 组件 | 位置/端口 | 管理 |
 |---|---|---|
 | app | `127.0.0.1:8090` | `systemctl status hotmeme-app` |
-| worker | 600s 循环 | `systemctl status hotmeme-worker` |
+| worker | 600s 循环，`MEME_INFO_VERIFY=0`（LLM 暂停） | `systemctl status hotmeme-worker` |
 | 报告 | `/home/ubuntu/hotmeme/var/meme_info_latest.json` | worker 原子写 |
 | 代码 | `/home/ubuntu/hotmeme` | venv `.venv` |
 | LLM key | `/home/ubuntu/.hotmeme_llm_key` | 600 |
@@ -48,4 +48,5 @@ ssh ubuntu@124.220.189.74 'tail -5 /home/ubuntu/hotmeme/var/worker.log'
 - 无域名/HTTPS；IP 变化需改 Nginx。
 - 无鉴权，公开只读；如需私有加 Basic Auth。
 - worker 首轮约 200–250s，之后间隔 600s（实际约 800s）。
+- LLM 语义审核已暂停（`MEME_INFO_VERIFY=0`），当前 publishable 只按 2×2；恢复时把该环境变量设为 1。
 - 报告在服务器本地；机器故障丢失，需备份。
