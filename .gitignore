@@ -7,3 +7,6 @@ data/hotmeme.db-*
 .DS_Store
 
 archive/*.db
+.archify/
+.tools/
+*.tgz
