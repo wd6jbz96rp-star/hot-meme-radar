@@ -32,3 +32,5 @@ def test_correction_does_not_kill_user_confirmed_memes():
     # 仍保留用户/PM 确认的普通短语过滤。
     assert knowledge.blocked_reason("明码标价") == "common_phrase"
     assert knowledge.blocked_reason("闪身步") == "common_phrase"
+    for anchor in ("非凡之爱", "最怕BLG夺冠之人", "腋毛攻击"):
+        assert knowledge.blocked_reason(anchor) == "common_phrase"

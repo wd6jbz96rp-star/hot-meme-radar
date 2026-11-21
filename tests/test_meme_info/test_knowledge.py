@@ -33,6 +33,9 @@ def test_rework_generic_proper_and_common_phrase_filter():
     assert knowledge.blocked_reason("扎啤") == ""        # 用户盲标 ✅，不得误杀
     assert knowledge.blocked_reason("明码标价") == "common_phrase"
     assert knowledge.blocked_reason("闪身步") == "common_phrase"  # 2026-11-15 用户确认非梗
+    # LLM 暂停时，用户 ❌ 锚点必须在规则层拦截
+    for anchor in ("非凡之爱", "最怕BLG夺冠之人", "腋毛攻击"):
+        assert knowledge.blocked_reason(anchor) == "common_phrase"
     assert knowledge.blocked_reason("吴家村") == ""      # 用户盲标 ✅，proper 只做审计
     assert knowledge.is_proper_like("吴家村")
     assert knowledge.blocked_reason("吃瓜") == ""   # 已知种子豁免
