@@ -93,6 +93,10 @@ run.py                 启动入口
 - LLM gate 仍可能误判泛化词/标题类。
 - 旧 SQLite 仅归档，不再提供历史曲线/经典榜。
 
+## 大改版设计
+
+当前正在进行池1/池2、15 分钟窗口、B 线选片与审核改造；完整设计与决策记录见 [`docs/pm/REARCHITECTURE.md`](docs/pm/REARCHITECTURE.md)。
+
 ## 历史文档
 
 `docs/01-meme-definition.md`、`docs/02-capture-and-scoring.md` 描述旧规则引擎，保留作历史参考；当前实现以 [`meme_info/README.md`](meme_info/README.md) 为准。部署记录见 [`docs/pm/LIVE-DEPLOY.md`](docs/pm/LIVE-DEPLOY.md)。
