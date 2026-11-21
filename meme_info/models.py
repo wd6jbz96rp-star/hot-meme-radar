@@ -352,3 +352,113 @@ class HotMemeReport:
 
     def to_dict(self) -> dict[str, Any]:
         return as_jsonable(self)
+
+
+# ---------------------------------------------------------------- B 线：视频候选/指标
+@dataclass
+class VideoCandidate:
+    """B 线候选视频（多来源去重后的发现结果，尚未测量在线/新增）。
+
+    ``sources`` 保留全部命中来源（如 ``ranking:119``、``popular``、``search:热梗``），
+    ``source`` 是主来源；``exploration`` 标记探索来源（newlist / 按发布时间搜索 /
+    相关推荐 / 冷门分区），用于 300 候选池的 240 常规 + 60 探索配额。
+    """
+
+    bvid: str
+    title: str = ""
+    aid: int = 0
+    cid: int | None = None
+    zone: str = ""
+    zone_rid: int = 0
+    pubdate: int = 0
+    view: int = 0
+    reply: int = 0
+    danmaku: int = 0
+    owner: str = ""
+    source: str = ""
+    sources: list[str] = field(default_factory=list)
+    source_rank: int = 0
+    exploration: bool = False
+    exploration_source: str = ""
+    #: 统计字段是否可信：ranking/popular/related 带 stat；search/newlist 需再查 view
+    stats_known: bool = False
+    #: /x/player/online/total 的当前在线人数（失败为 None）
+    online: int | None = None
+    error: str = ""
+
+    @property
+    def url(self) -> str:
+        return f"https://www.bilibili.com/video/{self.bvid}" if self.bvid else ""
+
+    @property
+    def age_minutes(self) -> float:
+        return 0.0
+
+
+@dataclass
+class VideoMetric:
+    """单个候选视频的本轮指标，与 Postgres ``video_metric`` 行一一对应。"""
+
+    bvid: str
+    cid: int | None = None
+    title: str = ""
+    zone: str = ""
+    pubdate: int = 0
+    source: str = ""
+    view: int = 0
+    reply: int = 0
+    danmaku: int = 0
+    online: int | None = None
+    new_view: int | None = None
+    new_reply: int | None = None
+    new_danmaku: int | None = None
+    #: log1p(新增播放速率)；首见为 log1p(view/(age_minutes+60))
+    play_proxy: float | None = None
+    hot_score: float = 0.0
+    selected_comment: bool = False
+    selected_danmaku: bool = False
+    error: str = ""
+    # ---- 计算明细（不进 DB 列，随 JSON 输出供复算）----
+    exploration: bool = False
+    exploration_source: str = ""
+    age_minutes: float = 0.0
+    first_seen: bool = True
+    dt_minutes: float | None = None
+    stats_known: bool = False
+    online_z: float = 0.0
+    comment_z: float = 0.0
+    danmaku_z: float = 0.0
+    play_z: float = 0.0
+    comment_rate: float | None = None
+    danmaku_rate: float | None = None
+    play_rate: float | None = None
+
+    @property
+    def url(self) -> str:
+        return f"https://www.bilibili.com/video/{self.bvid}" if self.bvid else ""
+
+    @property
+    def danmaku_rank_score(self) -> float:
+        """弹幕目标排序分：新增弹幕为主（0.6）+ 视频热度（0.4）。"""
+        return 0.6 * self.danmaku_z + 0.4 * self.hot_score
+
+
+@dataclass
+class VideoRouteResult:
+    """B 线单轮结果（可 JSON 序列化；含 DB 写入的 round id）。"""
+
+    generated_at: str = ""
+    started_at: int = 0
+    window_start: int = 0
+    window_end: int = 0
+    status: str = "ok"
+    round_id: int | None = None
+    candidates: list[VideoCandidate] = field(default_factory=list)
+    metrics: list[VideoMetric] = field(default_factory=list)
+    selected_comment: list[str] = field(default_factory=list)
+    selected_danmaku: list[str] = field(default_factory=list)
+    stats: dict[str, Any] = field(default_factory=dict)
+    errors: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return as_jsonable(self)

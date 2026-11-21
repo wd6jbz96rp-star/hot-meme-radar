@@ -585,3 +585,12 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 修正池字段：pool1.meta_only/explainer_only/audit_adjustment/status normal|provisional|out；pool2.explainer_only。
 - 本地 104 passed/15 skipped；云上 test_state 32 passed；未接 worker/app、未切流量。
 - 报告：`docs/pm/PHASE-A-REPORT.md`。
+
+
+## 40. Phase B：B 线候选视频与选片（2026-11-21）
+
+- 新增 `meme_info/video_route.py`、`tools/video_route.py`、`tests/test_video_route.py`；`bili.py` 增 online/newlist/related/view。
+- 候选 300（240 常规 + 40 探索 + 20 相关预留）；45 评论（35+10）/10 弹幕（8+2）；单分区≤40%。
+- 在线人数 `/x/player/online/total`；首见评论/弹幕用年龄归一化代理；写 round/video_metric。
+- 本地 126 passed/16 skipped；云上 23 passed（事务回滚）；live smoke 4.2s。
+- 未接 worker、未切流量；报告 `docs/pm/PHASE-B-REPORT.md`。

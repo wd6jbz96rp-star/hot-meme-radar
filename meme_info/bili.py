@@ -216,6 +216,80 @@ def parse_danmaku_xml(xml: str, *, bvid: str, zone: str = "",
     return result
 
 
+_ONLINE_NUMBER_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(万|w|W)?")
+
+
+def parse_online_count(value) -> int | None:
+    """解析在线人数（B站返回 ``"9000+"`` / ``"1.2万"`` 之类的字符串）。"""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return max(0, int(value))
+    text = str(value).strip().replace(",", "")
+    match = _ONLINE_NUMBER_RE.search(text)
+    if not match:
+        return None
+    number = float(match.group(1))
+    if match.group(2):
+        number *= 10000
+    return max(0, int(number))
+
+
+def parse_online_total(payload: dict) -> int | None:
+    """解析 ``/x/player/online/total``：优先 ``data.count``，回退 ``data.total``。"""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return None
+    for key in ("count", "total"):
+        value = parse_online_count(data.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def parse_view(payload: dict, *, source: str = "view") -> Video | None:
+    """解析 ``/x/web-interface/view`` 的 data（含 cid / pubdate / stat）。"""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict) or not data.get("bvid"):
+        return None
+    return parse_video(data, source=source)
+
+
+def parse_newlist(payload: dict, rid: int = 0) -> list[Video]:
+    """解析 ``/x/web-interface/newlist``：data.archives 为分区最新投稿。
+
+    注意：newlist 的 ``stat`` 全为 0（B站不返回真实统计），调用方需要再查 view。
+    """
+    data = payload.get("data") if isinstance(payload, dict) else None
+    items = (data or {}).get("archives") or []
+    if not isinstance(items, list):
+        return []
+    zone = ZONE_NAMES.get(rid, "")
+    videos: list[Video] = []
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict) or not item.get("bvid"):
+            continue
+        videos.append(
+            parse_video(item, source=f"newlist:{rid}", source_rank=index, zone=zone)
+        )
+    return videos
+
+
+def parse_related(payload: dict, seed_bvid: str = "") -> list[Video]:
+    """解析 ``/x/web-interface/archive/related``：data 直接是视频列表。"""
+    items = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return []
+    videos: list[Video] = []
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict) or not item.get("bvid"):
+            continue
+        videos.append(
+            parse_video(item, source=f"related:{seed_bvid}", source_rank=index)
+        )
+    return videos
+
+
 def parse_hot_search(payload: dict) -> list[dict]:
     trending = ((payload.get("data") or {}).get("trending") or {})
     items = trending.get("list") or []
@@ -395,7 +469,8 @@ class BiliSource:
             )
         return parse_popular(payload)
 
-    def search_videos(self, keyword: str, limit: int = 20, page: int = 1) -> list[Video]:
+    def search_videos(self, keyword: str, limit: int = 20, page: int = 1,
+                      order: str = "totalrank") -> list[Video]:
         self.bootstrap()
         if self.offline:
             text = self._fixture("search.json")
@@ -406,7 +481,7 @@ class BiliSource:
                     "search_type": "video",
                     "keyword": keyword,
                     "page": page,
-                    "order": "totalrank",
+                    "order": order,
                     "duration": 0,
                     "tids": 0,
                     "web_location": 1430654,
@@ -445,6 +520,86 @@ class BiliSource:
                 cache_ttl=300,
             )
         return parse_hot_search(payload)
+
+    def search_recent(self, keyword: str, limit: int = 20, page: int = 1) -> list[Video]:
+        """按发布时间排序的搜索（探索来源：新视频）。"""
+        return self.search_videos(keyword, limit=limit, page=page, order="pubdate")
+
+    def view(self, bvid: str) -> Video | None:
+        """``/x/web-interface/view``：拿 cid / pubdate / 累计 view/reply/danmaku。"""
+        if not bvid:
+            return None
+        if self.offline:
+            text = self._fixture("view.json")
+            payload = json.loads(text) if text else {}
+        else:
+            payload = self._api(
+                "/x/web-interface/view",
+                urllib.parse.urlencode({"bvid": bvid}),
+                source=f"view:{bvid}",
+                cache_ttl=60,
+            )
+        return parse_view(payload, source=f"view:{bvid}")
+
+    def newlist(self, rid: int, size: int = 20, page: int = 1) -> list[Video]:
+        """``/x/web-interface/newlist``：分区最新投稿（探索来源；stat 为 0）。"""
+        if self.offline:
+            text = self._fixture(f"newlist_{rid}.json") or self._fixture("newlist.json")
+            payload = json.loads(text) if text else {}
+        else:
+            payload = self._api(
+                "/x/web-interface/newlist",
+                urllib.parse.urlencode({"rid": rid, "type": 0, "ps": size, "pn": page}),
+                source=f"newlist:{rid}",
+                cache_ttl=60,
+            )
+        return parse_newlist(payload, rid)
+
+    def related(self, bvid: str, limit: int = 40) -> list[Video]:
+        """``/x/web-interface/archive/related``：相关推荐（探索来源）。"""
+        if not bvid:
+            return []
+        if self.offline:
+            text = self._fixture("related.json")
+            payload = json.loads(text) if text else {}
+        else:
+            payload = self._api(
+                "/x/web-interface/archive/related",
+                urllib.parse.urlencode({"bvid": bvid}),
+                source=f"related:{bvid}",
+                cache_ttl=120,
+            )
+        return parse_related(payload, bvid)[:limit]
+
+    def online_total(self, bvid: str, cid: int | None) -> int | None:
+        """``/x/player/online/total``：当前在线人数；失败返回 None，不抛异常。"""
+        if not bvid or not cid:
+            return None
+        if self.offline:
+            text = self._fixture("online_total.json")
+            if not text:
+                return None
+            try:
+                mapping = json.loads(text)
+            except json.JSONDecodeError:
+                return None
+            if isinstance(mapping, dict):
+                data = mapping.get("data") if isinstance(mapping.get("data"), dict) else mapping
+                if not isinstance(data, dict):
+                    return None
+                value = data.get(str(bvid))
+                if value is None:
+                    value = data.get(str(cid))
+                return parse_online_count(value)
+            return None
+        payload = self._api(
+            "/x/player/online/total",
+            urllib.parse.urlencode({"bvid": bvid, "cid": cid}),
+            source=f"online:{bvid}",
+            cache_ttl=0,
+            retry_on_risk=False,
+        )
+        return parse_online_total(payload)
 
     def cid_for(self, bvid: str) -> int | None:
         if not bvid:
