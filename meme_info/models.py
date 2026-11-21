@@ -617,13 +617,16 @@ class FamilyObservation:
     """单个 family 的本轮观察（Phase D 输入/输出；可 JSON 序列化）。
 
     计数口径（PM 2026-11-22 复核修正）：
-    - ``comment_count`` / ``danmaku_count``：15 分钟窗口内去重评论 id / 弹幕 dmid 命中数；
-    - ``video_count``：**15 分钟窗口**内命中该 family 的评论/弹幕所在独立 bvid 数；
-    - ``evidence_video_count``：30 天证据里命中的独立 bvid 数（只进 evidence_json/stats，
-      不参与 count_total/比例/池2门槛）；
-    - ``meta_count``：30 天元话语视频数（不参与比例）；
-    - ``count_total = comment_count + danmaku_count + video_count``（比例计数）；
-    - ``usage_count = comment_count + danmaku_count``（池2「有使用」门槛，口径统一）。
+    - 15 分钟窗口（只用于比例 / P2 usage）：
+      ``comment_count`` / ``danmaku_count`` = 去重评论 id / 弹幕 dmid 命中数；
+      ``video_count`` = 窗口命中文档的独立 bvid 数；
+      ``count_total = comment_count + danmaku_count + video_count``（比例计数）；
+      ``usage_count = comment_count + danmaku_count``（池2「有使用」门槛，口径统一）。
+    - 30 天证据（只用于 cred_base 的 usage_strength / 证据展示）：
+      ``evidence_comment_count`` / ``evidence_danmaku_count`` = 去重评论 id / dmid 命中数；
+      ``evidence_video_count`` = 独立 bvid 数；
+      三者不参与 count_total / 比例 / 池2 usage 门槛。
+    - ``meta_count``：30 天元话语视频数（不参与比例）。
     """
 
     family_key: str
@@ -636,6 +639,9 @@ class FamilyObservation:
     comment_count: int = 0
     danmaku_count: int = 0
     video_count: int = 0
+    #: 30 天证据命中去重评论 id / 弹幕 dmid 数（usage_strength 口径，不参与比例）
+    evidence_comment_count: int = 0
+    evidence_danmaku_count: int = 0
     #: 30 天证据里命中的独立 bvid 数（展示/证据，不参与比例）
     evidence_video_count: int = 0
     meta_count: int = 0

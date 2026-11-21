@@ -105,6 +105,8 @@ def _obs(
     comment: int = 0,
     danmaku: int = 0,
     video: int = 0,
+    evidence_comment: int = 0,
+    evidence_danmaku: int = 0,
     evidence_video: int = 0,
     meta: int = 0,
     meta_strength: float = 0.0,
@@ -128,6 +130,8 @@ def _obs(
         comment_count=comment,
         danmaku_count=danmaku,
         video_count=video,
+        evidence_comment_count=evidence_comment,
+        evidence_danmaku_count=evidence_danmaku,
         evidence_video_count=evidence_video,
         meta_count=meta,
         count_total=count_total,
@@ -236,6 +240,8 @@ def test_counts_comments_danmaku_video_and_meta_not_in_total() -> None:
     assert observation.comment_count == 2, "评论按去重 id 计数"
     assert observation.danmaku_count == 2, "弹幕按 dmid 去重"
     assert observation.video_count == 3, "video_count = 窗口独立 bvid（BV1/BV2/BV3）"
+    assert observation.evidence_comment_count == 5, "30 天证据去重评论数"
+    assert observation.evidence_danmaku_count == 0
     assert observation.evidence_video_count == 4, "30 天证据独立 bvid（BV1/BV4/BV5/BV6）"
     assert observation.meta_count == 1, "meta_count = 元话语视频数"
     assert observation.count_total == 2 + 2 + 3, "count_total 不含 meta/evidence_video_count"
@@ -248,6 +254,7 @@ def test_counts_comments_danmaku_video_and_meta_not_in_total() -> None:
     # evidence_json 带 evidence_video_count，且不改变比例计数
     result = _apply([observation])
     assert result.pool1[0].evidence_json["evidence_video_count"] == 4
+    assert result.pool1[0].evidence_json["evidence_comment_count"] == 5
     assert result.pool1[0].count_now == 7
 
     # 只有 30 天证据命中的视频/文档不得抬高窗口 video_count
@@ -261,6 +268,7 @@ def test_counts_comments_danmaku_video_and_meta_not_in_total() -> None:
     }["尊嘟假嘟"]
     assert only_evidence.video_count == 0, "证据视频不计入窗口 video_count"
     assert only_evidence.evidence_video_count == 1
+    assert only_evidence.evidence_comment_count == 1
     assert only_evidence.count_total == 0
 
 
@@ -942,3 +950,92 @@ def test_evidence_json_persists_cred_base_new_update_and_frozen() -> None:
     )
     assert third.pool1[0].score == second.pool1[0].score
     assert third.pool1[0].evidence_json["cred_base"] == 63.75
+
+
+def test_usage_strength_uses_30d_evidence_not_window() -> None:
+    """PM 口径：window 计数低但 30 天证据高时，cred 不应被窗口样本量压低。
+
+    15 分钟窗口只用于比例/P2 usage；cred_base 的 usage_strength 用 30 天证据计数。
+    """
+    bvids = [f"BVE{index}" for index in range(12)]
+    evidence_comments = [
+        _comment(f"ev{index}", "尊嘟假嘟太好笑了", bvid=bvids[index % 12])
+        for index in range(36)
+    ]
+    evidence_danmaku = [
+        _danmaku("ed1", "尊嘟假嘟", dmid="dma", bvid=bvids[0]),
+        _danmaku("ed2", "尊嘟假嘟", dmid="dma", bvid=bvids[0]),  # 同 dmid 去重
+        _danmaku("ed3", "尊嘟假嘟", dmid="dmb", bvid=bvids[1]),
+    ]
+    targets = [_target("BV1", "普通视频")] + [
+        _target(bvid, f"普通视频{index}") for index, bvid in enumerate(bvids)
+    ]
+    with_evidence = _sample(
+        comments=[_comment("c1", "尊嘟假嘟", bvid="BV1")],
+        evidence_comments=evidence_comments,
+        evidence_danmaku=evidence_danmaku,
+        targets=targets,
+    )
+    without_evidence = _sample(
+        comments=[_comment("c1", "尊嘟假嘟", bvid="BV1")],
+        targets=[_target("BV1", "普通视频")],
+    )
+    rich = next(
+        item
+        for item in build_observations(with_evidence, now=NOW)
+        if item.family_key == "尊嘟假嘟"
+    )
+    sparse = next(
+        item
+        for item in build_observations(without_evidence, now=NOW)
+        if item.family_key == "尊嘟假嘟"
+    )
+    # 窗口计数与证据计数严格分离
+    assert rich.comment_count == 1 and sparse.comment_count == 1
+    assert rich.count_total == 2 and sparse.count_total == 2, "窗口视频不计证据视频"
+    assert rich.evidence_comment_count == 36
+    assert rich.evidence_danmaku_count == 2, "证据弹幕按 dmid 去重"
+    assert rich.evidence_video_count == 12
+    assert sparse.evidence_comment_count == 0
+    assert sparse.evidence_danmaku_count == 0
+    assert sparse.evidence_video_count == 0
+    # usage_strength 用证据计数：0.45*sat(36/40)+0.25*sat(2/200)+0.30*sat(12/12)
+    assert rich.usage_strength == pytest.approx(
+        0.45 * 0.9 + 0.25 * (2 / 200) + 0.30 * 1.0, abs=1e-3
+    )
+    assert sparse.usage_strength == 0.0
+    assert rich.cred_base > sparse.cred_base + 20, "窗口样本低不应压低 cred_base"
+    # 落到分数：证据强的进 normal，只有 1 条窗口证据的按初始分淘汰
+    rich_result = _apply([rich])
+    sparse_result = _apply([sparse])
+    assert rich_result.pool1[0].status == "normal"
+    assert rich_result.pool1[0].score == pytest.approx(rich.cred_base)
+    assert sparse_result.pool1[0].status == "out"
+
+
+def test_zero_padded_family_still_uses_30d_evidence_for_cred() -> None:
+    """上一轮 active 但本轮没出现的 family：补 0 仍用 30 天证据算 usage_strength。"""
+    prev = {"彩虹屁": _row("彩虹屁", score=60.0, count_now=2, zero_streak=0)}
+    # 窗口没有该 family；30 天证据有 1 条评论但发现流程抽不出它（未达 ngram 阈值）
+    with_evidence = _sample(
+        evidence_comments=[_comment("ev1", "彩虹屁", bvid="BV7")],
+        targets=[_target("BV7", "普通视频")],
+    )
+    obs = next(
+        item
+        for item in build_observations(with_evidence, now=NOW, prev_pool1=prev)
+        if item.family_key == "彩虹屁"
+    )
+    assert obs.present is False and obs.discovered is False
+    assert obs.count_total == 0 and obs.comment_count == 0, "窗口计数仍为 0 触发缺席惩罚"
+    assert obs.evidence_comment_count == 1, "补 0 行也要统计 30 天证据命中"
+    assert obs.usage_strength > 0
+
+    no_evidence = next(
+        item
+        for item in build_observations(_sample(), now=NOW, prev_pool1=prev)
+        if item.family_key == "彩虹屁"
+    )
+    assert no_evidence.evidence_comment_count == 0
+    assert no_evidence.usage_strength == 0.0
+    assert obs.cred_base > no_evidence.cred_base, "有 30 天证据的补 0 family cred 更高"

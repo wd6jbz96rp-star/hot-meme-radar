@@ -24,6 +24,8 @@
 
 2. **可信度**：``cred_base = 100*clamp(0.30*meta + 0.30*usage + 0.15*spread
    + 0.10*fresh + 0.15*prior, 0, 1)``，五特征口径见 :class:`PoolConfig`。
+   **usage_strength 使用 30 天证据计数**（证据评论/dmid/独立 bvid，PM 2026-11-22 复核）；
+   15 分钟窗口计数只用于 ``count_total``/比例/P2 ``usage_count``（两者口径分离）。
 
 3. **初始分/更新分**
    - 新 family 不参与第一轮比例：有使用 ``clamp(cred_base,0,80)``；
@@ -564,10 +566,16 @@ def _observation_from_group(
     evidence_hits = _scan_usage(evidence_items, alias_norms)
     comment_count = sum(1 for item, _ in window_hits if item.kind == "comment")
     danmaku_count = sum(1 for item, _ in window_hits if item.kind == "danmaku")
-    # 比例计数口径：video_count 只取 15 分钟窗口命中文档的独立 bvid；
-    # 30 天证据独立视频只作 evidence_video_count（展示/证据，不进比例）。
+    # 比例计数口径：video_count 只取 15 分钟窗口命中文档的独立 bvid。
     window_bvids = {item.bvid for item, _ in window_hits if item.bvid}
     video_count = len(window_bvids)
+    # 30 天证据计数：只用于 cred_base 的 usage_strength / 证据展示，不进比例。
+    evidence_comment_count = sum(
+        1 for item, _ in evidence_hits if item.kind == "comment"
+    )
+    evidence_danmaku_count = sum(
+        1 for item, _ in evidence_hits if item.kind == "danmaku"
+    )
     evidence_video_count = len({item.bvid for item, _ in evidence_hits if item.bvid})
 
     mentions = _meta_matches(group.meta_mentions, alias_norms, key)
@@ -650,6 +658,8 @@ def _observation_from_group(
         comment_count=comment_count,
         danmaku_count=danmaku_count,
         video_count=video_count,
+        evidence_comment_count=evidence_comment_count,
+        evidence_danmaku_count=evidence_danmaku_count,
         evidence_video_count=evidence_video_count,
         meta_count=meta_count,
         count_total=count_total,
@@ -678,17 +688,34 @@ def _zero_observation(
     key: str,
     prev: Pool1Row,
     *,
+    evidence_items: Sequence[Any],
     now: int,
     config: PoolConfig,
     knowledge: Knowledge,
 ) -> FamilyObservation:
-    """上一轮 active 但本轮没出现：补 count=0 观察（触发缺席惩罚）。"""
+    """上一轮 active 但本轮没出现：补 count=0 观察（触发缺席惩罚）。
+
+    窗口计数为 0，但仍用上一轮 family 别名回扫 30 天证据：cred_base 的
+    usage_strength 是 30 天证据口径，不能因为 15 分钟窗口没出现就把证据可信度清零。
+    """
     known = prev.audit_state == "human_pass"
     seed_origin = ""
     entry = knowledge.lookup(prev.canonical)
     if entry is not None:
         known = True
         seed_origin = entry.origin
+    alias_norms = _norm_aliases([prev.canonical, *prev.aliases])
+    evidence_hits = _scan_usage(evidence_items, alias_norms)
+    evidence_comment_count = sum(
+        1 for item, _ in evidence_hits if item.kind == "comment"
+    )
+    evidence_danmaku_count = sum(
+        1 for item, _ in evidence_hits if item.kind == "danmaku"
+    )
+    evidence_video_count = len({item.bvid for item, _ in evidence_hits if item.bvid})
+    latest_ts = _prev_latest_ts(prev)
+    for item, _alias in evidence_hits:
+        latest_ts = max(latest_ts, int(item.ctime or 0))
     observation = FamilyObservation(
         family_key=key,
         canonical=prev.canonical,
@@ -696,22 +723,29 @@ def _zero_observation(
         aliases=list(prev.aliases),
         present=False,
         discovered=False,
+        evidence_comment_count=evidence_comment_count,
+        evidence_danmaku_count=evidence_danmaku_count,
+        evidence_video_count=evidence_video_count,
         known=known,
         human_confirmed=prev.audit_state == "human_pass",
         seed_origin=seed_origin,
-        latest_evidence_ts=_prev_latest_ts(prev),
+        latest_evidence_ts=latest_ts,
     )
     _fill_features(observation, now=now, config=config)
     return observation
 
 
 def _fill_features(observation: FamilyObservation, *, now: int, config: PoolConfig) -> None:
-    """计算 cred_base 五特征与 cred_base（无使用证据时 usage=0，freshness 按证据年龄）。"""
+    """计算 cred_base 五特征与 cred_base。
+
+    usage_strength 用 **30 天证据计数**（PM 2026-11-22 复核）；15 分钟窗口计数
+    只用于 count_total/比例/P2 usage，不参与 cred_base。
+    """
     meta_strength = clamp(observation.meta_strength, 0.0, 1.0)
     usage_strength = clamp(
-        0.45 * sat(observation.comment_count, config.usage_comment_anchor)
-        + 0.25 * sat(observation.danmaku_count, config.usage_danmaku_anchor)
-        + 0.30 * sat(observation.video_count, config.usage_video_anchor),
+        0.45 * sat(observation.evidence_comment_count, config.usage_comment_anchor)
+        + 0.25 * sat(observation.evidence_danmaku_count, config.usage_danmaku_anchor)
+        + 0.30 * sat(observation.evidence_video_count, config.usage_video_anchor),
         0.0,
         1.0,
     )
@@ -834,7 +868,14 @@ def build_observations(
         if key in seen_keys or prev.status not in ACTIVE_STATUSES:
             continue
         observations.append(
-            _zero_observation(key, prev, now=now, config=config, knowledge=knowledge)
+            _zero_observation(
+                key,
+                prev,
+                evidence_items=evidence_items,
+                now=now,
+                config=config,
+                knowledge=knowledge,
+            )
         )
     observations.sort(key=lambda item: item.family_key)
     return observations
@@ -932,6 +973,8 @@ def _initial_decision(
         "badge_2x2": observation.badge_2x2,
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
+        "evidence_comment_count": int(observation.evidence_comment_count),
+        "evidence_danmaku_count": int(observation.evidence_danmaku_count),
         "evidence_video_count": int(observation.evidence_video_count),
         # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
         "cred_base": _round3(observation.cred_base),
@@ -1073,6 +1116,8 @@ def _update_decision(
         "badge_2x2": observation.badge_2x2,
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
+        "evidence_comment_count": int(observation.evidence_comment_count),
+        "evidence_danmaku_count": int(observation.evidence_danmaku_count),
         "evidence_video_count": int(observation.evidence_video_count),
         # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
         "cred_base": _round3(observation.cred_base),
@@ -1160,6 +1205,8 @@ def _frozen_decision(
         "badge_2x2": observation.badge_2x2,
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
+        "evidence_comment_count": int(observation.evidence_comment_count),
+        "evidence_danmaku_count": int(observation.evidence_danmaku_count),
         "evidence_video_count": int(observation.evidence_video_count),
         # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
         "cred_base": _round3(observation.cred_base),

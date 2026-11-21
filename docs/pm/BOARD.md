@@ -660,3 +660,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 夜间影子与旧 worker 同时打 B站且采样不足；将 state-worker.timer 改为 `OnCalendar=*-*-* 08..23:0/15`，夜间暂停。
 - 08:00 影子启动；watcher 继续每5分钟检查，ok+非空自动切流。
 - 08:00 后若仍长期 degraded，再评估阈值/冷启动方案。
+
+
+## 49. Phase D 修正：cred usage 用 30 天证据（2026-11-22）
+
+- `FamilyObservation` 增加 evidence_comment_count/evidence_danmaku_count；usage_strength 改用 30 天证据计数，窗口计数仍只用于比例/P2 usage。
+- 补 0 行回扫上一轮 aliases 的 30 天证据，避免窗口缺席把 cred 清零。
+- 本地 280 passed/41 skipped；云上 test_pools 36 passed（回滚）；待提交/部署。
