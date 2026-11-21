@@ -645,3 +645,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 夜间 Phase C 采样不足（评论 14–250、弹幕 23–72）→ degraded → pool1/pool2=0；切流会空榜，已回滚旧 worker 并暂停切流。
 - admin/backup timer 已启用；DB round=3/pool=0；本地 278 passed/41 skipped。
 - 待 PM 决策：等白天 ok 轮切流 / 冷启动例外 / 接受空榜切流。报告 `docs/pm/PHASE-G-REPORT.md`。
+
+
+## 47. Phase G 自动切流 watcher（2026-11-22）
+
+- 新增 `deploy/cutover-watch.sh` + service/timer（每 5 分钟）；切流条件：影子 v2 ok + pool1/pool2 非空 + app 200。
+- 修复切流竞态：cutover 先停 state worker/timer，冻结后二次校验影子报告，再加 drop-in 移除/报告替换；rc=3 安全中止，失败自动恢复旧 worker + 旧报告。
+- 沙盒验证成功/中止/失败回滚；真实 degraded 影子负路径验证不切流、生产报告不变。
+- 当前仍未切流，白天 ok 轮出现后 watcher 自动执行；日志 `var/cutover_watch.log`。

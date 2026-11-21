@@ -24,6 +24,7 @@
 | `hotmeme-state-worker.timer` | active | 每 15 分钟；**影子模式**：报告写 `meme_info_v2_shadow.json` |
 | `hotmeme-admin` | active | 127.0.0.1:8091，`/etc/hotmeme/env` 带 `HOTMEME_ADMIN_TOKEN` |
 | `hotmeme-backup.timer` | active | 每日 03:20；手工已跑过一次，dump 正常 |
+| `hotmeme-cutover-watch.timer` | active | 每 5 分钟检查影子报告；条件满足则自动 `cutover.sh`，失败自动回滚 |
 | Nginx / 80 / 8000 / 8080 | 未改动 | `/hotmeme/` 仍反代 127.0.0.1:8090 |
 
 **未切流**：冷启动期 Phase C 夜间采样量低于 degraded 阈值（如 2026-11-22 00:26–00:41 轮
@@ -43,6 +44,8 @@ pool1/pool2 非空的影子轮次后再执行 `deploy/cutover.sh`（见 §4 / §
 | `deploy/hotmeme-backup.service` / `.timer` | 每日 `pg_dump -Fc` |
 | `deploy/backup.sh` | 备份脚本；输出 `/home/ubuntu/backups/hotmeme-YYYYMMDD.dump`，保留 7 天 |
 | `deploy/cutover.sh` | 切流（默认不执行；先 `--check-only`）：校验影子报告 → 停旧 worker → 去 drop-in → 原子替换报告 → 启 timer → 复核 |
+| `deploy/cutover-watch.sh` | 自动切流看守：每 5 分钟检查；`flock` 防重叠；预检通过才切流；**切流失败自动回滚**（恢复旧报告/旧 worker、停新 timer、停 watcher） |
+| `deploy/hotmeme-cutover-watch.service` + `.timer` | watcher：oneshot，`OnCalendar=*:0/5`，`Persistent=false`，root（需 systemctl） |
 | `deploy/shadow-dropin.conf` | 影子模式 systemd drop-in（当前已装到服务器） |
 | `deploy/README.md` | 本文 |
 
@@ -113,23 +116,56 @@ sudo -u postgres psql -d hotmeme -Atc \
   "select id,status,comments_sampled,danmaku_sampled from round order by id desc limit 3"
 ```
 
-## 4. 切流（条件满足后执行；**不要提前**）
+## 4. 自动切流（watcher，PM 决策 A：等白天 ok 非空轮）
 
-前置条件（缺一不可）：
+`hotmeme-cutover-watch.timer` 每 5 分钟触发一次 `cutover-watch.sh`：
 
-1. 影子报告 `schema_version=meme-info/v2`；
-2. 影子报告 `status=ok`（degraded 轮不切流）；
-3. 影子报告 `pool1` 与 `pool2` 都非空（否则新梗榜会空）；
-4. 本机 API `http://127.0.0.1:8090/api/meme-info?only=publishable` 与公网 `/hotmeme/` 均 200。
+- `flock var/cutover_watch.lock` 防 timer 重叠；拿不到锁 exit 0；
+- 生产报告已是 **v2/ok** → 认为切流完成，退出并 `systemctl disable --now hotmeme-cutover-watch.timer`；
+- 先跑 `deploy/cutover.sh --check-only`（条件：影子报告 `schema=meme-info/v2`、`status=ok`、
+  pool1/pool2 非空、app 200）；**失败只记一行 wait 日志后 exit 0**，等 5 分钟后再查；
+- 预检通过才执行 `deploy/cutover.sh`；`cutover.sh` 返回 3（安全中止，生产未切换）时记 abort
+  日志并继续等待；成功后记 success 日志（时间/报告/回滚点）并停用 watcher timer；
+- **切流失败自动回滚**（安全优先）：
+  1. `systemctl disable --now hotmeme-state-worker.timer` + `stop hotmeme-state-worker.service`
+     **并等待退出（60s 超时 SIGKILL）**——必须确认已停，否则它可能在恢复旧报告后继续写生产路径；
+  2. 原子恢复 `var/meme_info_latest.json.before-phase-g` → 生产报告；
+  3. `systemctl enable --now hotmeme-worker`（旧 worker 立即恢复写 v1）；
+  4. 停用 `hotmeme-cutover-watch.timer`、写 `var/cutover_watch.failed`，把 cutover 输出尾部写日志，exit 1；
+- 日志：`var/cutover_watch.log`（不含 token/密码）。
+
+```bash
+sudo systemctl status hotmeme-cutover-watch.timer hotmeme-cutover-watch.service
+tail -f /home/ubuntu/hotmeme/var/cutover_watch.log
+sudo systemctl start hotmeme-cutover-watch.service   # 手工立即检查一次（安全：预检不过不会切）
+```
+
+回滚后想**恢复等待**（人工确认 B站 评论接口/阈值问题已解决后）：
 
 ```bash
 cd /home/ubuntu/hotmeme
-deploy/cutover.sh --check-only   # 只校验，不改变状态；先跑这个
-deploy/cutover.sh                # 全部通过后执行切流（脚本内部再次校验）
+sudo cp deploy/shadow-dropin.conf /etc/systemd/system/hotmeme-state-worker.service.d/10-shadow.conf
+sudo systemctl daemon-reload
+rm -f var/cutover_watch.failed
+sudo systemctl enable --now hotmeme-state-worker.timer hotmeme-cutover-watch.timer
+# 若旧 worker 仍在写生产 v1，可暂保持 active（watcher 只在影子 ok 时才切；切流脚本会停它）
 ```
 
-`cutover.sh` 动作：停旧 worker（disable，unit 保留）→ 移除影子 drop-in + daemon-reload →
-影子报告原子替换生产报告 → 启用新 timer 并手工触发一轮 → 复核报告/API/公网 200。
+手工切流（不依赖 watcher，条件满足时）：
+
+```bash
+cd /home/ubuntu/hotmeme
+deploy/cutover.sh --check-only   # 只校验，不改变状态
+deploy/cutover.sh                # 全部通过后执行切流
+```
+
+前置条件（缺一不可）：影子报告 `schema_version=meme-info/v2`；`status=ok`；
+`pool1` 与 `pool2` 都非空；本机 API 与公网 `/hotmeme/` 均 200。
+
+**竞态保护**：`cutover.sh` 在复制影子报告前会先 `disable --now hotmeme-state-worker.timer` +
+`stop hotmeme-state-worker.service`（等待退出/超时 SIGKILL），冻结写入后**再次校验**影子报告；
+若此时已不可用则**安全中止（退出码 3）**：恢复旧 worker + shadow timer，生产报告不动。
+因此即使 watcher 预检通过与 15 分钟 timer 点重合，也不会复制到半成品/旧报告。
 
 ## 5. 回滚（切流后出问题）
 
@@ -171,6 +207,8 @@ sudo cp -a /home/ubuntu/hotmeme/var/meme_info_latest.json.before-phase-g \
 sudo systemctl status hotmeme-state-worker.timer hotmeme-state-worker hotmeme-admin hotmeme-backup.timer
 sudo systemctl list-timers 'hotmeme*' --no-pager
 journalctl -u hotmeme-state-worker -n 100 --no-pager
+journalctl -u hotmeme-cutover-watch -n 50 --no-pager
+tail -f /home/ubuntu/hotmeme/var/cutover_watch.log   # watcher 日志（wait/success/rollback）
 sudo systemctl start hotmeme-state-worker.service        # 手工跑一轮（影子模式写影子报告）
 tail -f /home/ubuntu/hotmeme/var/state_worker.log        # worker 日志（不含密码）
 tail -f /home/ubuntu/hotmeme/var/backup.log              # 备份日志

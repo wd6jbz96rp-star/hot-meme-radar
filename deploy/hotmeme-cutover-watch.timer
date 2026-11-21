@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Hot Meme shadow report every 5 minutes for auto cutover
+
+[Timer]
+# 每 5 分钟检查一次影子 v2 报告；Persistent=false 错过的检查不补跑
+OnCalendar=*:0/5
+AccuracySec=30s
+Persistent=false
+Unit=hotmeme-cutover-watch.service
+
+[Install]
+WantedBy=timers.target

@@ -28,6 +28,8 @@
 | `deploy/hotmeme-backup.service` / `.timer` | 每日 03:20 跑 `deploy/backup.sh`（`pg_dump -Fc`，保留 7 天） |
 | `deploy/backup.sh` | 输出 `/home/ubuntu/backups/hotmeme-YYYYMMDD.dump`（先 `.tmp` 后 mv，失败不留半成品），日志 `var/backup.log` |
 | `deploy/cutover.sh` | 切流脚本（默认不执行；`--check-only` 只校验）；路径/URL 可用 env 覆盖便于测试 |
+| `deploy/cutover-watch.sh` | **自动切流看守**：每 5 分钟检查；`flock` 防重叠；预检通过才切流；切流失败**自动回滚**（恢复旧报告/旧 worker、停新 timer/watcher） |
+| `deploy/hotmeme-cutover-watch.service` + `.timer` | watcher oneshot，`OnCalendar=*:0/5`、`Persistent=false`（root，需 systemctl） |
 | `deploy/shadow-dropin.conf` | 影子模式 systemd drop-in（当前已装：报告写 `var/meme_info_v2_shadow.json`） |
 | `deploy/README.md` | 部署 / 影子 / 切流 / 回滚 / 运维说明（按当前实际状态更新） |
 | `docs/pm/PHASE-G-REPORT.md` | 本报告 |
@@ -89,7 +91,50 @@
 - `deploy/cutover.sh --check-only` 实测（真实影子报告）：正确拦截
   `FAIL: status='degraded' 不是 ok; pool1 为空; pool2 为空`（exit 1）。
 
-### 3.3 生产保护 / 恢复动作
+### 3.3 自动切流 watcher（PM 决策 A：等白天 ok 非空轮）
+
+`hotmeme-cutover-watch.timer`（每 5 分钟）→ `cutover-watch.sh`：`flock` 防重叠 →
+生产报告已 v2/ok 则停用自身 → 先 `cutover.sh --check-only`（不过则记 wait 行 exit 0）→
+通过才 `cutover.sh`；失败自动回滚并停用自身（防对陈旧影子报告反复重试），写
+`var/cutover_watch.failed`。日志 `var/cutover_watch.log`（不含 token/密码）。
+
+验证（/tmp 沙盒 + 假 cutover/假 systemctl，**未触碰生产报告**）：
+
+| 场景 | 结果 |
+|---|---|
+| 正路径：假影子 ok+非空、假生产 v1、假 cutover 成功 | exit 0；生产报告变 v2/ok；日志 `ready`+`success`（含时间/报告/回滚点）；调用 `systemctl disable --now hotmeme-cutover-watch.timer` |
+| 失败回滚：假 cutover 写坏生产报告后 exit 1 | exit 1；生产报告从 backup **恢复为旧 v1**；systemctl 调用顺序 = `disable state-worker.timer` → `stop --no-block state-worker.service` → `enable --now hotmeme-worker` → `disable cutover-watch.timer`；`var/cutover_watch.failed` 写入失败时间/rc/回滚点；日志含 cutover 输出尾部 |
+| 已切流：生产报告已是 v2/ok | exit 0；不调用 cutover；停用 watcher timer |
+| 真实负路径（当前 degraded 影子报告，手工触发 systemd service） | `Result=success`、exit 0；日志 `wait: cutover --check-only 未通过（...）；继续等待`；生产报告 md5/mtime **不变**；旧 worker/影子 timer/watcher timer 全部仍 active；公网 200 |
+| 真实 timer 触发（01:30:01） | watcher `LAST=01:30:01`、`Result=success`、exit 0；日志含具体原因 `schema=meme-info/v2 status=degraded pool1=0 pool2=0`；生产报告 md5 `250b5e…`/mtime 01:19 **不变**；同一时刻 state worker round 4 正常开始（影子继续跑） |
+
+### 3.3.1 切流竞态修复（PM 复核）
+
+问题：`cutover.sh` 原流程只停旧 worker，未停 `hotmeme-state-worker.service/timer`；watcher 每 5 分钟
+可能在 state worker 正写影子报告时执行 cutover，复制到写了一半/旧报告，或切流后被影子轮覆盖。
+
+修复（`deploy/cutover.sh` / `deploy/cutover-watch.sh` / `deploy/README.md`，未 commit）：
+
+- `cutover.sh` 新流程：停旧 worker → **`disable --now state-worker.timer` + `stop service` 并等待退出
+  （60s 超时 SIGKILL）** → **冻结后再次校验影子报告**（失败→安全中止 rc=3：恢复旧 worker +
+  shadow timer，生产报告不动，watcher 继续等待）→ 移除 drop-in → 复制报告 → 启 timer/触发 →
+  复核。这样 watcher 预检通过后即使刚到 15 分钟 timer 点、或新一轮把影子报告覆盖成 degraded，
+  最终复制的一定是"冻结且复核通过"的那一份。
+- `cutover-watch.sh`：失败回滚改为 **blocking stop + 等待/SIGKILL**（不再 `stop --no-block`），
+  确保 state worker 真正停止后才恢复旧报告（防止它继续写生产路径）；新增 rc=3 安全中止处理
+  （只记 abort、继续等待，不触发回滚）；成功/安全中止/失败三态分明。
+
+验证（/tmp 沙盒 + 假 systemctl/cutover，不触碰生产）：
+
+| 场景 | 结果 |
+|---|---|
+| cutover 成功路径（state service 初始 active） | rc=0；systemctl 顺序 = `disable hotmeme-worker` → `disable state-worker.timer` → `stop state-worker.service` → `daemon-reload`（此时生产报告仍是 v1）→ 复制后变 v2 → `enable state-worker.timer` → `start service`；drop-in 被移除 |
+| 停 worker 后影子变 degraded → 安全中止 | rc=3；生产报告保持 v1、drop-in 保留；systemctl 调用 `enable --now hotmeme-worker` + `enable --now state-worker.timer`；未复制报告 |
+| watcher 失败自动回滚（state service 在跑） | rc=1；日志 `state-worker.service 已停止`；顺序 = `disable state.timer` → `stop service` → 恢复旧报告 → `enable hotmeme-worker` → `disable watcher.timer`；生产报告恢复 v1；failure marker 写入 |
+| watcher 成功 / 安全中止 rc=3 | 成功 rc=0（生产变 v2、停 watcher timer）；rc=3 → rc=0 且日志 `abort: cutover 安全中止…继续等待`，无回滚调用、生产保持 v1 |
+| 真实负路径（当前 degraded 影子报告，手工触发 watcher） | `Result=success`、exit 0；日志含具体原因 `schema=… status=degraded pool1=0 pool2=0`；生产报告 md5 **不变**；所有服务/timer 保持 active；公网 200 |
+
+### 3.4 生产保护 / 恢复动作
 
 - 影子 v2 报告证据保留：`var/meme_info_v2_round330.json`。
 - 生产报告已恢复：`var/meme_info_latest.json` ← `var/meme_info_latest.json.before-phase-g`，
@@ -118,6 +163,7 @@
 | `hotmeme-state-worker.timer` | active / enabled | 每 15 分钟；**影子模式**；下次 01:30 |
 | `hotmeme-admin` | active / enabled | 127.0.0.1:8091 |
 | `hotmeme-backup.timer` | active / enabled | 每日 03:20 |
+| `hotmeme-cutover-watch.timer` | active / enabled | 每 5 分钟自动切流看守；条件不满足只记 wait |
 | Nginx / 80 / 8000 / 8080 | 未改动 | `/hotmeme/` → 127.0.0.1:8090；nginx snippet 保持 2026-11-16 原文（md5 `8dde3ea0…`） |
 | 8091 | 仅本机监听 | 不暴露公网 |
 
@@ -133,9 +179,12 @@ DB（01:22）：`round`=3、`video_metric`=900、`pool1`=0、`pool2`=0、`family
 3. 影子报告 `pool1` 与 `pool2` 均非空；
 4. 本机 API 与公网 `/hotmeme/` 均 200。
 
-执行：
+执行（已按 PM 决策 A 自动化，无需人工守夜）：
 
 ```bash
+# 自动：hotmeme-cutover-watch.timer 每 5 分钟检查，条件满足自动切流，失败自动回滚
+tail -f /home/ubuntu/hotmeme/var/cutover_watch.log
+# 手工（排障/验证）：
 cd /home/ubuntu/hotmeme
 deploy/cutover.sh --check-only   # 先只校验（已实测：degraded 报告会被拦截）
 deploy/cutover.sh                # 通过后切流
@@ -149,6 +198,8 @@ deploy/cutover.sh                # 通过后切流
 
 ## 7. 限制与 PM 决策点
 
+0. **PM 决策 A（已确认）**：等白天出现 `status=ok` 且 pool1/pool2 非空的影子轮再切流；
+   已由 `hotmeme-cutover-watch` 自动看守（每 5 分钟），失败自动回滚旧报告/旧 worker。
 1. **Phase C 夜间采样量低于 degraded 阈值（关键阻塞）**：00:26–00:41 轮 comments=250 / danmaku=72
    （阈值 600/300），01:00/01:15 两轮更低（14/25、0/23，多为评论 `empty_page`；旧 worker 夜间同样
    出现 comments=0，属 §1.3 已知接口不稳定 + 夜间低活跃叠加）。degraded 轮 Phase D 按设计冻结新
@@ -179,8 +230,10 @@ deploy/cutover.sh                # 通过后切流
 
 ## 9. 下一步（交给 PM / 主线程）
 
-1. **观察白天活跃时段影子报告**：`cat var/meme_info_v2_shadow.json`（status/counts）；
-   出现 `status=ok` + pool1/pool2 非空时，先报告，再跑 `deploy/cutover.sh --check-only` 复核。
+1. **交由 watcher 自动等待并切流**：`var/cutover_watch.log` 会记录 `wait` →
+   `ready` → `success`（或 `rollback`）；切流成功后 watcher 自动停用自身 timer，
+   成功日志内含切换时间/生产报告路径/回滚点（`.before-phase-g`、`.last_good.json`）。
+   人工复核：`deploy/cutover.sh --check-only`（此时应显示 v2/ok 且 pool 非空）。
 2. 若 PM 同意调整 Phase C 夜间阈值或冷启动策略，改 `meme_info/window.py` / Phase D 语义后
    重新跑一轮手工验证（`sudo systemctl stop hotmeme-state-worker.timer`，
    `sudo systemctl start hotmeme-state-worker.service`）。

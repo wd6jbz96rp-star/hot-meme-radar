@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 # Phase G 切流脚本（影子 v2 → 生产）：**默认不自动执行**，先手工 --check-only 验证。
 #
-# 背景：冷启动期（夜间 Phase C 采样量低于 degraded 阈值）新 worker 以影子模式运行：
+# 背景：冷启动期新 worker 以影子模式运行：
 #   - systemd drop-in: /etc/systemd/system/hotmeme-state-worker.service.d/10-shadow.conf
 #     把 HOTMEME_MEME_INFO_REPORT 指向 /home/ubuntu/hotmeme/var/meme_info_v2_shadow.json
 #   - 旧 hotmeme-worker 继续写生产 v1 报告 var/meme_info_latest.json
 # 当影子报告出现 `status=ok` 且 pool1/pool2 非空时，本脚本执行切换：
 #   1) 前置校验（v2 schema / status=ok / pool1 非空 / pool2 非空 / 公开 app 200）
 #   2) 停旧 worker（disable --now，unit 保留可回滚）
-#   3) 删除影子 drop-in + daemon-reload（新 worker 恢复写生产报告路径）
-#   4) 原子替换生产报告：shadow → var/meme_info_latest.json（先同目录 tmp 再 mv）
-#   5) 确保 hotmeme-state-worker.timer 启用，手工触发一轮新 worker（写生产 v2）
-#   6) 复核：报告 status/schema/pool 数、API 200、公网 200
+#   3) **停新 state worker**：disable timer + stop service 并等待退出（防切流竞态：
+#      timer 每 15 分钟可能正好在写影子报告，必须先冻结写入）
+#   3.5) 停完后**再次校验冻结的影子报告**；若已不可用 → 安全中止（恢复旧 worker +
+#        shadow timer，生产报告不动，退出码 3，watcher 会继续等待）
+#   4) 删除影子 drop-in + daemon-reload（新 worker 恢复写生产报告路径）
+#   5) 原子替换生产报告：shadow → var/meme_info_latest.json（同目录 tmp + mv）
+#   6) 启用 state-worker timer 并手工触发一轮（写生产 v2）
+#   7) 复核：报告 schema/status/pool、本机 API 200、公网 200
+#
+# 退出码：0 = 切流成功；3 = 安全中止（生产未改动，已恢复等待状态）；其它 = 失败
+#        （由 cutover-watch.sh 负责自动回滚；手工执行时按部署 README 回滚）。
 #
 # 用法：
 #   deploy/cutover.sh --check-only    # 只做校验，不改变任何状态（先跑这个）
@@ -30,24 +37,32 @@
 #   sudo systemctl restart hotmeme-app     # 可选；app 每次请求重读报告
 #
 # 不修改 Nginx / 其他服务；不打印任何密码或 token。
+#
+# 测试用环境变量（生产 unit 不需要设置）：HOTMEME_REPO_DIR / HOTMEME_PY /
+#   HOTMEME_SHADOW_REPORT / HOTMEME_PROD_REPORT / HOTMEME_BACKUP_REPORT /
+#   HOTMEME_DROPIN_DIR / HOTMEME_DROPIN_FILE / HOTMEME_APP_LOCAL / HOTMEME_PUBLIC_URL /
+#   HOTMEME_SYSTEMCTL（默认 `sudo systemctl`）
 set -euo pipefail
 
 REPO_DIR="${HOTMEME_REPO_DIR:-/home/ubuntu/hotmeme}"
 VAR_DIR="$REPO_DIR/var"
-# 路径/URL 均可用环境变量覆盖，便于在服务器上用 /tmp 的假报告做 --check-only 正路径验证。
+PY="${HOTMEME_PY:-${HOTMEME_PYTHON:-$REPO_DIR/.venv/bin/python}}"
 SHADOW_REPORT="${HOTMEME_SHADOW_REPORT:-$VAR_DIR/meme_info_v2_shadow.json}"
 PROD_REPORT="${HOTMEME_PROD_REPORT:-$VAR_DIR/meme_info_latest.json}"
-BACKUP_REPORT="$VAR_DIR/meme_info_latest.json.before-phase-g"
+BACKUP_REPORT="${HOTMEME_BACKUP_REPORT:-$VAR_DIR/meme_info_latest.json.before-phase-g}"
 DROPIN_DIR="${HOTMEME_DROPIN_DIR:-/etc/systemd/system/hotmeme-state-worker.service.d}"
-DROPIN_FILE="$DROPIN_DIR/10-shadow.conf"
+DROPIN_FILE="${HOTMEME_DROPIN_FILE:-$DROPIN_DIR/10-shadow.conf}"
 APP_LOCAL="${HOTMEME_APP_LOCAL:-http://127.0.0.1:8090/api/meme-info?only=publishable}"
 PUBLIC_URL="${HOTMEME_PUBLIC_URL:-http://124.220.189.74/hotmeme/}"
-PY="$REPO_DIR/.venv/bin/python"
+SYSTEMCTL="${HOTMEME_SYSTEMCTL:-sudo systemctl}"
+WORKER_UNIT="${HOTMEME_WORKER_UNIT:-hotmeme-worker}"
+STATE_TIMER_UNIT="${HOTMEME_STATE_TIMER_UNIT:-hotmeme-state-worker.timer}"
+STATE_SERVICE_UNIT="${HOTMEME_STATE_SERVICE_UNIT:-hotmeme-state-worker.service}"
 
 CHECK_ONLY=0
 case "${1:-}" in
   --check-only) CHECK_ONLY=1 ;;
-  -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+  -h|--help) sed -n '2,50p' "$0"; exit 0 ;;
   "") ;;
   *) echo "未知参数：$1（支持 --check-only）" >&2; exit 2 ;;
 esac
@@ -55,10 +70,9 @@ esac
 log() { printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-# ---------------------------------------------------------------- 1) 前置校验
-log "== 1/6 前置校验（影子报告 + 公开 app）=="
-[ -f "$SHADOW_REPORT" ] || fail "影子报告不存在：$SHADOW_REPORT（等待至少一轮影子运行）"
-"$PY" - "$SHADOW_REPORT" <<'PY' || fail "影子报告校验未通过（schema/status/pool 非空）"
+# 影子报告校验（v2 + ok + pool1/pool2 非空）；成功打印一行摘要，失败 stderr 原因
+validate_shadow_report() {
+  "$PY" - "$SHADOW_REPORT" <<'PY'
 import json, sys
 report = json.load(open(sys.argv[1], encoding="utf-8"))
 schema = str(report.get("schema_version") or "")
@@ -79,7 +93,39 @@ if problems:
     print("FAIL: " + "; ".join(problems), file=sys.stderr)
     sys.exit(1)
 PY
+}
 
+# 停 state worker：先 disable timer，再 stop service 并等待退出；超时 SIGKILL。
+# 返回 0 = 已确认停止；1 = 停不下来。
+stop_state_worker() {
+  "$SYSTEMCTL" disable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 || return 1
+  if "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT"; then
+    "$SYSTEMCTL" stop "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
+    for _ in $(seq 1 60); do
+      "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT" || return 0
+      sleep 1
+    done
+    "$SYSTEMCTL" kill --signal=SIGKILL "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
+    sleep 1
+    "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT" && return 1
+  fi
+  return 0
+}
+
+# 安全中止：生产报告未改动；恢复旧 worker + shadow timer（drop-in 仍在）后 exit 3。
+safe_abort() {
+  log "ABORT: $*（生产报告未改动；恢复旧 worker + shadow timer，继续等待下一轮）"
+  "$SYSTEMCTL" enable --now "$WORKER_UNIT" >/dev/null 2>&1 \
+    || log "WARN: 恢复 $WORKER_UNIT 失败（请手工 systemctl enable --now $WORKER_UNIT）"
+  "$SYSTEMCTL" enable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 \
+    || log "WARN: 恢复 $STATE_TIMER_UNIT 失败（shadow 停止，需人工检查）"
+  exit 3
+}
+
+# ---------------------------------------------------------------- 1) 前置校验
+log "== 1/7 前置校验（影子报告 + 公开 app）=="
+[ -f "$SHADOW_REPORT" ] || fail "影子报告不存在：$SHADOW_REPORT（等待至少一轮影子运行）"
+validate_shadow_report || fail "影子报告校验未通过（schema/status/pool 非空）"
 local_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$APP_LOCAL" || true)
 public_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$PUBLIC_URL" || true)
 [ "$local_code" = "200" ] || fail "本机 app API HTTP $local_code（期望 200）"
@@ -92,25 +138,41 @@ if [ "$CHECK_ONLY" = "1" ]; then
 fi
 
 # ---------------------------------------------------------------- 2) 停旧 worker
-log "== 2/6 停旧 worker（unit 保留，可回滚）=="
-sudo systemctl disable --now hotmeme-worker
-systemctl is-active hotmeme-worker >/dev/null 2>&1 && fail "旧 worker 未停止" || true
+log "== 2/7 停旧 worker（unit 保留，可回滚）=="
+"$SYSTEMCTL" disable --now "$WORKER_UNIT" || fail "停旧 worker 失败"
+"$SYSTEMCTL" is-active --quiet "$WORKER_UNIT" && fail "旧 worker 未停止" || true
 log "旧 worker 已停（disabled，unit/脚本保留）"
 
-# ---------------------------------------------------------------- 3) 删除影子 drop-in
-log "== 3/6 移除影子 drop-in（新 worker 恢复写生产报告路径）=="
-sudo rm -f "$DROPIN_FILE"
-sudo systemctl daemon-reload
+# ---------------------------------------------------------------- 3) 停新 state worker（防竞态）
+log "== 3/7 停新 state worker（disable timer + stop service 并等待退出，防切流竞态）=="
+if ! stop_state_worker; then
+  safe_abort "无法停止 $STATE_SERVICE_UNIT / $STATE_TIMER_UNIT（拒绝在写入未冻结时切流）"
+fi
+log "state worker 已停（timer disabled，service inactive）"
+
+# ---------------------------------------------------------------- 3.5) 冻结后复核影子报告
+log "== 3.5/7 复核冻结后的影子报告 =="
+if ! validate_shadow_report; then
+  safe_abort "停 worker 后影子报告已不再是 ok+非空（可能刚被新一轮覆盖）"
+fi
+
+# ---------------------------------------------------------------- 4) 删除影子 drop-in
+log "== 4/7 移除影子 drop-in（新 worker 恢复写生产报告路径）=="
+rm -f "$DROPIN_FILE" 2>/dev/null || sudo rm -f "$DROPIN_FILE"
+"$SYSTEMCTL" daemon-reload || fail "daemon-reload 失败"
 log "drop-in 已移除：$DROPIN_FILE"
 
-# ---------------------------------------------------------------- 4) 原子替换生产报告
-log "== 4/6 影子报告原子替换生产报告 =="
+# ---------------------------------------------------------------- 5) 原子替换生产报告
+log "== 5/7 影子报告原子替换生产报告 =="
 TMP="$PROD_REPORT.tmp-cutover-$$"
-cp -a "$SHADOW_REPORT" "$TMP"
-[ -f "$VAR_DIR/meme_info_v2_shadow.last_good.json" ] && \
+cp -a "$SHADOW_REPORT" "$TMP" || fail "复制影子报告失败（生产报告未改动）"
+if [ -f "$VAR_DIR/meme_info_v2_shadow.last_good.json" ]; then
   cp -a "$VAR_DIR/meme_info_v2_shadow.last_good.json" \
         "$VAR_DIR/meme_info_latest.last_good.json" || true
-mv -f "$TMP" "$PROD_REPORT"
+fi
+mv -f "$TMP" "$PROD_REPORT" || fail "替换生产报告失败（旧报告仍在）"
+chown ubuntu:ubuntu "$PROD_REPORT" 2>/dev/null || true
+chmod 644 "$PROD_REPORT" 2>/dev/null || true
 "$PY" - "$PROD_REPORT" <<'PY' || fail "生产报告替换后校验失败"
 import json, sys
 report = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -119,14 +181,14 @@ print(f"prod schema={report.get('schema_version')} status={report.get('status')}
 assert report.get("schema_version") == "meme-info/v2", "生产报告 schema 不是 v2"
 PY
 
-# ---------------------------------------------------------------- 5) 启用 timer + 触发一轮
-log "== 5/6 启用新 timer 并手工触发一轮（写生产 v2）=="
-sudo systemctl enable --now hotmeme-state-worker.timer
-sudo systemctl start hotmeme-state-worker.service || log "WARN: 手工触发轮失败，见 journalctl -u hotmeme-state-worker"
-log "new timer: $(systemctl list-timers hotmeme-state-worker.timer --no-pager | sed -n '2p' | sed 's/  */ /g')"
+# ---------------------------------------------------------------- 6) 启用 timer + 触发一轮
+log "== 6/7 启用新 timer 并手工触发一轮（写生产 v2）=="
+"$SYSTEMCTL" enable --now "$STATE_TIMER_UNIT" || fail "启用 $STATE_TIMER_UNIT 失败"
+"$SYSTEMCTL" start "$STATE_SERVICE_UNIT" || log "WARN: 手工触发轮失败，见 journalctl -u $STATE_SERVICE_UNIT"
+log "new timer: $("$SYSTEMCTL" list-timers "$STATE_TIMER_UNIT" --no-pager 2>/dev/null | sed -n '2p' | sed 's/  */ /g')"
 
-# ---------------------------------------------------------------- 6) 复核
-log "== 6/6 复核 =="
+# ---------------------------------------------------------------- 7) 复核
+log "== 7/7 复核 =="
 "$PY" - "$PROD_REPORT" <<'PY'
 import json, sys
 report = json.load(open(sys.argv[1], encoding="utf-8"))

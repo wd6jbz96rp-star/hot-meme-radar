@@ -1,0 +1,19 @@
+[Unit]
+Description=Hot Meme cutover watcher (auto-switch to v2 when shadow report is ok)
+Documentation=file:///home/ubuntu/hotmeme/deploy/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 需要 systemctl enable/disable 旧 worker/新 timer，故以 root 运行（脚本逻辑固定、无外部输入）
+User=root
+Group=root
+WorkingDirectory=/home/ubuntu/hotmeme
+Environment=HOTMEME_WATCH_LOG=/home/ubuntu/hotmeme/var/cutover_watch.log
+Environment=HOTMEME_WATCH_LOCK=/home/ubuntu/hotmeme/var/cutover_watch.lock
+ExecStart=/bin/bash /home/ubuntu/hotmeme/deploy/cutover-watch.sh
+Nice=5
+# cutover.sh 会手工触发一轮 state worker（TimeoutStartSec=900），留足余量
+TimeoutStartSec=1800
+Restart=no
