@@ -147,13 +147,19 @@ def parse_search(payload: dict, keyword: str = "") -> list[Video]:
 
 def parse_comment_page(payload: dict, *, bvid: str, aid: int = 0,
                        zone: str = "", video_title: str = "",
-                       mode: int = 3) -> tuple[list[Comment], int, bool]:
+                       mode: int = 3, include_top: bool = True) -> tuple[list[Comment], int, bool]:
+    """解析一页评论。
+
+    ``include_top=False`` 时不带置顶评论（``top_replies``）：mode=2 时间序翻页时
+    置顶评论可能是旧评论，混入会干扰「翻到窗口起点即停」的判断。
+    """
     data = payload.get("data") or {}
     cursor = data.get("cursor") or {}
     next_cursor = safe_int(cursor.get("next"), 0)
     is_end = bool(cursor.get("is_end")) or next_cursor == 0
     items: list[dict] = []
-    for key in ("top_replies", "replies"):
+    keys = ("top_replies", "replies") if include_top else ("replies",)
+    for key in keys:
         value = data.get(key)
         if isinstance(value, list):
             items.extend(item for item in value if isinstance(item, dict))
@@ -202,6 +208,13 @@ def parse_danmaku_xml(xml: str, *, bvid: str, zone: str = "",
         except (IndexError, ValueError):
             pass
         ctime = safe_int(params[4], 0) if len(params) > 4 else 0
+        # p 属性：progress,mode,fontsize,color,ctime,pool,midHash,dmid,weight,...
+        # dmid 是 B 站弹幕唯一 ID（第 8 段）；老格式/字段异常时留空，由调用方降级。
+        dmid = ""
+        if len(params) > 7:
+            candidate = str(params[7]).strip()
+            if candidate.isdigit():
+                dmid = candidate
         result.append(
             Danmaku(
                 id=f"{bvid}:d:{hashlib.sha1((raw_text + str(progress)).encode()).hexdigest()[:12]}",
@@ -211,6 +224,7 @@ def parse_danmaku_xml(xml: str, *, bvid: str, zone: str = "",
                 zone=zone,
                 video_title=video_title,
                 progress=progress,
+                dmid=dmid,
             )
         )
     return result
@@ -629,8 +643,12 @@ class BiliSource:
         page_size: int = 20,
         zone: str = "",
         video_title: str = "",
+        include_top: bool = True,
     ) -> tuple[list[Comment], int, bool]:
-        """拉一页评论；带 buvid3 只回 3 条，所以请求期间摘掉它。"""
+        """拉一页评论；带 buvid3 只回 3 条，所以请求期间摘掉它。
+
+        ``include_top=False`` 用于 mode=2 时间序翻页：不带置顶评论。
+        """
         if not aid:
             return [], 0, True
         if self.offline:
@@ -664,12 +682,16 @@ class BiliSource:
             zone=zone,
             video_title=video_title,
             mode=mode,
+            include_top=include_top,
         )
         return comments, next_cursor, is_end
 
     def danmaku(self, cid: int) -> str:
         if not cid:
             return ""
+        if self.offline:
+            # 离线回放：所有 cid 共用 danmaku.xml（测试/无网环境）
+            return self._fixture("danmaku.xml") or ""
         url = f"https://comment.bilibili.com/{cid}.xml"
         try:
             return self.http.get_text(url, referer="https://www.bilibili.com/", cache_ttl=21600)

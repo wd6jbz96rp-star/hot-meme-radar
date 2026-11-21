@@ -594,3 +594,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 在线人数 `/x/player/online/total`；首见评论/弹幕用年龄归一化代理；写 round/video_metric。
 - 本地 126 passed/16 skipped；云上 23 passed（事务回滚）；live smoke 4.2s。
 - 未接 worker、未切流量；报告 `docs/pm/PHASE-B-REPORT.md`。
+
+
+## 41. Phase C：15 分钟窗口计数（2026-11-21）
+
+- 新增 `meme_info/window.py`、`tools/window_sample.py`、`tests/test_window.py`；bili 增 include_top/dmid。
+- 评论 1000/600，弹幕 600/300；文本去重 per_video；异常窗口 clamp 并标 degraded；30 天证据分离。
+- 本地 146 passed/18 skipped；云上 22 passed（回滚）；未接 worker/未切流量。
+- 报告：`docs/pm/PHASE-C-REPORT.md`。

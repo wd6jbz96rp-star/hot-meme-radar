@@ -140,6 +140,9 @@ class Danmaku:
     zone: str = ""
     video_title: str = ""
     progress: float = 0.0
+    #: B站弹幕唯一 ID（XML ``p`` 属性第 8 段）；老格式拿不到时为空。
+    #: ``id`` 保持历史 sha1(text+progress) 兼容，窗口计数去重优先用 ``dmid``。
+    dmid: str = ""
 
 
 @dataclass
@@ -462,3 +465,147 @@ class VideoRouteResult:
 
     def to_dict(self) -> dict[str, Any]:
         return as_jsonable(self)
+
+
+# ---------------------------------------------------------------- C 线：15 分钟窗口
+@dataclass
+class WindowTarget:
+    """Phase C 采样目标（来自本轮 ``video_metric`` 的 selected/兜底，或显式注入）。"""
+
+    bvid: str
+    aid: int = 0
+    cid: int | None = None
+    title: str = ""
+    zone: str = ""
+    reply: int = 0
+    danmaku: int = 0
+    hot_score: float = 0.0
+    #: selected / fallback_hot / video_route / targets_json / discover / injected
+    source: str = ""
+
+    @property
+    def url(self) -> str:
+        return f"https://www.bilibili.com/video/{self.bvid}" if self.bvid else ""
+
+
+@dataclass
+class WindowComment:
+    """15 分钟窗口内的新评论（比例计数）；``evidence=True`` 表示 30 天证据。"""
+
+    id: str
+    bvid: str
+    text: str
+    ctime: int = 0
+    like: int = 0
+    zone: str = ""
+    video_title: str = ""
+    mode: int = 2
+    evidence: bool = False
+
+    def to_comment(self) -> Comment:
+        return Comment(
+            id=self.id,
+            bvid=self.bvid,
+            text=self.text,
+            ctime=self.ctime,
+            like=self.like,
+            zone=self.zone,
+            video_title=self.video_title,
+            mode=self.mode,
+        )
+
+
+@dataclass
+class WindowDanmaku:
+    """15 分钟窗口内的新弹幕（按 ``dmid`` 去重）；``evidence=True`` 表示 30 天证据。"""
+
+    id: str
+    bvid: str
+    text: str
+    ctime: int = 0
+    dmid: str = ""
+    zone: str = ""
+    video_title: str = ""
+    progress: float = 0.0
+    evidence: bool = False
+
+    def to_danmaku(self) -> Danmaku:
+        return Danmaku(
+            id=self.id,
+            bvid=self.bvid,
+            text=self.text,
+            ctime=self.ctime,
+            zone=self.zone,
+            video_title=self.video_title,
+            progress=self.progress,
+            dmid=self.dmid,
+        )
+
+
+@dataclass
+class WindowSample:
+    """Phase C 单轮结果：15 分钟计数样本 + 30 天证据（字段分开，避免混用）。
+
+    ``comments`` / ``danmaku`` 是比例计数样本；``evidence_comments`` /
+    ``evidence_danmaku`` 是可信度证据，不参与比例。
+    """
+
+    generated_at: str = ""
+    started_at: int = 0
+    window_start: int = 0
+    window_end: int = 0
+    status: str = "ok"                # ok / degraded
+    round_id: int | None = None
+    comments: list[WindowComment] = field(default_factory=list)
+    danmaku: list[WindowDanmaku] = field(default_factory=list)
+    evidence_comments: list[WindowComment] = field(default_factory=list)
+    evidence_danmaku: list[WindowDanmaku] = field(default_factory=list)
+    comment_targets: list[WindowTarget] = field(default_factory=list)
+    danmaku_targets: list[WindowTarget] = field(default_factory=list)
+    stats: dict[str, Any] = field(default_factory=dict)
+    errors: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def comments_sampled(self) -> int:
+        return len(self.comments)
+
+    @property
+    def danmaku_sampled(self) -> int:
+        return len(self.danmaku)
+
+    def to_dict(self) -> dict[str, Any]:
+        return as_jsonable(self)
+
+    def docs(self, *, evidence: bool = False) -> list[Doc]:
+        """转成统一 ``Doc`` 语料（供 Phase D 抽取/计数复用）；默认只给窗口样本。"""
+        docs: list[Doc] = []
+        comments = self.evidence_comments if evidence else self.comments
+        danmaku = self.evidence_danmaku if evidence else self.danmaku
+        for comment in comments:
+            docs.append(
+                Doc(
+                    id=comment.id,
+                    text=comment.text,
+                    kind="comment",
+                    bvid=comment.bvid,
+                    ctime=comment.ctime,
+                    like=comment.like,
+                    zone=comment.zone,
+                    video_title=comment.video_title,
+                    source="bilibili",
+                )
+            )
+        for item in danmaku:
+            docs.append(
+                Doc(
+                    id=item.id,
+                    text=item.text,
+                    kind="danmaku",
+                    bvid=item.bvid,
+                    ctime=item.ctime,
+                    zone=item.zone,
+                    video_title=item.video_title,
+                    source="bilibili",
+                )
+            )
+        return docs
