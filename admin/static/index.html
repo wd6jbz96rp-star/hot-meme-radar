@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>热梗雷达 · 审核 Admin</title>
+<!-- 无 CDN：全部内联；数据只用 textContent / createElement 渲染，不拼 HTML 字符串 -->
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a; --text: #e6e6e6;
+    --muted: #9aa4b2; --blue: #3b82f6; --green: #22c55e; --red: #ef4444;
+    --amber: #f59e0b; --violet: #8b5cf6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+           padding: 14px 20px; border-bottom: 1px solid var(--line); background: #12151b;
+           position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 16px; margin: 0; }
+  .spacer { flex: 1; }
+  .pill { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line);
+          color: var(--muted); font-size: 12px; }
+  .pill.ok { color: var(--green); border-color: #1d4d2b; }
+  .pill.bad { color: var(--red); border-color: #5a2323; }
+  main { padding: 18px 20px 60px; max-width: 1180px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  input, select, button, textarea {
+    font: inherit; color: var(--text); background: #12151b;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  }
+  button { cursor: pointer; background: #1f2633; }
+  button:hover { border-color: #3d4658; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.green { background: #14351f; border-color: #1d4d2b; color: #86efac; }
+  button.red { background: #3a1717; border-color: #5a2323; color: #fca5a5; }
+  button.amber { background: #3a2c10; border-color: #5a4519; color: #fcd34d; }
+  button.violet { background: #241a3a; border-color: #3b2d5c; color: #c4b5fd; }
+  button:disabled { opacity: .45; cursor: default; }
+  .note { color: var(--muted); font-size: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+          padding: 14px 16px; margin-bottom: 12px; }
+  .card .top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .family { font-size: 16px; font-weight: 600; }
+  .key { color: var(--muted); font-size: 12px; }
+  .score { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tag { padding: 2px 7px; border-radius: 6px; font-size: 12px;
+         border: 1px solid var(--line); color: var(--muted); }
+  .tag.p2 { color: #93c5fd; border-color: #1e3a8a; }
+  .tag.normal { color: #86efac; border-color: #1d4d2b; }
+  .tag.provisional { color: #fcd34d; border-color: #5a4519; }
+  .tag.out { color: #fca5a5; border-color: #5a2323; }
+  .tag.audit { color: #c4b5fd; border-color: #3b2d5c; }
+  .evidence { margin: 10px 0 0; padding-left: 18px; color: #c7ced8; }
+  .evidence li { margin: 3px 0; line-height: 1.45; }
+  .quote { color: var(--text); }
+  .meta { color: var(--muted); font-size: 12px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .msg { margin: 12px 0; padding: 10px 12px; border-radius: 8px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: #10231a; border: 1px solid #1d4d2b; color: #86efac; }
+  .msg.err { background: #2a1212; border: 1px solid #5a2323; color: #fca5a5; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .login { max-width: 420px; margin: 80px auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>热梗雷达 · 审核 Admin</h1>
+  <span class="pill" id="health-pill">检查中…</span>
+  <span class="spacer"></span>
+  <label class="note">操作人 <input id="operator" size="10" placeholder="operator" autocomplete="username"></label>
+  <label class="note">队列 <input id="limit" type="number" min="1" max="100" value="20" style="width:64px"></label>
+  <button id="refresh" class="primary">刷新队列</button>
+</header>
+
+<main>
+  <div id="msg" class="msg"></div>
+  <div id="login" class="card login" style="display:none">
+    <div class="note" style="margin-bottom:8px">需要管理 token（HOTMEME_ADMIN_TOKEN）。</div>
+    <div style="display:flex;gap:8px">
+      <input id="token-input" type="password" placeholder="ADMIN TOKEN" style="flex:1" autocomplete="current-password">
+      <button class="primary" id="token-go">进入</button>
+    </div>
+    <div class="note" style="margin-top:8px">登录成功后写入 SameSite=Strict HttpOnly 会话 cookie；token 不出现在 URL 里。</div>
+  </div>
+  <div id="queue"></div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var state = { queue: [], busy: false };
+  var $ = function (id) { return document.getElementById(id); };
+  var operatorInput = $("operator");
+  var limitInput = $("limit");
+  var msgBox = $("msg");
+
+  try { operatorInput.value = localStorage.getItem("hotmeme.admin.operator") || ""; } catch (e) {}
+  operatorInput.addEventListener("change", function () {
+    try { localStorage.setItem("hotmeme.admin.operator", operatorInput.value); } catch (e) {}
+  });
+
+  function showMessage(text, ok) {
+    msgBox.textContent = text;
+    msgBox.className = "msg show " + (ok ? "ok" : "err");
+    clearTimeout(showMessage.timer);
+    showMessage.timer = setTimeout(function () { msgBox.className = "msg"; }, 8000);
+  }
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined && text !== null) { node.textContent = String(text); }
+    return node;
+  }
+
+  function fmt(value, digits) {
+    var num = Number(value);
+    return isFinite(num) ? num.toFixed(digits === undefined ? 1 : digits) : "-";
+  }
+
+  function actionButton(label, cls, actions, card) {
+    var btn = el("button", cls, label);
+    btn.addEventListener("click", function () { doAction(actions, card, btn); });
+    return btn;
+  }
+
+  function renderQueue(payload) {
+    var root = $("queue");
+    root.textContent = "";
+    var queue = payload.queue || [];
+    if (!queue.length) {
+      root.appendChild(el("div", "empty", "当前没有待审核条目（LLM 默认关闭；可等待证据变化或检查审核队列条件）。"));
+      return;
+    }
+    queue.forEach(function (item) {
+      var card = el("div", "card");
+      var top = el("div", "top");
+      top.appendChild(el("span", "family", item.canonical || item.family_key));
+      top.appendChild(el("span", "key", "key=" + item.family_key));
+      top.appendChild(el("span", "score", "score " + fmt(item.score, 1)));
+      top.appendChild(el("span", "tag " + (item.pool === "pool2" ? "p2" : "normal"),
+        item.pool === "pool2" ? "池2" : "池1"));
+      top.appendChild(el("span", "tag " + (item.status || ""), item.status || "-"));
+      top.appendChild(el("span", "tag audit", "审核：" + (item.audit_state || "none")));
+      if (item.priority) { top.appendChild(el("span", "tag", "P" + item.priority)); }
+      if (item.explainer_only) { top.appendChild(el("span", "tag", "explainer-only")); }
+      if (item.meta_only) { top.appendChild(el("span", "tag", "meta-only")); }
+      if (item.evidence_strong) { top.appendChild(el("span", "tag", "强证据")); }
+      card.appendChild(top);
+
+      var meta = el("div", "meta");
+      var latest = item.latest_event;
+      meta.textContent = (item.priority_reason || "") +
+        (latest ? " · 最近审核：" + latest.kind + ":" + latest.verdict +
+          (latest.operator ? "（" + latest.operator + "）" : "") +
+          (latest.reason ? " — " + latest.reason : "")
+          : " · 最近审核：无");
+      card.appendChild(meta);
+
+      var evidence = item.evidence || [];
+      if (evidence.length) {
+        var list = el("ul", "evidence");
+        evidence.slice(0, 4).forEach(function (row) {
+          var li = el("li");
+          li.appendChild(el("span", "quote", row.quote || ""));
+          var src = [row.kind || "", row.bvid || "", row.video_title || ""]
+            .filter(Boolean).join(" · ");
+          if (src) { li.appendChild(el("span", "meta", "  [" + src + "]")); }
+          list.appendChild(li);
+        });
+        card.appendChild(list);
+      }
+
+      var actions = el("div", "actions");
+      actions.appendChild(actionButton("通过 approve", "green", { action: "approve" }, card));
+      actions.appendChild(actionButton("否决 reject", "red", { action: "reject", needReason: true }, card));
+      actions.appendChild(actionButton("合并 merge", "violet", { action: "merge", needReason: true, needTarget: true }, card));
+      actions.appendChild(actionButton("需更多证据", "amber", { action: "need_more" }, card));
+      card.appendChild(actions);
+      card.dataset.familyKey = item.family_key;
+      card.dataset.evidenceHash = item.evidence_hash || "";
+      root.appendChild(card);
+    });
+  }
+
+  function doAction(actions, card, button) {
+    if (state.busy) { return; }
+    var operator = operatorInput.value.trim();
+    if (!operator) { showMessage("请先填写操作人 operator（写入 audit_event.operator）", false); operatorInput.focus(); return; }
+    var reason = "";
+    var mergeInto = "";
+    if (actions.needReason) {
+      reason = window.prompt("请填写理由（必填，写入 audit_event.reason）", "");
+      if (reason === null) { return; }
+      reason = reason.trim();
+      if (!reason) { showMessage("该操作必须填写理由", false); return; }
+    }
+    if (actions.needTarget) {
+      mergeInto = window.prompt("合并目标 family_key 或 canonical（必填）", "");
+      if (mergeInto === null) { return; }
+      mergeInto = mergeInto.trim();
+      if (!mergeInto) { showMessage("merge 必须填写合并目标", false); return; }
+    }
+    var body = {
+      family_key: card.dataset.familyKey,
+      evidence_hash: card.dataset.evidenceHash,
+      action: actions.action,
+      operator: operator,
+      reason: reason
+    };
+    if (mergeInto) { body.merge_into = mergeInto; }
+    state.busy = true;
+    button.disabled = true;
+    fetch("/admin/action", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.json().then(function (data) { return { status: response.status, data: data }; });
+    }).then(function (result) {
+      if (result.status === 200 && result.data.ok) {
+        var r = result.data.result || {};
+        var tail = r.skipped ? ("（已跳过：" + (r.skip_reason || "")) + "）"
+          : (" score " + fmt(r.score_before, 1) + " → " + fmt(r.score_after, 1) +
+             "；审核=" + (r.audit_state || "") +
+             (r.status_after ? "；池状态=" + r.status_after : "") +
+             (r.pool2_after === true ? "；在池2" : (r.pool2_after === false ? "；不在池2" : "")));
+        showMessage("操作完成：" + result.data.action + tail, true);
+        loadQueue();
+      } else if (result.status === 401) {
+        showMessage("未授权（401）：请重新登录", false);
+        showLogin();
+      } else if (result.status === 409) {
+        showMessage("证据已变化（409）：请刷新队列后重新审核", false);
+        loadQueue();
+      } else {
+        showMessage("失败（" + result.status + "）：" + ((result.data && (result.data.message || result.data.error)) || "unknown"), false);
+      }
+    }).catch(function (err) {
+      showMessage("请求失败：" + err, false);
+    }).finally(function () {
+      state.busy = false;
+      button.disabled = false;
+    });
+  }
+
+  function showLogin() {
+    $("login").style.display = "block";
+    $("token-input").focus();
+  }
+
+  $("token-go").addEventListener("click", function () {
+    var token = $("token-input").value.trim();
+    if (!token) { return; }
+    fetch("/admin/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "token=" + encodeURIComponent(token)
+    }).then(function (response) {
+      if (response.ok) { window.location.reload(); }
+      else { showMessage("登录失败（401）：token 不正确", false); }
+    }).catch(function (err) { showMessage("登录请求失败：" + err, false); });
+  });
+
+  function loadHealth() {
+    fetch("/admin/health", { credentials: "same-origin" })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        var pill = $("health-pill");
+        if (data.ok) {
+          pill.className = "pill ok";
+          pill.textContent = "健康 · schema v" + data.schema_version + " · LLM " +
+            (data.llm_enabled ? "开启" : "关闭");
+        } else {
+          pill.className = "pill bad";
+          pill.textContent = "异常 · " + (data.error || "auth/db 未就绪");
+        }
+      })
+      .catch(function () {
+        $("health-pill").className = "pill bad";
+        $("health-pill").textContent = "健康检查失败";
+      });
+  }
+
+  function loadQueue() {
+    var limit = parseInt(limitInput.value, 10);
+    if (!isFinite(limit) || limit < 1) { limit = 20; }
+    fetch("/admin/queue?limit=" + limit, { credentials: "same-origin" })
+      .then(function (response) {
+        if (response.status === 401) { showLogin(); return null; }
+        return response.json().then(function (data) { return { status: response.status, data: data }; });
+      })
+      .then(function (result) {
+        if (!result) { return; }
+        if (result.status === 200 && result.data.ok) {
+          state.queue = result.data.queue || [];
+          renderQueue(result.data);
+        } else {
+          showMessage("加载队列失败（" + result.status + "）：" +
+            ((result.data && (result.data.message || result.data.error)) || "unknown"), false);
+          $("queue").textContent = "";
+          $("queue").appendChild(el("div", "empty", "无法加载审核队列（数据库/鉴权异常）。"));
+        }
+      })
+      .catch(function (err) { showMessage("加载队列失败：" + err, false); });
+  }
+
+  $("refresh").addEventListener("click", loadQueue);
+  limitInput.addEventListener("change", loadQueue);
+  loadHealth();
+  loadQueue();
+  setInterval(loadHealth, 30000);
+})();
+</script>
+</body>
+</html>

@@ -31,7 +31,9 @@
      ``provisional``；种子/人工 + 强元话语 ``max(40, cred_base)``。
    - 已有 family：``ratio=(count_now+5)/(count_prev+5)``、
      ``delta=clamp(5*log2(ratio),-10,10)``、
-     ``score=clamp(0.85*prev+0.15*cred_base+delta+audit_adjustment,0,100)``；
+     ``score=clamp(0.85*prev+0.15*cred_base+delta,0,100)``；
+     ``audit_adjustment`` 只记录「当前已应用的最新审核分」，用于 Phase F 替换旧结论，
+     不再每轮重新加到 score（PM 2026-11-22 复核：一次性事件，否则审核分重复放大）；
      本轮 0：prev>0 → -5；prev=0 → -2/轮，zero_streak>=3 再额外 -2；
      provisional 前 2 轮零计数宽限 -0.5。
    - 采集 ``degraded``：冻结分数与比例、不降池，只更新证据/审计字段。
@@ -44,7 +46,8 @@
    pool1 撤出时同步删除 pool2，迁移写 ``pool_transition``。
 
 5. **数据库**：只通过 :func:`meme_info.state.transaction` 读写；不改 ``round``，
-   不写 ``audit_event``（``audit_adjustment`` 读 pool1 当前值，Phase F 才写入）。
+   不写 ``audit_event``；``audit_adjustment`` 只从 pool1 透传（Phase F 用
+   ``score - old_adjustment + new_adjustment`` 应用并写回，Phase D 不再累加该字段）。
    纯内存模式（``use_db=False``）返回同样结构的 :class:`PoolRoundResult`。
 
 降级/可解释约定：
@@ -1032,12 +1035,14 @@ def _update_decision(
         stat.ratio = round(ratio, 4)
         reasons.append(f"ratio:{delta:+.2f}")
 
+    # audit_adjustment 只透传（当前已应用的最新审核分），不再每轮加到 score：
+    # Phase F 审核时按 score - old_adjustment + new_adjustment 应用并写回，
+    # 审核效果由 score 自身延续，避免每轮重复放大。
     audit_adjustment = float(prev.audit_adjustment or 0.0)
     score = _clamp_score(
         config.smooth_prev * float(prev.score)
         + config.smooth_cred * float(observation.cred_base)
         + delta
-        + audit_adjustment
     )
     status = prev.status
     meta_only = bool(prev.meta_only)

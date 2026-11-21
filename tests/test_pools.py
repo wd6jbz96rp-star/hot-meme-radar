@@ -25,6 +25,7 @@ from meme_info.models import (
     WindowDanmaku,
     WindowSample,
     WindowTarget,
+    clamp,
 )
 from meme_info.pools import (
     PoolConfig,
@@ -403,14 +404,46 @@ def test_zero_absent_penalty_and_streak_extra() -> None:
     assert "zero:streak" in result3.stats_rows[0].reason
 
 
-def test_audit_adjustment_uses_prev_pool_value() -> None:
-    prev = {"梗A": _row("梗A", score=50.0, count_now=5, audit_adjustment=15.0)}
+def test_audit_adjustment_is_one_shot_not_reapplied() -> None:
+    """PM 口径：audit_adjustment 是「当前已应用的最新审核分」，Phase D 不再每轮加。
+
+    Phase F 已按 score-old+new 把审核分写进 score；Phase D 只从 score 延续并透传字段，
+    否则每轮都会重复放大审核分。
+    """
+    prev = {"梗A": _row("梗A", score=65.0, count_now=5, audit_adjustment=15.0)}
     observation = _obs("梗A", comment=5, cred=60.0)
     result = _apply([observation], prev1=prev)
-    ratio = (5 + 5) / (5 + 5)  # delta = 0
-    expected = 0.85 * 50.0 + 0.15 * 60.0 + 0.0 + 15.0
+    # ratio = (5+5)/(5+5) → delta=0；score 不含 +15
+    expected = 0.85 * 65.0 + 0.15 * 60.0
     assert result.pool1[0].score == pytest.approx(round(expected, 3))
-    assert result.pool1[0].audit_adjustment == 15.0
+    assert result.pool1[0].audit_adjustment == 15.0, "字段只透传，供 Phase F 替换旧结论"
+    # 模拟 Phase F 替换：score - old_adjustment + new_adjustment，再交给下一轮 Phase D 延续
+    replaced = clamp(65.0 - 15.0 + 8.0, 0.0, 100.0)
+    prev_after_audit = _row(
+        "梗A", score=replaced, count_now=5, audit_adjustment=8.0
+    )
+    next_round = _apply(
+        [_obs("梗A", comment=5, cred=60.0)], prev1={"梗A": prev_after_audit}
+    )
+    assert next_round.pool1[0].score == pytest.approx(round(0.85 * replaced + 0.15 * 60.0, 3))
+    assert next_round.pool1[0].audit_adjustment == 8.0
+
+
+def test_degraded_round_passes_audit_adjustment_through() -> None:
+    """degraded 冻结 score，但 audit_adjustment 仍原样透传（不累加）。"""
+    prev = {
+        "梗A": _row(
+            "梗A", score=65.0, count_now=5, audit_adjustment=15.0
+        )
+    }
+    result = _apply(
+        [_obs("梗A", comment=20, cred=95.0)],
+        prev1=prev,
+        degraded=True,
+    )
+    row = result.pool1[0]
+    assert row.score == 65.0
+    assert row.audit_adjustment == 15.0
 
 
 # ================================================================ 4. P1/P2 迁移

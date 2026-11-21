@@ -2,7 +2,7 @@
 
 > 日期：2026-11-22  
 > 状态：**完成**（未接 worker、未切线上；工作区改动未 commit/push）  
-> 口径修正：2026-11-22 PM 复核，`video_count` 改为 15 分钟窗口独立 bvid；30 天证据独立视频降级为 `evidence_video_count`（只进 evidence_json/stats，不参与 count_total/比例/池2门槛）。
+> 口径修正：2026-11-22 PM 复核——① `video_count` 改为 15 分钟窗口独立 bvid，30 天证据独立视频降级为 `evidence_video_count`（只进 evidence_json/stats，不参与 count_total/比例/池2门槛）；② `audit_adjustment` 统一为**一次性事件**（只记录「当前已应用的最新审核分」，Phase D 分数更新不再每轮加该项，避免审核分重复放大）。
 
 ## 1. 交付文件
 
@@ -57,10 +57,12 @@ meta_strength = dedicated 1.0 / compilation 0.6 / quote 0.3（取最大）
 
 已有 family：
   ratio = (count_now+5)/(count_prev+5)；delta = clamp(5*log2(ratio), -10, +10)
-  score = clamp(0.85*prev + 0.15*cred_base + delta + audit_adjustment, 0, 100)
+  score = clamp(0.85*prev + 0.15*cred_base + delta, 0, 100)
   本轮 0：prev>0 → -5；prev=0 → -2/轮；zero_streak≥3 额外 -2
   provisional 前 2 轮零计数 → -0.5 且不按 P1_out 撤池；第 3 轮起正常惩罚
-  audit_adjustment 读 pool1 当前值（Phase F 写入）；不写 audit_event
+  audit_adjustment 只从 pool1 透传，**不再每轮加到 score**：
+    Phase F 审核时按 score - old_adjustment + new_adjustment 应用并写回，
+    审核效果由 score 自身延续；新审核替换旧 adjustment，不重复累加；不写 audit_event
   count_prev 在轮末更新为 count_now
 ```
 
@@ -87,14 +89,14 @@ degraded：冻结分数/比例/池成员，只更新证据/审计字段；新 fa
 
 ### 3.1 本地
 
-- 全量：**176 passed, 20 skipped**（基线 146/18 + 本 Phase 30/2）
-- `tests/test_pools.py`：**30 passed, 2 skipped**（skip 为无本地 Postgres）
+- 全量：Phase D 交付时为 **178 passed, 20 skipped**（基线 146/18 + 本 Phase 32/2）；`audit_adjustment` 一次性事件修正后于 **2026-11-22 00:4x** 复跑：`tests/test_pools.py` 32 passed / 2 skipped，全量 **255 passed, 41 skipped**（当前工作区已含 Phase E 提交与 Phase F 并行中的新模块，最终全量由 Phase F 复核）
+- `tests/test_pools.py`：**32 passed, 2 skipped**（skip 为无本地 Postgres）
 
 ### 3.2 云上 Postgres（124.220.189.74，schema_version=2）
 
 在 `/tmp/phase_d_venv`（隔离 venv，不动线上服务）以 worker DSN 跑：
 
-- `tests/test_pools.py`：**32 passed**（30 单元 + 2 集成，事务回滚）
+- `tests/test_pools.py`：**34 passed**（32 单元 + 2 集成，事务回滚；`audit_adjustment` 修正后复跑）
 - 覆盖：pool1/pool2/stat/alias/transition 落库、同轮重跑幂等、degraded 轮不降池、`round`/`audit_event` 不变；窗口 `video_count` 与 `evidence_video_count` 分离断言；
 - 跑完 8 张业务表 **行数全 0**、`schema_version=2`；`hotmeme-app`/`hotmeme-worker`/`nginx` 均 active，线上服务未改动；未打印任何连接串/密码。
 
@@ -116,7 +118,10 @@ Phase D 发现 416 个 family，按门槛 **pool1=0、pool2=0**（弱证据默�
 9. **explainer-only**：名额按「本轮新进 ≤2」；人工确认依赖 `audit_state='human_pass'`（Phase F 才产生），当前主要靠 knowledge 种子；LLM 不能单独放行。
 10. **pool1 全量 upsert**：每轮把 pool1 全部行（含长期 out）重写一遍；量级小（千行）可接受，后续可优化为只写变化行。
 11. **并发**：无跨进程锁，依赖 Phase G 单写者/调度串行。
-12. **discover.py 2 行 bug 修复**：属必要前置（Phase D 的 WindowTarget 无 pubdate）；已保持归并逻辑不变。
+12. **audit_adjustment 语义（PM 2026-11-22 复核，一次性事件）**：字段只记录「当前已应用的最新审核分」；Phase D 更新公式为 `score=clamp(0.85*prev+0.15*cred_base+delta,0,100)`，**不含** `+audit_adjustment`；Phase F 仍按 `score - old_adjustment + new_adjustment` 应用并写回，审核效果通过 score 延续，避免每轮重复放大。
+    - 依赖检查（Phase D 未改其他文件）：`meme_info/audit.py` 的 `compute_audit_update`（`score - old + new`）行为与新口径一致，无需改逻辑；但其模块 docstring 第 30–33 行仍写「Phase D 每轮把 audit_adjustment 当常驻项再加一次」，Phase F 需同步该注释。
+    - 展示侧（`report.py` / adapter / UI）只读展示 `audit_adjustment` 数字，语义不受影响；设计文档 `REARCHITECTURE.md` §5.9.1「分数计算只使用当前 audit_adjustment」的表述需 PM 后续同步（Phase D 不改设计文档）。
+13. **discover.py 2 行 bug 修复**：属必要前置（Phase D 的 WindowTarget 无 pubdate）；已保持归并逻辑不变。
 
 ## 5. 下一步（Phase E）
 
