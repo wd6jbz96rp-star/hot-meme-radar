@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from meme_info.knowledge import Knowledge
+from meme_info.text import normalize_surface
 from meme_info.models import (
     FamilyObservation,
     Pool1Row,
@@ -32,6 +33,7 @@ from meme_info.pools import (
     _group_families,
     apply_round,
     build_observations,
+    persist_round,
     pool_state_from_result,
     run_pool_round,
     sample_from_json,
@@ -561,6 +563,7 @@ def test_degraded_freezes_score_and_membership() -> None:
     assert result.stats["frozen"] == 1
     assert result.stats["degraded_new_skipped"] == 1
     assert result.transitions == []
+    assert result.cold_start is False, "有 active prev pool 时 degraded 仍走冻结"
 
 
 # ================================================================ 6. explainer-only
@@ -793,7 +796,7 @@ def test_persist_round_postgres_rollback() -> None:
             assert stat is not None
             assert stat[0] == 3 and stat[1] == 1 and stat[2] == 2 and stat[3] == 1
             assert stat[4] == 6, "count_total = 窗口评论+弹幕+窗口独立视频"
-            assert stat[6].startswith("new:")
+            assert stat[6], "family_round_stat.reason 必须有说明"
             alias_rows = conn.execute(
                 "SELECT alias, source FROM family_alias WHERE family_key = %s",
                 ("尊嘟假嘟",),
@@ -842,16 +845,45 @@ def test_persist_round_postgres_rollback() -> None:
             ), f"{table} 测试行必须已回滚"
 
 
+_DEGRADED_SKIP_TITLE = "ZZ测试冷启冻结梗D是什么梗"
+_DEGRADED_SKIP_KEY = normalize_surface("ZZ测试冷启冻结梗D")
+
+
+def _counts_all(conn) -> dict[str, int]:
+    return {
+        table: conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+        for table in (
+            "round",
+            "pool1",
+            "pool2",
+            "family_round_stat",
+            "family_alias",
+            "pool_transition",
+            "audit_event",
+        )
+    }
+
+
 @requires_db
-def test_degraded_round_persist_keeps_pool_membership() -> None:
-    """degraded 轮：写 stat（frozen），但不降池、不扣比例。"""
+def test_degraded_round_with_prev_pool_freezes_rollback() -> None:
+    """非冷启动 degraded：已有 active pool → 冻结分数/比例、不降池、新 family 跳过。"""
     from meme_info import state
 
     with pytest.raises(_Rollback):
         with state.transaction(DB_URL) as conn:
+            before = _counts_all(conn)
             round_id = _db_fixture_round(conn, status="degraded")
-            sample = _db_sample()
-            sample.status = "degraded"
+            conn.execute(
+                "INSERT INTO pool1 (family_key, canonical, aliases_json, status, score, "
+                "count_prev, count_now, zero_streak) VALUES (%s, %s, '[]'::jsonb, "
+                "'normal', 50, 1, 6, 0)",
+                ("zz测试冻结梗d", "ZZ测试冻结梗D"),
+            )
+            sample = _sample(
+                targets=[_target("BVZZ", _DEGRADED_SKIP_TITLE)],
+                status="degraded",
+                window_start=NOW - WINDOW,
+            )
             result = run_pool_round(
                 sample,
                 use_db=True,
@@ -861,16 +893,80 @@ def test_degraded_round_persist_keeps_pool_membership() -> None:
                 now=NOW,
             )
             assert result.degraded is True
-            assert result.pool1 == [], "degraded 且无上一轮状态：不新进池"
-            assert result.stats_rows == []
-            assert result.transitions == []
+            assert result.cold_start is False, "有 active prev pool 不是冷启动"
+            row = conn.execute(
+                "SELECT score, count_prev, count_now, status FROM pool1 "
+                "WHERE family_key = %s",
+                ("zz测试冻结梗d",),
+            ).fetchone()
+            assert row == (50.0, 1, 6, "normal"), "degraded 冻结分数/计数/状态"
+            assert all(
+                item.family_key != _DEGRADED_SKIP_KEY for item in result.pool1
+            ), "非冷启动 degraded 不建新 family"
+            assert result.stats.get("degraded_new_skipped", 0) >= 1
+            assert result.transitions == [], "冻结不产生池迁移"
+            raise _Rollback
+
+    with state.connection(DB_URL) as conn:
+        assert _counts_all(conn) == before
+
+
+@requires_db
+def test_degraded_cold_start_persist_builds_pool1_rollback() -> None:
+    """冷启动 degraded：无 active prev pool → 建池并落库（事务回滚 0 残留）。"""
+    from meme_info import state
+
+    with pytest.raises(_Rollback):
+        with state.transaction(DB_URL) as conn:
+            before = _counts_all(conn)
+            round_id = _db_fixture_round(conn, status="degraded")
+            sample = _db_sample()
+            sample.status = "degraded"
+            observations = build_observations(sample, prev_pool1={}, now=NOW)
+            result = apply_round(
+                observations,
+                prev_pool1={},
+                prev_pool2={},
+                round_id=round_id,
+                degraded=True,
+                now=NOW,
+            )
+            assert result.cold_start is True
+            assert result.status == "degraded"
+            assert result.stats["cold_start"] is True
+            assert result.pool1, "冷启动必须建出 pool1"
+            persist_round(result, conn)
+            row = conn.execute(
+                "SELECT status, score, count_now FROM pool1 WHERE family_key = %s",
+                ("尊嘟假嘟",),
+            ).fetchone()
+            assert row is not None, "冷启动 family 必须落 pool1"
+            assert row[0] == "normal" and 0.0 <= row[1] <= 80.0
+            assert row[2] == 6, "窗口 count_total=评论3+弹幕1+窗口视频2"
             assert (
                 conn.execute(
-                    "SELECT count(*) FROM family_round_stat WHERE round_id = %s", (round_id,)
+                    "SELECT count(*) FROM family_round_stat WHERE round_id = %s",
+                    (round_id,),
                 ).fetchone()[0]
-                == 0
+                == 1
+            )
+            assert (
+                conn.execute(
+                    "SELECT count(*) FROM pool_transition WHERE round_id = %s",
+                    (round_id,),
+                ).fetchone()[0]
+                >= 1
+            )
+            assert (
+                conn.execute(
+                    "SELECT count(*) FROM audit_event"
+                ).fetchone()[0]
+                == before["audit_event"]
             )
             raise _Rollback
+
+    with state.connection(DB_URL) as conn:
+        assert _counts_all(conn) == before
 
 
 def test_existing_p1_explainer_family_can_be_promoted_later() -> None:
@@ -1039,3 +1135,70 @@ def test_zero_padded_family_still_uses_30d_evidence_for_cred() -> None:
     assert no_evidence.evidence_comment_count == 0
     assert no_evidence.usage_strength == 0.0
     assert obs.cred_base > no_evidence.cred_base, "有 30 天证据的补 0 family cred 更高"
+
+
+# ================================================================ 10. 冷启动例外
+def test_degraded_cold_start_builds_pool1() -> None:
+    """degraded 且上一轮没有 active pool → 冷启动例外：允许按初始分建池。"""
+    result = _apply([_obs("冷启梗", comment=10, cred=60.0)], degraded=True)
+    assert result.degraded is True
+    assert result.cold_start is True
+    assert result.status == "degraded", "report.status 仍按 degraded"
+    assert result.stats["cold_start"] is True
+    assert result.stats["cold_start_new_pool1"] == 1
+    assert result.stats.get("frozen", 0) == 0
+    assert result.stats.get("degraded_new_skipped", 0) == 0
+    row = result.pool1[0]
+    assert row.status == "normal" and row.score == 60.0
+    assert row.count_prev == 0 and row.count_now == 10
+    assert any(t.from_pool is None and t.to_pool == "pool1" for t in result.transitions)
+
+
+def test_degraded_cold_start_meta_only_provisional() -> None:
+    """冷启动时元话语-only 仍按既有初始分规则：provisional 30–35。"""
+    result = _apply(
+        [_obs("雪豹", meta=1, meta_strength=1.0, cred=41.5, meta_only=True)],
+        degraded=True,
+    )
+    assert result.cold_start is True
+    row = result.pool1[0]
+    assert row.status == "provisional" and 30.0 <= row.score <= 35.0
+    assert row.meta_only is True
+
+
+def test_degraded_cold_start_does_not_relax_pool2_or_thresholds() -> None:
+    """冷启动不放水：pool2 仍是 score>=65+usage>0；弱证据仍 out。"""
+    result = _apply(
+        [
+            _obs("强证据", comment=10, cred=95.0),   # score=80 → normal + pool2
+            _obs("弱证据", comment=1, cred=30.0),    # score=30 → out，不进池2
+        ],
+        degraded=True,
+    )
+    assert result.cold_start is True
+    by_key = {row.family_key: row for row in result.pool1}
+    assert by_key["强证据"].score == 80.0 and by_key["强证据"].status == "normal"
+    assert by_key["弱证据"].score == 30.0 and by_key["弱证据"].status == "out"
+    assert [row.family_key for row in result.pool2] == ["强证据"]
+    assert all(row.family_key != "弱证据" for row in result.pool2)
+
+
+def test_degraded_with_only_out_prev_pool_is_cold_start() -> None:
+    """上一轮只剩 out 行（无 active）也算冷启动；out 行不产生新迁移。"""
+    prev = {"旧梗": _row("旧梗", status="out", score=20.0, count_now=0)}
+    result = _apply(
+        [_obs("冷启新梗", comment=10, cred=60.0)],
+        prev1=prev,
+        degraded=True,
+    )
+    assert result.cold_start is True
+    by_key = {row.family_key: row for row in result.pool1}
+    assert by_key["冷启新梗"].status == "normal"
+    assert by_key["旧梗"].status == "out" and by_key["旧梗"].score == 20.0, "out 行不因冷启动变动"
+    assert all(t.family_key != "旧梗" for t in result.transitions)
+
+
+def test_cold_start_flag_is_false_for_normal_rounds() -> None:
+    result = _apply([_obs("普通梗", comment=10, cred=60.0)], degraded=False)
+    assert result.cold_start is False
+    assert result.stats["cold_start"] is False

@@ -764,6 +764,8 @@ class PoolRoundResult:
     window_end: int = 0
     status: str = "ok"                 # ok / degraded
     degraded: bool = False
+    #: 冷启动例外：degraded 且上一轮没有任何 active family → 允许按正常初始分建池
+    cold_start: bool = False
     observations: list[FamilyObservation] = field(default_factory=list)
     pool1: list[Pool1Row] = field(default_factory=list)
     pool2: list[Pool2Row] = field(default_factory=list)

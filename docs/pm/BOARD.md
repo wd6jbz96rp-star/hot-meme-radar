@@ -667,3 +667,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - `FamilyObservation` 增加 evidence_comment_count/evidence_danmaku_count；usage_strength 改用 30 天证据计数，窗口计数仍只用于比例/P2 usage。
 - 补 0 行回扫上一轮 aliases 的 30 天证据，避免窗口缺席把 cred 清零。
 - 本地 280 passed/41 skipped；云上 test_pools 36 passed（回滚）；待提交/部署。
+
+
+## 50. Phase D 冷启动例外（2026-11-22）
+
+- degraded + 空 prev pool 判 cold_start：允许新 family 建 pool1、不冻结/不降池；pool2 门槛不放水；非冷启动 degraded 仍冻结。
+- 新增 `PoolRoundResult.cold_start` 字段；测试 degraded 冷启动/有旧池冻结/正常轮。
+- 本地 285 passed/42 skipped；云上 test_pools 42 passed；待部署。

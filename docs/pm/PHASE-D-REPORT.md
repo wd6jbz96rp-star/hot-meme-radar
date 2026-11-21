@@ -5,7 +5,8 @@
 > 口径修正（2026-11-22 PM 复核）：
 > ① `video_count` 改为 15 分钟窗口独立 bvid，30 天证据独立视频降级为 `evidence_video_count`（不参与 count_total/比例/池2门槛）；
 > ② `audit_adjustment` 统一为**一次性事件**（只记录「当前已应用的最新审核分」，Phase D 分数更新不再每轮加该项）；
-> ③ `cred_base.usage_strength` 改用 **30 天证据计数**（`evidence_comment_count/evidence_danmaku_count/evidence_video_count`）；15 分钟窗口计数只用于比例与 P2 `usage_count`。
+> ③ `cred_base.usage_strength` 改用 **30 天证据计数**（`evidence_comment_count/evidence_danmaku_count/evidence_video_count`）；15 分钟窗口计数只用于比例与 P2 `usage_count`；
+> ④ **冷启动例外**：`degraded` 且上一轮没有任何 active family 时不再一刀切冻结，允许按既有初始分规则建 pool1（`cold_start=true`，`status` 仍 degraded，pool2 门槛不放水）。
 
 ## 1. 交付文件
 
@@ -13,7 +14,7 @@
 |---|---|---|
 | `meme_info/pools.py` | 新增 | family 观察抽取、cred/score、池迁移、Postgres 读写、纯内存编排 |
 | `tools/pool_round.py` | 新增 | CLI：`--window-json / --no-db / --json / --round / --output` |
-| `tests/test_pools.py` | 新增 | 33 单元 + 2 Postgres 集成（事务回滚） |
+| `tests/test_pools.py` | 新增 | 39 单元 + 3 Postgres 集成（事务回滚） |
 | `meme_info/models.py` | 只增 dataclass | `FamilyObservation` / `Pool1Row` / `Pool2Row` / `FamilyRoundStat` / `PoolTransitionRow` / `FamilyAliasRow` / `PoolRoundResult` |
 | `meme_info/discover.py` | **bug 修复 2 行** | `_finalize_candidate` 元话语候选全无 `pubdate` 时 `min()/max()` 空序列抛 `ValueError`（Phase D 的 `WindowTarget` 只有 title/zone 会触发）；改为 `default=0`。不改归并逻辑 |
 
@@ -87,6 +88,11 @@ explainer-only：强元话语 + 种子/人工确认 + 无当前使用，可无�
   - 已在池2的 explainer 不因 P2_out 立刻淘汰，按「连续 3 轮无新元话语/无使用」降池
 pool1 撤出（含 out）→ 同步删除 pool2；迁移写 pool_transition
 degraded：冻结分数/比例/池成员，只更新证据/审计字段；新 family 不建池
+冷启动例外（degraded 且上一轮无任何 active family）：
+  - 不做冻结/零计数惩罚/降池保护（没有旧池可保护）
+  - 新 family 按既有初始分规则建池（有 usage 才可能 normal；元话语-only provisional 30–35）
+  - pool2 仍按正常门槛（score≥65 + usage>0；explainer-only 规则不变，不放水）
+  - result.cold_start=true / stats.cold_start=true；report.status 仍为 degraded
 ```
 
 ### 2.5 Postgres
@@ -101,14 +107,14 @@ degraded：冻结分数/比例/池成员，只更新证据/审计字段；新 fa
 ### 3.1 本地
 
 - 全量：Phase D 交付时为 **178 passed, 20 skipped**（基线 146/18 + 本 Phase 32/2）；`audit_adjustment` 一次性事件修正后于 **2026-11-22 00:4x** 复跑：`tests/test_pools.py` 32 passed / 2 skipped，全量 **255 passed, 41 skipped**（当前工作区已含 Phase E 提交与 Phase F 并行中的新模块，最终全量由 Phase F 复核）
-- `tests/test_pools.py`：**34 passed, 2 skipped**（skip 为无本地 Postgres；含「窗口低/30 天证据高 → cred 不被压低」、计数分离、补 0 行仍用 30 天证据等测试）
+- `tests/test_pools.py`：**39 passed, 3 skipped**（skip 为无本地 Postgres；含「窗口低/30 天证据高 → cred 不被压低」、计数分离、补 0 行仍用 30 天证据、冷启动例外等测试）
 
 ### 3.2 云上 Postgres（124.220.189.74，schema_version=2）
 
 在 `/tmp/phase_d_venv`（隔离 venv，不动线上服务）以 worker DSN 跑：
 
-- `tests/test_pools.py`：**36 passed**（34 单元 + 2 集成，事务回滚；`usage_strength` 证据口径修正后复跑）
-- 覆盖：pool1/pool2/stat/alias/transition 落库、同轮重跑幂等、degraded 轮不降池、`round`/`audit_event` 不变；窗口计数与 30 天证据计数分离断言（含 evidence_json 字段）；补 0 行仍按 30 天证据算 usage_strength；
+- `tests/test_pools.py`：**42 passed**（39 单元 + 3 集成，事务回滚；含冷启动 degraded 建池与非冷启动冻结两个 DB 集成）
+- 覆盖：pool1/pool2/stat/alias/transition 落库、同轮重跑幂等、`round`/`audit_event` 不变；窗口计数与 30 天证据计数分离（含 evidence_json）；补 0 行仍按 30 天证据算 usage_strength；degraded 冷启动建池落库 vs 非冷启动冻结不降池；
 - 跑完 8 张业务表 **行数全 0**、`schema_version=2`；`hotmeme-app`/`hotmeme-worker`/`nginx` 均 active，线上服务未改动；未打印任何连接串/密码。
 
 ### 3.3 真机 smoke（Phase C → Phase D，`--no-db`）
@@ -133,7 +139,8 @@ Phase D 发现 416 个 family，按门槛 **pool1=0、pool2=0**（弱证据默�
     - 依赖检查（Phase D 未改其他文件）：`meme_info/audit.py` 的 `compute_audit_update`（`score - old + new`）行为与新口径一致，无需改逻辑；但其模块 docstring 第 30–33 行仍写「Phase D 每轮把 audit_adjustment 当常驻项再加一次」，Phase F 需同步该注释。
     - 展示侧（`report.py` / adapter / UI）只读展示 `audit_adjustment` 数字，语义不受影响；设计文档 `REARCHITECTURE.md` §5.9.1「分数计算只使用当前 audit_adjustment」的表述需 PM 后续同步（Phase D 不改设计文档）。
 13. **usage_strength 口径（PM 2026-11-22 复核）**：`cred_base` 的 usage 特征改用 30 天证据计数（证据评论/弹幕/独立视频）；15 分钟窗口计数只用于 `count_total`/比例/P2 `usage_count`。两套计数在 `FamilyObservation` 中字段分离，窗口样本量低不会压低 cred_base。
-14. **discover.py 2 行 bug 修复**：属必要前置（Phase D 的 WindowTarget 无 pubdate）；已保持归并逻辑不变。
+14. **冷启动例外（PM 2026-11-22 复核）**：夜间/首轮 `degraded` 不应一刀切冻结。判定 `cold_start = degraded and 上一轮无 active（normal/provisional）family`；cold_start 时按正常初始分规则建池（不冻结、不零惩罚），`result.cold_start=true`/`stats.cold_start=true`，`report.status` 仍 degraded；pool2 门槛与 explainer 规则不变。非 cold_start 的 degraded 保持原冻结行为。
+15. **discover.py 2 行 bug 修复**：属必要前置（Phase D 的 WindowTarget 无 pubdate）；已保持归并逻辑不变。
 
 ## 5. 下一步（Phase E）
 

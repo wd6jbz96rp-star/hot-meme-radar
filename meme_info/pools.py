@@ -38,7 +38,9 @@
      不再每轮重新加到 score（PM 2026-11-22 复核：一次性事件，否则审核分重复放大）；
      本轮 0：prev>0 → -5；prev=0 → -2/轮，zero_streak>=3 再额外 -2；
      provisional 前 2 轮零计数宽限 -0.5。
-   - 采集 ``degraded``：冻结分数与比例、不降池，只更新证据/审计字段。
+   - 采集 ``degraded``：非冷启动时冻结分数与比例、不降池，只更新证据/审计字段；
+     冷启动例外（``degraded`` 且上一轮无任何 active family）不冻结，按正常初始分
+     规则建池（``cold_start=true``，``status`` 仍为 degraded，pool2 门槛不放水）。
 
 4. **池迁移**：P1_in=40 / P1_out=32；P2_in=65 / P2_out=55（滞回）。
    普通条目进池2：``status=normal`` 且 ``score>=65`` 且 ``usage_count>0``。
@@ -1411,11 +1413,16 @@ def apply_round(
     config = config or PoolConfig()
     prev_pool1 = dict(prev_pool1 or {})
     prev_pool2 = dict(prev_pool2 or {})
+    cold_start = bool(degraded) and not any(
+        row.status in ACTIVE_STATUSES for row in prev_pool1.values()
+    )
+    freeze = bool(degraded) and not cold_start
     result = PoolRoundResult(
         generated_at=iso(now if now is not None else now_ts()),
         round_id=round_id,
         status="degraded" if degraded else "ok",
         degraded=bool(degraded),
+        cold_start=cold_start,
     )
     result_pool1: dict[str, Pool1Row] = {
         key: Pool1Row(
@@ -1445,12 +1452,13 @@ def apply_round(
         "discovered": sum(1 for item in observations if item.discovered),
         "zero_padded": sum(1 for item in observations if not item.discovered),
         "degraded": bool(degraded),
+        "cold_start": cold_start,
     }
     decisions: list[_Decision] = []
     for observation in observations:
         key = observation.family_key
         prev = prev_pool1.get(key)
-        if degraded:
+        if freeze:
             if prev is None:
                 stats["degraded_new_skipped"] = stats.get("degraded_new_skipped", 0) + 1
                 continue
@@ -1462,6 +1470,10 @@ def apply_round(
                 stats["skipped_no_pool"] = stats.get("skipped_no_pool", 0) + 1
                 continue
             stats["new_pool1"] = stats.get("new_pool1", 0) + 1
+            if cold_start:
+                stats["cold_start_new_pool1"] = (
+                    stats.get("cold_start_new_pool1", 0) + 1
+                )
         else:
             decision = _update_decision(observation, prev, round_id, config)
         decisions.append(decision)
