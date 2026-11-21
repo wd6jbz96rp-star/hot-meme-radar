@@ -241,3 +241,16 @@ deploy/cutover.sh                # 通过后切流
    随时可 `enable --now` 恢复影子）。
 4. 切流后记得验证：报告 v2 `status=ok`、pool2 非空、`/api/meme-info?only=publishable|all` 200、
    公网 200、Admin health、下一轮 timer 正常；旧 worker 已 disable。
+
+## 6. 冷启动第一轮实测（2026-11-22 02:00）
+
+- 手工触发 state worker 一轮（round 342，夜间）：
+  - Phase B ok：300 候选，45/10 选片
+  - Phase C degraded：comments=5、danmaku=18
+  - Phase D **cold_start 例外生效**：pool1=8（5 provisional/3 out），pool2=0
+  - 报告 v2 写入影子路径，status=degraded；生产 v1 未动
+- 发现冷启动 provisional 里出现用户确认 ❌ 的 `非凡之爱`：
+  - 已把 `非凡之爱`/`最怕BLG夺冠之人`/`腋毛攻击` 加入 `knowledge.REVIEW_STOPWORDS`；
+  - 修复 stopword 归一化匹配（BLG 大写漏拦）；
+  - 清理影子 DB 中这些负例的 pool/stat/alias/transition 行；pool1 8→7，pool2 仍 0。
+- 结论：第一轮可以跑通、能建立 pool1；但夜间样本不足以产生 pool2，仍不能切流。

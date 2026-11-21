@@ -674,3 +674,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - degraded + 空 prev pool 判 cold_start：允许新 family 建 pool1、不冻结/不降池；pool2 门槛不放水；非冷启动 degraded 仍冻结。
 - 新增 `PoolRoundResult.cold_start` 字段；测试 degraded 冷启动/有旧池冻结/正常轮。
 - 本地 285 passed/42 skipped；云上 test_pools 42 passed；待部署。
+
+
+## 51. 冷启动第一轮与负例拦截（2026-11-22）
+
+- degraded + 空池 cold_start 例外生效：手跑 round 342，pool1=8（provisional/out）、pool2=0，影子 v2 degraded。
+- 发现 `非凡之爱` 被元话语通道带入 provisional；补 REVIEW_STOPWORDS（非凡之爱/最怕BLG夺冠之人/腋毛攻击）并修复归一化匹配 BLG 大写；清理影子 DB 后 pool1=7。
+- 提交 b2401f7（冷启动）、e902120（负例）、bda2586（归一化）。
+- 夜间 pool2 仍 0，切流继续等白天 ok 轮。
