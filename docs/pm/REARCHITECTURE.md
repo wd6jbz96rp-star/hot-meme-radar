@@ -151,10 +151,13 @@ score_t = clamp(score_{t-1} + delta, 0, 100)
 
 ### 3.8 审核
 
-- ✅ 人工审核 **可选做**，不是第一版必须。
+- ✅ 人工审核 **可选做**，但第一版做 **Admin 审核页面**。
 - ✅ LLM 审核当前暂停（`MEME_INFO_VERIFY=0`）。
-- 🟡 LLM/人工审核加减分规则尚未定稿。
-- 🟡 人工审核入口/权限/队列尚未设计。
+- ✅ LLM 加减分：pass **+8**、fail **-15**、unclear **0**。
+- ✅ 人工加减分：pass **+15**、fail **-25**、merge 合并后重算。
+- ✅ 审核分采用“**最新决定性结论替换**”，不累加历史；人工覆盖 LLM。
+- ✅ 同一 `evidence_hash` 不重复审核；证据变化后才允许重新审核。
+- ✅ Admin 页面独立于公开只读 app，需登录/白名单，写 Postgres。
 
 ---
 
@@ -609,7 +612,7 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 ### 5.9 审核（可选）
 
 - LLM：`SemanticVerifier`，通过/否决/不确定。
-- 人工：审核队列，可选做。
+- 人工：Admin 审核页面，可选做。
 - 审核结果写 `audit_event`，更新 `pool1.audit_state`。
 - 同一 `evidence_hash` 只加一次分。
 - ✅ 审核定位：**模式 B：否决 + 加分**，不是硬门槛。
@@ -617,7 +620,44 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
   - `pass` → 加分；
   - `unclear` → 不影响；
   - 未审核不阻挡池2。
-- 🟡 加减分幅度、人工审核入口/权限待第 6 项定。
+
+### 5.9.1 审核加减分与替换规则
+
+```text
+LLM pass  +8
+LLM fail  -15
+LLM unclear 0
+
+Human pass  +15
+Human fail  -25
+Human merge 合并后重算
+```
+
+替换规则：
+
+```text
+pool1.audit_adjustment = 最新一次决定性审核的分数变化
+```
+
+- 同一 `evidence_hash` 不重复审核；
+- 新审核结果**替换**旧 adjustment，不累加；
+- 人工结论覆盖 LLM；
+- `audit_event` 保留完整流水；
+- 分数计算只使用当前 `audit_adjustment`。
+
+### 5.9.2 Admin 审核页面
+
+- 建议独立服务：`app/admin.py` 或 `admin/`，绑定 `127.0.0.1:8091`。
+- 公开 app 仍只读，不获得 Postgres 写权限。
+- Nginx 暴露 `/admin/`，Basic Auth + IP 白名单；当前无 HTTPS 时优先走 SSH 隧道。
+- 队列优先级：
+  1. score 55–70、接近池2；
+  2. LLM unclear / fail 但证据强；
+  3. explainer-only 待确认；
+  4. 用户举报/人工标记；
+  5. 长期未复审的池2条目。
+- 操作：approve / reject / merge / need_more；reject/merge 必填理由和 operator。
+- 写 `audit_event`，更新 `pool1.audit_state`/`audit_adjustment`，触发池迁移。
 
 ---
 
@@ -631,7 +671,8 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 | `meme_info/heat.py` | 全量打分 | 保留热度；池2排名 |
 | `meme_info/verify.py` | 可选 LLM gate，当前停用 | 审核事件/加减分，可选恢复 |
 | `app/meme_info_adapter.py` | 读单报告 | 增加 pool/cred/audit 字段 |
-| `app/api.py` | `/api/meme-info` | 可增加 pool 查询，保持只读 |
+| `app/api.py` | `/api/meme-info` | 保持只读，不写 Postgres |
+| 新 admin 服务 | 无 | `app/admin.py` 或 `admin/`，127.0.0.1:8091，审核写库 |
 | `app/static/index.html` | 新梗榜/ shadow | 新梗榜只读 pool2；显示池状态 |
 | 新模块 | 无 | `meme_info/credibility.py`、`pools.py`、`state.py` |
 | DB | 无 | Postgres，worker 单写 |
@@ -681,9 +722,9 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 ### Phase F：审核（可选）
 
 - LLM 审核恢复开关
-- 人工审核 CLI/页面
-- audit_event 加减分
-- 验收：审核不重复加分；人工覆盖生效
+- Admin 审核页面（独立服务 + 鉴权）
+- audit_event 加减分（最新替换，不累加）
+- 验收：同一 evidence_hash 不重复加分；人工覆盖 LLM；审核 fail 可撤出池2
 
 ### Phase G：部署与切换
 
@@ -719,8 +760,6 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 
 ## 10. 待确认 / 待讨论
 
-- 🔴 LLM/人工审核加减分幅度
-- 🟡 人工审核入口/权限/队列
 - 🟡 Postgres 部署位置（服务器本机 / 云数据库）
 
 ---
@@ -752,6 +791,8 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 | 2026-11-21 | 2×2 证据 | 只做展示徽标，不再单独卡池2；池2看 score+usage+audit | ✅ |
 | 2026-11-21 | 池2阈值 | P2_in=65/P2_out=55；普通条目需 usage>0；explainer-only 例外 | ✅ |
 | 2026-11-21 | 审核模式 | 模式 B：否决+加分，不是硬门槛 | ✅ |
+| 2026-11-21 | 审核加减分 | LLM +8/-15/0；人工 +15/-25；最新替换不累加 | ✅ |
+| 2026-11-21 | 人工审核入口 | 独立 Admin 页面 + 鉴权/白名单，写 Postgres；公开 app 保持只读 | ✅ |
 
 ---
 
@@ -766,4 +807,5 @@ explainer-only 例外：强元话语 + 种子/人工确认，可无 usage 进池
 - 2026-11-21：第 3 项元话语-only 规则已确认（provisional 进池1；种子/人工确认可 explainer-only 进池2，每轮≤2）。
 - 2026-11-21：第 4 项可信度打分已确认（五特征、初始上限 80、0.85/0.15 平滑、P1 40/32）。
 - 2026-11-21：第 5 项已确认——2×2 只做展示徽标；P2 65/55；普通条目 usage>0；审核模式 B（否决+加分）。
-- 下一项：第 6 项 LLM/人工审核加减分幅度、人工审核入口/权限。
+- 2026-11-21：第 6 项已确认——LLM +8/-15/0、人工 +15/-25、最新替换不累加；人工审核用独立 Admin 页面。
+- 下一项：第 7 项 Postgres 部署位置与连接方式。
