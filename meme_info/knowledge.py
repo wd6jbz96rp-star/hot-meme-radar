@@ -33,6 +33,9 @@ REVIEW_STOPWORDS = {
     "最怕BLG夺冠之人",
     "腋毛攻击",
 }  # 闪身步 2026-11-15 用户确认非梗；后三条为用户盲标 ❌，LLM 暂停时必须在规则层拦截
+# 归一化后的 stopword 集合：blocked_reason 用 normalize_surface 后的 key 比较，
+# 避免 BLG 这类 ASCII 大小写差异导致漏拦。
+_REVIEW_STOPWORD_NORMS = {normalize_surface(word) for word in REVIEW_STOPWORDS}
 
 
 @dataclass(frozen=True)
@@ -207,7 +210,7 @@ class Knowledge:
             return "news_like"
         if any(word and normalize_surface(word) in key for word in self.marketing):
             return "marketing"
-        if key in REVIEW_STOPWORDS:
+        if key in _REVIEW_STOPWORD_NORMS:
             return "common_phrase"
         if key in self.common_words:
             return "common_word"
