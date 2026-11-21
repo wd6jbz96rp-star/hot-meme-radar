@@ -8,7 +8,60 @@
   3. 本次：**读取 Aceternity UI registry 真实组件源码**（`/registry/<name>.json` 的 `.tsx` 内容 + `/api/components` 元数据）后，选择一套适合「只读数据看板」的组件组合，重新实现场景、Bento、卡片交互与文字动效。
 - 结论：**完成**。页面只轮询 `GET /api/meme-info`；桌面 1280 / 移动 390 无横向溢出；console / page exception / Log error / HTTP≥400 = **0 / 0 / 0 / 0**；ok / stale / missing / empty / 离线 / reduced-motion / XSS 转义均实际验证。
 
-![桌面 1280 · 新梗榜](assets/ui-desktop.png)
+![桌面 1280 · 发布池 pool2](assets/ui-desktop.png)
+
+## 0. Phase E2：报告 v2 / pool1 / pool2 适配（2026-11-22，最新口径）
+
+> 本节是当前业务口径；下文 §1+ 的 Aceternity 视觉说明与组件映射仍有效，但 publishable / 选项卡 / 卡片字段以本节为准。旧的“hot/rising + 2×2 或 LLM”文案已从页面删除。
+
+### 0.1 Tab 映射与数据源
+
+| Tab | 请求 | 数据 | 说明 |
+|---|---|---|---|
+| **发布池**（原新梗榜） | `GET /api/meme-info?only=publishable&limit=8` | v2 **pool2**（`memes`） | 按 `heat_score` / `heat_rank` 降序；不 top-up |
+| **候选池**（原模块 shadow） | `GET /api/meme-info?only=all&limit=10` | v2 **pool1** 全量 | 含 pool2 成员；`out` 只计数、不展示；观察视图不参与发布 |
+
+- adapter 对 v1 报告保持兼容，但本页文案与徽标按 v2 池化语义展示；v2 的 `verified=null` 时不伪造 LLM 结论，改显示 `audit_state`。
+- 页面仍只轮询 `/api/meme-info`，无 `/api/top` / history / SSE。
+
+### 0.2 发布/字段口径（页面显式展示）
+
+| 字段 | 页面呈现 | 语义 |
+|---|---|---|
+| `publishable` | 绿色 `publishable` / 灰色 `非发布池` | **= 在发布池 pool2**；不等于已发布 |
+| `pool` | `pool2 · 发布池` / `pool1 · 候选池` | p2 / p1；out 不出现在列表 |
+| `badge_2x2` | 独立 `2×2 证据 ✓/—` 徽标 | 仅独立使用证据徽标，**不参与发布门** |
+| `cred_score` | 右侧 `cred x` + 指标行 | Phase D 可信度分，不直接决定发布 |
+| `heat_score` / `heat_rank` | 右侧主数字 `heat_score` + `heat #N`；指标行 `heat` | 15 分钟窗口热度；只对 pool2 计算/展示排名 |
+| `explainer_only` | 琥珀 `explainer-only` 徽标 | 强元话语/种子例外，可无 usage 进 pool2 |
+| `meta_only` | 紫色 `meta-only` 徽标 | 元话语类条目，仅池1观察候选 |
+| `audit_state` / `audit_adjustment` | 审核框 + `audit: pass/fail` 徽标 | 报告审核状态；无 LLM 理由时不伪造 |
+| `report_status` / `degraded` | 顶部 chip + 水印 `DEGRADED` + 琥珀 notice | 与新鲜度 `status` 分开：表示样本不足/降级、池可能冻结，**不是发布** |
+
+### 0.3 顶部 Bento 状态板（7 瓦片）
+
+报告状态（新鲜度 + `report_status` + 本页/轮询）、发布池 pool2、候选池 pool1（`pool1_only`/`out`）、报告年龄、生成时间、热度模型（`heat_model` / window / sample_status）、审核/样本（LLM 配置 + 通过/否决三段条）。
+
+### 0.4 空态 / 降级
+
+- `priority=publishable` 且 pool2 为空：显示「**本轮无发布池条目，不是数据缺失**」+ 去候选池按钮；不伪造、不 top-up。
+- pool1 为空：显示「本轮候选池为空」。
+- `report_status=degraded`：琥珀提示「本轮样本不足 / 降级，池可能冻结，pool2 不一定是本轮新增发布」；新鲜度 `status` 仍可是 ok/stale，两者独立显示；`missing`/`invalid`/离线/过期逻辑保持。
+
+### 0.5 E2 验证（2026-11-22，8011 + `/tmp/hotmeme_report_v2.json`）
+
+| 检查项 | 结果 |
+|---|---|
+| `/api/meme-info?only=publishable` / `only=all` | 200 / 200 |
+| 桌面 1280 / 移动 390 横向溢出 | 无（scrollWidth=1280 / 390） |
+| console errors / exceptions / Log errors / HTTP≥400 | 0 / 0 / 0 / 0 |
+| 发布池 | 1 卡：`pool2 · 发布池`、publishable、heat 91.0 / #1、cred 83.6、score 80.00、2×2 证据 —、audit_state=none 如实展示；顶部 pool2=1、pool1=1、heat_model=`phase-e/window-heat-v1`、window 15 分钟、sample ok |
+| 候选池 | pool1 全量；混合池临时报告验证 pool1-only 卡显示 `pool1 · 候选池 / 非发布池`、`list` rank、`score` 主数字、`未参与 heat 排名` |
+| 空 pool2 | 「本轮无发布池条目，不是数据缺失」；候选池仍有条目 |
+| degraded | `report_status degraded` chip + DEGRADED 水印 + 琥珀 notice；池成员保留、不当作发布 |
+| 转义 | 沿用统一 `esc()`；本次新增字段均经 escape/数值化后插入 |
+
+截图：`assets/ui-desktop.png`（1280×1463）、`assets/ui-mobile.png`（390×2337）已按 E2 页面更新；`ui-hover.png` / `ui-stale.png` 是 2026-11-16 视觉参考，未在 E2 重新截图。
 
 ## 1. 组件选型：为什么是这一套
 

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#05070c">
-<title>热梗雷达 · 新梗榜 / 模块 shadow</title>
-<meta name="description" content="只读热梗报告看板：新梗榜（publishable 发布门）与模块 shadow 全量观察视图。">
+<title>热梗雷达 · 发布池 pool2 / 候选池 pool1</title>
+<meta name="description" content="只读热梗报告看板：发布池 pool2（publishable）与候选池 pool1（全量观察）；报告 v2 池化视图。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0d12'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%237c9cff'%3E%E6%A2%97%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -185,11 +185,12 @@
   .bento-card:hover{border-color:rgba(106,167,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 48px rgba(0,0,0,.28),0 0 0 1px rgba(106,167,255,.08);transform:translateY(-2px)}
   .bento-card::after{content:"";position:absolute;right:-40px;bottom:-70px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(106,167,255,.1),transparent 68%);pointer-events:none}
   .bento-status{grid-column:span 5;grid-row:span 2;justify-content:space-between;gap:14px}
-  .bento-pub{grid-column:span 4}
-  .bento-age{grid-column:span 3}
-  .bento-generated{grid-column:span 4}
-  .bento-page{grid-column:span 3}
-  .bento-llm{grid-column:span 12;flex-direction:row;align-items:center;justify-content:space-between;gap:18px 28px}
+  .bento-pool2{grid-column:span 4}
+  .bento-pool1{grid-column:span 3}
+  .bento-age{grid-column:span 4}
+  .bento-generated{grid-column:span 3}
+  .bento-heat{grid-column:span 6}
+  .bento-audit{grid-column:span 6;flex-direction:row;align-items:center;justify-content:space-between;gap:18px 28px}
   .bento-status::before{
     content:"";position:absolute;inset:0;pointer-events:none;
     background-image:
@@ -206,6 +207,7 @@
     text-transform:uppercase;color:rgba(148,177,214,.055)
   }
   .bento-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .bento-top-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   .bento-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bento-chip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--text-soft);border:1px solid rgba(148,177,214,.16);border-radius:999px;padding:2px 8px;background:rgba(148,177,214,.06);white-space:nowrap}
   .bento-big{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1.12;letter-spacing:-.03em;color:var(--text);font-variant-numeric:tabular-nums;transition:transform .25s ease}
@@ -384,6 +386,21 @@
   .badge-2x2.no{color:var(--dim);background:transparent}
   .badge-type{color:var(--muted);font-family:var(--mono);font-size:9.5px;letter-spacing:.03em}
   .badge-observe{color:#d3c9ff;border-color:rgba(179,157,255,.36);background:rgba(179,157,255,.1);font-family:var(--mono);font-size:9.5px;letter-spacing:.1em}
+  .badge-pool{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em}
+  .badge-pool.p2{color:#9cf0cc;border-color:rgba(61,220,151,.36);background:rgba(61,220,151,.11)}
+  .badge-pool.p1{color:#e8c38a;border-color:rgba(232,177,132,.34);background:rgba(232,177,132,.1)}
+  .badge-pool.other{color:var(--dim);border-style:dashed;background:transparent}
+  .badge-explainer{color:#ffd28a;border-color:rgba(246,196,83,.34);background:rgba(246,196,83,.1);font-family:var(--mono);font-size:9px;letter-spacing:.04em}
+  .badge-metaonly{color:#c3b0ff;border-color:rgba(179,157,255,.34);background:rgba(179,157,255,.1);font-family:var(--mono);font-size:9px;letter-spacing:.04em}
+  .badge-audit{font-family:var(--mono);font-size:9px;letter-spacing:.04em}
+  .badge-audit.pass{color:#9cf0cc;border-color:rgba(61,220,151,.36);background:rgba(61,220,151,.1)}
+  .badge-audit.fail{color:#ffb0b0;border-color:rgba(255,123,123,.36);background:rgba(255,123,123,.1)}
+  .badge-audit.unclear{color:#ffd28a;border-color:rgba(246,196,83,.34);background:rgba(246,196,83,.1)}
+  .score-sub{font-family:var(--mono);font-size:9px;line-height:1.55;color:var(--dim);text-align:right;overflow-wrap:anywhere}
+  .metric-heat b{color:#9ed4ff}
+  .metric-muted{color:var(--dim)}
+  .bento-model{font-family:var(--mono);font-size:15px;font-weight:600;line-height:1.4;letter-spacing:-.01em;color:var(--text);overflow-wrap:anywhere}
+  .bento-chip.degraded{color:#ffd28a;border-color:rgba(246,196,83,.4);background:rgba(246,196,83,.1)}
   .meme-meaning{margin:8px 0 0;font-size:12.5px;line-height:1.7;color:var(--text-soft);overflow-wrap:anywhere}
   .meme-metrics{display:flex;align-items:center;gap:5px 16px;flex-wrap:wrap;margin:7px 0 0;font-size:11.5px;color:var(--muted);min-width:0}
   .meme-metrics b{color:var(--text-soft);font-weight:650;font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -507,9 +524,8 @@
   /* ---------- responsive ---------- */
   @media (max-width:1000px){
     .bento-status{grid-column:span 12;grid-row:auto}
-    .bento-pub,.bento-generated{grid-column:span 6}
-    .bento-age,.bento-page{grid-column:span 6}
-    .bento-llm{grid-column:span 12;flex-direction:column;align-items:stretch;gap:14px}
+    .bento-pool2,.bento-pool1,.bento-age,.bento-generated{grid-column:span 6}
+    .bento-heat,.bento-audit{grid-column:span 12;flex-direction:column;align-items:stretch;gap:14px}
     .meme-card{grid-template-columns:50px minmax(0,1fr);gap:4px 14px;padding:16px}
     .meme-main{grid-column:2}
     .meme-score{
@@ -532,8 +548,8 @@
     .hero-meta{gap:5px 12px;font-size:10.5px}
     .bento{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .bento-card{padding:13px 14px;border-radius:15px;gap:6px}
-    .bento-status,.bento-llm{grid-column:span 2}
-    .bento-pub,.bento-age,.bento-generated,.bento-page{grid-column:span 1}
+    .bento-status,.bento-heat,.bento-audit{grid-column:span 2}
+    .bento-pool2,.bento-pool1,.bento-age,.bento-generated{grid-column:span 1}
     .bento-big{font-size:24px}
     .bento-date{font-size:12.5px}
     .bento-status-value{font-size:22px}
@@ -594,11 +610,11 @@
       <div class="brand-text">
         <p class="hero-eyebrow"><span class="live-dot" aria-hidden="true"></span>HOT MEME RADAR<span class="sep" aria-hidden="true">/</span>只读模块报告</p>
         <h1 aria-label="热梗雷达"><span class="tg-char" style="--i:0" aria-hidden="true">热</span><span class="tg-char" style="--i:1" aria-hidden="true">梗</span><span class="tg-char" style="--i:2" aria-hidden="true">雷</span><span class="tg-char" style="--i:3" aria-hidden="true">达</span></h1>
-        <p class="tagline">B站公开语料 · 新梗榜（publishable）/ 模块 shadow（全量观察） · 只读轮询 <code>/api/meme-info</code></p>
+        <p class="tagline">B站公开语料 · 发布池 pool2（publishable）/ 候选池 pool1（全量观察） · 只读轮询 <code>/api/meme-info</code></p>
         <div class="hero-meta" aria-live="polite">
           <span class="hm-item"><span class="hm-dot" id="heroDot" aria-hidden="true"></span><b id="heroState">读取中</b></span>
           <span class="hm-item">报告年龄 <b id="heroAge">—</b></span>
-          <span class="hm-item">可发布 <b id="heroPub">—</b></span>
+          <span class="hm-item">发布池 / 候选池 <b id="heroPub">—</b></span>
         </div>
       </div>
     </div>
@@ -616,7 +632,10 @@
       <article class="bento-card bento-status" id="bentoStatus">
         <div class="bento-top">
           <span class="bento-label">报告状态 · status</span>
-          <span class="bento-chip mono" id="boardStatusCode">—</span>
+          <span class="bento-top-chips">
+            <span class="bento-chip mono" id="boardReportStatus">report_status —</span>
+            <span class="bento-chip mono" id="boardStatusCode">—</span>
+          </span>
         </div>
         <div class="bento-status-main">
           <span class="status-orb" aria-hidden="true"><span class="dot" id="boardDot"></span></span>
@@ -629,17 +648,23 @@
         <div class="bento-status-foot">
           <span class="bento-fetch" id="boardFetch">尚未读取报告</span>
           <span class="sep" aria-hidden="true">·</span>
-          <span>每 30s 轮询 · 只读报告</span>
+          <span>本页 <b class="mono" id="boardPageCount">—</b> · <span class="mono" id="boardPageScope">only=…</span></span>
           <span class="sep" aria-hidden="true">·</span>
-          <span>不写库 / 不采集</span>
+          <span>每 30s 轮询 · 只读</span>
         </div>
       </article>
 
-      <article class="bento-card bento-pub">
-        <span class="bento-label">可发布 / 总条数</span>
+      <article class="bento-card bento-pool2">
+        <span class="bento-label">发布池 · pool2</span>
         <div class="bento-big" id="boardPublishable">—</div>
         <div class="meter" aria-hidden="true"><span class="meter-fill" id="pubMeterFill"></span></div>
-        <p class="bento-sub"><b>publishable</b> 发布门标记，不等于已发布</p>
+        <p class="bento-sub" id="boardPool2Sub"><b>publishable</b> = 在发布池 pool2，不等于已发布</p>
+      </article>
+
+      <article class="bento-card bento-pool1">
+        <span class="bento-label">候选池 · pool1</span>
+        <div class="bento-big" id="boardPool1">—</div>
+        <p class="bento-sub" id="boardPool1Sub">pool1 全量 · out 不展示</p>
       </article>
 
       <article class="bento-card bento-age">
@@ -654,16 +679,16 @@
         <p class="bento-sub" id="boardGeneratedSub">—</p>
       </article>
 
-      <article class="bento-card bento-page">
-        <span class="bento-label">本页条数 · 当前视图</span>
-        <div class="bento-big" id="boardPageCount">—</div>
-        <p class="bento-sub mono" id="boardPageScope">only=…</p>
+      <article class="bento-card bento-heat">
+        <span class="bento-label">热度模型 · heat</span>
+        <div class="bento-model" id="boardHeat">—</div>
+        <p class="bento-sub" id="boardHeatSub">heat 排名仅覆盖 pool2；窗口参数以报告为准</p>
       </article>
 
-      <article class="bento-card bento-llm">
+      <article class="bento-card bento-audit">
         <div class="bento-llm-main">
           <div>
-            <span class="bento-label">LLM 审核 · 通过 / 已审</span>
+            <span class="bento-label">审核 / 样本 · audit</span>
             <div class="bento-big" id="boardLlm">—</div>
             <p class="bento-sub" id="boardLlmSub">报告未提供审核统计</p>
           </div>
@@ -679,20 +704,20 @@
     <div class="viewbar">
       <div class="tabs" id="tabs" role="tablist" aria-label="视图切换">
         <button class="tab" id="tab-new" role="tab" data-tab="new" aria-selected="true" aria-controls="panel-new" tabindex="0">
-          新梗榜<span class="tab-count" id="newCount">–</span><span class="tab-note">publishable</span>
+          发布池<span class="tab-count" id="newCount">–</span><span class="tab-note">pool2</span>
         </button>
         <button class="tab" id="tab-shadow" role="tab" data-tab="shadow" aria-selected="false" aria-controls="panel-shadow" tabindex="-1">
-          模块 shadow<span class="tab-count" id="shadowCount">–</span><span class="tab-note">only=all</span>
+          候选池<span class="tab-count" id="shadowCount">–</span><span class="tab-note">pool1</span>
         </button>
       </div>
-      <p class="viewbar-hint">数据仅来自 <code>/api/meme-info</code> 轮询 · 无历史曲线 / 无 SSE 推送</p>
+      <p class="viewbar-hint">数据仅来自 <code>/api/meme-info</code> 轮询 · pool2 / pool1 双视图 · 无历史曲线 / 无 SSE</p>
     </div>
 
     <p class="policy" role="note">
-      <span class="p-key">发布门</span>
-      <span><strong>publishable 是发布门标记，不等于已发布。</strong>
-        判定：<code>status ∈ {hot, rising}</code> 且（<code>2×2 证据成立</code>；LLM 审核开启时，LLM 梗性/当下通过也可纳入）。
-        本页只展示报告结论，不写库、不上线；标了 publishable 只说明“满足发布门”，不代表已经发布。</span>
+      <span class="p-key">发布池</span>
+      <span><strong>publishable = 在发布池 pool2，不等于已发布。</strong>
+        报告 v2 按池投影：只有 <code>pool2</code> 成员标 <code>publishable</code>；<code>2×2</code> 只是独立使用证据徽标，不再作为发布门。
+        <code>report_status=degraded</code> 表示本轮样本不足/降级，池可能冻结，不是发布。本页只读报告，不写库、不上线。</span>
     </p>
 
     <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
@@ -700,8 +725,8 @@
     <section class="view-panel" id="panel-new" role="tabpanel" aria-labelledby="tab-new">
       <div class="panel-head">
         <div>
-          <h2 class="panel-title">新梗榜 <span class="en">publishable</span></h2>
-          <p class="panel-sub"><code>GET /api/meme-info?only=publishable&amp;limit=8</code> · 只展示满足发布门的条目；不 top-up 补位，编号沿用报告全量排序，过滤后可能跳号。</p>
+          <h2 class="panel-title">发布池 <span class="en">pool2</span></h2>
+          <p class="panel-sub"><code>GET /api/meme-info?only=publishable&amp;limit=8</code> · 仅返回 pool2（发布池）成员，按 heat_score / heat_rank 降序；不 top-up 补位。</p>
         </div>
         <span class="panel-counter" id="newCounter">读取中…</span>
       </div>
@@ -711,20 +736,20 @@
     <section class="view-panel" id="panel-shadow" role="tabpanel" aria-labelledby="tab-shadow" hidden>
       <div class="panel-head">
         <div>
-          <h2 class="panel-title">模块 shadow <span class="en">observation</span></h2>
-          <p class="panel-sub"><code>GET /api/meme-info?only=all&amp;limit=10</code> · 全量 / 观察视图，仅用于对比排查，不参与发布；含未达发布门与被否决条目。</p>
+          <h2 class="panel-title">候选池 <span class="en">pool1</span></h2>
+          <p class="panel-sub"><code>GET /api/meme-info?only=all&amp;limit=10</code> · pool1 全量（含 pool2 成员）；out 只计数、不展示；本视图不参与发布。</p>
         </div>
         <span class="panel-counter" id="shadowCounter">读取中…</span>
       </div>
       <div class="observe-banner" role="note">
-        <span class="ob-key">OBSERVE</span>
-        <span>观察视图：以下为报告全量条目，可发布标记同样只是发布门结论，<strong>不代表已上线、已发布</strong>；与「新梗榜」刻意区分。</span>
+        <span class="ob-key">POOL1</span>
+        <span>候选池观察视图：以下为 pool1 全量条目；<code>publishable</code> 只表示“在 pool2”，<strong>不代表已上线、已发布</strong>；与「发布池」刻意区分。</span>
       </div>
       <div id="shadowList" aria-busy="true"></div>
     </section>
 
     <details class="report-details" id="reportDetails">
-      <summary>报告与审核明细 <span class="sum-hint">stats · llm · path</span></summary>
+      <summary>报告与审核明细 <span class="sum-hint">pool · heat · stats · path</span></summary>
       <div class="detail-body" id="reportDetailBody">
         <p class="detail-empty">尚无报告数据。</p>
       </div>
@@ -736,10 +761,12 @@
       <div class="foot-sec">
         <h2>字段口径</h2>
         <ul>
-          <li><span class="tag">status</span><span>模块状态 hot / rising / 其他（观察）</span></li>
-          <li><span class="tag">publishable</span><span>发布门标记，不等于已发布</span></li>
-          <li><span class="tag">2×2</span><span>证据覆盖 ≥2 个视频 × ≥2 个维度</span></li>
-          <li><span class="tag">age</span><span>报告生成至服务读取时的秒数</span></li>
+          <li><span class="tag">pool2</span><span>发布池，publishable 的唯一依据</span></li>
+          <li><span class="tag">pool1</span><span>候选池全量，shadow 视图数据源</span></li>
+          <li><span class="tag">heat</span><span>15 分钟窗口热度；heat_rank 仅 pool2</span></li>
+          <li><span class="tag">cred</span><span>Phase D 可信度分，不直接决定发布</span></li>
+          <li><span class="tag">2×2</span><span>独立使用证据徽标，不参与发布门</span></li>
+          <li><span class="tag">report_status</span><span>ok / degraded，degraded 表示样本不足/池可能冻结</span></li>
         </ul>
       </div>
       <div class="foot-sec">
@@ -750,7 +777,8 @@
       <div class="foot-sec">
         <h2>已知限制</h2>
         <p>报告由外部 worker 周期生成（约 860s），页面本身不刷新数据。</p>
-        <p>无历史曲线 / 无 SSE；报告缺失、损坏或过期时如实标注，不伪造数据、不回退旧接口。</p>
+        <p>无历史曲线 / 无 SSE；报告缺失、损坏、过期或降级时如实标注，不伪造数据、不回退旧接口。</p>
+        <p>adapter 当前未透出 heat 权重/锚点细化参数，页面只显示报告提供的 heat_model / window / sample_status。</p>
       </div>
     </div>
     <div class="foot-meta">
@@ -766,12 +794,14 @@
   "use strict";
 
   var TABS = {
-    "new":    { only:"publishable", limit:8,  label:"新梗榜" },
-    "shadow": { only:"all",         limit:10, label:"模块 shadow" }
+    "new":    { only:"publishable", limit:8,  label:"发布池" },
+    "shadow": { only:"all",         limit:10, label:"候选池" }
   };
   var TAB_KEY = "hotmeme.ui.tab.v3";
   var POLL_MS = 30000;
   var MAX_SCORE = 100;
+
+  var AUDIT_LABEL = { none:"未审核", pass:"审核通过", fail:"审核否决", unclear:"待定", merge:"合并", pending:"待审" };
 
   var STATUS_META = {
     ok:      { label:"正常", code:"ok",      tone:"ok",   sub:"报告在有效期内，可直接参考。" },
@@ -794,6 +824,7 @@
   function cacheEls(){
     ["connPill","connDot","connText","refreshBtn","bentoStatus","boardDot","boardStatus","boardStatusCode","boardStatusSub",
      "boardGenerated","boardGeneratedSub","boardAge","boardAgeSub","boardPublishable","pubMeterFill",
+     "boardPool1","boardPool1Sub","boardPool2Sub","boardReportStatus","boardHeat","boardHeatSub",
      "boardPageCount","boardPageScope","boardLlm","boardLlmSub","llmMeterOk","llmMeterNo","llmMeterErr",
      "heroDot","heroState","heroAge","heroPub","bentoWatermark","boardFetch","tabs",
      "tab-new","tab-shadow","newCount","shadowCount","notice","panel-new","panel-shadow",
@@ -916,8 +947,11 @@
 
   function clearBoardPlaceholders(){
     el.bentoStatus.removeAttribute("data-tone");
+    el.bentoStatus.removeAttribute("data-report");
     el.bentoWatermark.textContent = "—";
     el.boardDot.className = "dot";
+    el.boardReportStatus.textContent = "report_status —";
+    el.boardReportStatus.className = "bento-chip mono";
     el.boardStatus.textContent = "读取中…";
     el.boardStatusCode.textContent = "—";
     el.boardStatusSub.textContent = "正在读取 /api/meme-info";
@@ -926,7 +960,12 @@
     el.boardAge.textContent = "—";
     el.boardAgeSub.textContent = "max_age —";
     el.boardPublishable.textContent = "—";
+    el.boardPool2Sub.textContent = "publishable = 在发布池 pool2，不等于已发布";
     setMeter(el.pubMeterFill, 0);
+    el.boardPool1.textContent = "—";
+    el.boardPool1Sub.textContent = "pool1 全量 · out 不展示";
+    el.boardHeat.textContent = "—";
+    el.boardHeatSub.textContent = "heat 排名仅覆盖 pool2；窗口参数以报告为准";
     el.boardPageCount.textContent = "—";
     var view = TABS[state.tab];
     el.boardPageScope.textContent = "only=" + view.only + " · limit=" + view.limit;
@@ -965,14 +1004,19 @@
 
     var meta = statusMeta(data.status);
     var tone = meta.tone === "ok" ? "ok" : meta.tone;
+    var reportStatus = text(data.report_status) || (data.degraded === true ? "degraded" : "");
+    var degraded = data.degraded === true || reportStatus === "degraded";
     el.bentoStatus.setAttribute("data-tone", tone);
+    el.bentoStatus.setAttribute("data-report", degraded ? "degraded" : "ok");
+    el.boardReportStatus.textContent = "report_status " + (reportStatus || "—");
+    el.boardReportStatus.className = "bento-chip mono" + (degraded ? " degraded" : "");
     el.boardDot.className = "dot " + tone;
     el.boardStatus.textContent = meta.label;
     el.boardStatusCode.textContent = meta.code || "—";
-    el.bentoWatermark.textContent = (meta.code || "?").toUpperCase();
-    el.boardStatusSub.textContent = meta.sub;
+    el.bentoWatermark.textContent = degraded ? "DEGRADED" : ((meta.code || "?").toUpperCase());
+    el.boardStatusSub.textContent = meta.sub + (degraded ? " · 本轮样本不足/降级，池可能冻结。" : "");
     el.heroDot.className = "hm-dot " + tone;
-    el.heroState.textContent = "报告" + meta.label;
+    el.heroState.textContent = "报告" + meta.label + (degraded ? " · 降级" : "");
 
     var generated = fmtDateTime(data.generated_at);
     if(generated){
@@ -990,23 +1034,42 @@
     el.boardAgeSub.textContent = "max_age " + (maxAge === null ? "—" : maxAge) +
       (age === null ? "" : " · age_seconds=" + int(data.age_seconds));
 
-    var pub = int(data.publishable_count);
-    var total = int(data.total_memes);
-    el.boardPublishable.textContent = (pub === null ? "—" : pub) + " / " + (total === null ? "—" : total);
-    el.heroPub.textContent = (pub === null ? "—" : pub) + " / " + (total === null ? "—" : total);
-    setMeter(el.pubMeterFill, (pub !== null && total !== null && total > 0) ? (pub / total) * 100 : 0);
+    var counts = obj(data.counts);
+    var pool2 = int(data.publishable_count);
+    if(pool2 === null) pool2 = int(counts.pool2);
+    var pool1 = int(counts.pool1);
+    if(pool1 === null) pool1 = int(data.total_memes);
+    el.boardPublishable.textContent = pool2 === null ? "—" : String(pool2);
+    el.boardPool1.textContent = pool1 === null ? "—" : String(pool1);
+    el.heroPub.textContent = (pool2 === null ? "—" : pool2) + " / " + (pool1 === null ? "—" : pool1);
+    setMeter(el.pubMeterFill, (pool2 !== null && pool1 !== null && pool1 > 0) ? (pool2 / pool1) * 100 : 0);
+    el.boardPool2Sub.textContent = "本页 " + (int(data.count) === null ? "—" : int(data.count)) +
+      " 条 · only=publishable";
+    var pool1Only = int(counts.pool1_only);
+    var pool1Out = int(counts.pool1_out);
+    el.boardPool1Sub.textContent = "pool1_only " + (pool1Only === null ? "—" : pool1Only) +
+      " · out " + (pool1Out === null ? "—" : pool1Out);
 
     el.boardPageCount.textContent = int(data.count) === null ? "—" : plural(int(data.count), "条");
     el.boardPageScope.textContent = "only=" + view.only + " · limit=" + view.limit;
+
+    var stats = obj(data.stats);
+    var heatModel = text(stats.heat_model);
+    var window = int(stats.window_minutes);
+    if(window === null) window = int(obj(data.window).minutes);
+    var sample = text(stats.sample_status);
+    el.boardHeat.textContent = heatModel || "报告未提供";
+    el.boardHeatSub.textContent = "window " + (window === null ? "—" : window + " 分钟") +
+      " · sample " + (sample || "—") + " · heat_rank 仅 pool2";
 
     var verify = obj(data.verification);
     var attempted = int(verify.attempted);
     var passed = int(verify.ok);
     var rejected = int(verify.rejected);
     var errors = int(verify.errors);
-    if(verify && verify.configured === false){
-      el.boardLlm.textContent = "已停用";
-      el.boardLlmSub.textContent = "LLM 审核暂停；发布门仅按 2×2 证据";
+    if(verify.configured === false){
+      el.boardLlm.textContent = "LLM 暂停";
+      el.boardLlmSub.textContent = "audit_state 由报告给出 · 未审核不阻挡池成员";
       setMeter(el.llmMeterOk, 0);
       setMeter(el.llmMeterNo, 0);
       setMeter(el.llmMeterErr, 0);
@@ -1053,28 +1116,30 @@
     }else if(entry.data){
       var data = entry.data;
       var st = text(data.status);
-      var meta = statusMeta(st);
+      var reportStatus = text(data.report_status) || (data.degraded === true ? "degraded" : "");
+      var degraded = data.degraded === true || reportStatus === "degraded";
       var generated = fmtDateTime(data.generated_at) || "未提供";
       var age = fmtAge(data.age_seconds) || "—";
       var maxAge = fmtAge(data.max_age_seconds) || "—";
       if(st === "stale"){
         tone = "warn";
         msg = "报告已过期：generated_at " + generated + "，年龄 " + age + "，超过 max_age " + maxAge +
-          "。以下仍展示最近一次报告数据，未做实时判断，请结合年龄谨慎参考。";
+          "。以下仍展示最近一次报告数据，未做实时判断，请结合年龄谨慎参考。" +
+          (degraded ? " 另：report_status=degraded，样本不足/池可能冻结。" : "");
       }else if(st === "missing"){
         tone = "bad";
         msg = "报告缺失：未找到报告文件 " + (text(data.report_path) || "(未配置)") +
-          "。页面不伪造数据、不回退旧接口；请先运行 tools/meme_info_shadow.py 生成报告。";
+          "。页面不伪造数据、不回退旧接口；请先生成 v2 报告后再看。";
       }else if(st === "invalid"){
         tone = "bad";
         msg = "报告损坏：" + (text(data.error) || "结构不符合 schema") +
           "。adapter 已拒绝解析，页面不展示任何条目，也不猜测或修复数据。";
       }else if(st && !STATUS_META[st]){
         tone = "warn";
-        msg = "未知报告状态 status=" + st + "，按未验证处理。";
-      }else if(obj(data.verification).configured === false){
+        msg = "未知新鲜度状态 status=" + st + "，按未验证处理。";
+      }else if(degraded){
         tone = "warn";
-        msg = "LLM 审核已暂停：当前发布门只按 2×2 独立使用证据；新梗榜可能少于 8 条，LLM 恢复后重新纳入。";
+        msg = "本轮样本不足 / 降级（report_status=degraded）：池可能冻结，pool2 内容不一定是本轮新增发布；请以报告时间和池状态为准，不要当作正常发布。";
       }else if(obj(data.stats).budget_exhausted === true){
         tone = "warn";
         msg = "本轮采集预算耗尽（budget_exhausted=true），报告中的条目可能不完整。";
@@ -1092,8 +1157,8 @@
   function stateBlock(title, body, actions){
     return '<div class="state">' +
       '<span class="state-orb" aria-hidden="true"></span>' +
-      (body || "") +
       "<h3>" + esc(title) + "</h3>" +
+      (body || "") +
       (actions ? '<div class="state-actions">' + actions + "</div>" : "") +
       "</div>";
   }
@@ -1133,22 +1198,24 @@
     var st = text(data.status);
     var memes = arr(data.memes);
     var count = int(data.count);
-    var total = int(data.total_memes);
-    var pubCount = int(data.publishable_count);
+    var counts = obj(data.counts);
+    var pool2Count = int(data.publishable_count);
+    if(pool2Count === null) pool2Count = int(counts.pool2);
+    var pool1Count = int(counts.pool1);
+    if(pool1Count === null) pool1Count = int(data.total_memes);
 
     if(tab === "new"){
-      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · 可发布 " +
-        (pubCount === null ? "—" : pubCount) + " 条";
+      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · pool2 " +
+        (pool2Count === null ? "—" : pool2Count) + " 条";
     }else{
-      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · 全量 " +
-        (total === null ? "—" : total) + " 条";
+      counter.textContent = "本页 " + (count === null ? memes.length : count) + " 条 · pool1 " +
+        (pool1Count === null ? "—" : pool1Count) + " 条";
     }
 
     if(st === "missing"){
       list.innerHTML = stateBlock("报告文件缺失",
         "<p>未找到报告文件</p><p><code>" + esc(text(data.report_path) || "(未配置)") + "</code></p>" +
-        "<p>页面不伪造数据、不回退旧接口。请先运行 <code>python -m tools.meme_info_shadow --out " +
-        esc(text(data.report_path) || "/tmp/meme_info_latest.json") + "</code> 生成报告。</p>");
+        "<p>页面不伪造数据、不回退旧接口。请先生成 v2 报告后再看。</p>");
       return;
     }
     if(st === "invalid"){
@@ -1160,14 +1227,14 @@
 
     if(!memes.length){
       if(tab === "new"){
-        list.innerHTML = stateBlock("本轮没有可发布条目",
-          "<p>only=publishable 下没有命中发布门的条目；本页不 top-up 补位，也不回退旧新梗榜。</p>" +
-          "<p>未达发布门 / 观察项 / 被否决项请到「模块 shadow」查看全量。</p>",
-          '<button class="btn" type="button" data-action="goto-shadow">去模块 shadow 看全量</button>');
+        list.innerHTML = stateBlock("本轮无发布池条目，不是数据缺失",
+          "<p>only=publishable 只返回 pool2；本轮 pool2 为空，这不代表报告缺失或采集失败，也不 top-up 补位。</p>" +
+          "<p>pool1 候选池可能仍有条目，可切「候选池」查看全量；或等待下一轮池迁移。</p>",
+          '<button class="btn" type="button" data-action="goto-shadow">查看候选池（pool1）</button>');
       }else{
-        list.innerHTML = stateBlock("报告全量列表为空",
-          "<p>报告 status=" + esc(st || "未知") + " 且 memes 为空，页面不伪造条目。</p>" +
-          "<p>可能是本轮无候选或报告尚未产出；等 worker 生成新报告后再看。</p>");
+        list.innerHTML = stateBlock("本轮候选池为空",
+          "<p>pool1 全量为空，页面不伪造条目。</p>" +
+          "<p>可能是本轮无候选、降级冻结或报告尚未产出；等 worker 生成新报告后再看。</p>");
       }
       return;
     }
@@ -1189,32 +1256,50 @@
     return '<span class="llm-flag unknown">' + esc(label) + ' <b>—</b> 未给</span>';
   }
 
-  function llmHtml(meme){
+  function auditCls(state){
+    return state === "pass" ? "pass" : state === "fail" ? "fail" : state === "unclear" ? "unclear" : "unknown";
+  }
+
+  function auditHtml(meme){
     var verified = obj(meme.verified);
-    var has = verified.is_meme !== undefined || verified.is_current !== undefined ||
+    var hasVerified = verified.is_meme !== undefined || verified.is_current !== undefined ||
       verified.heat !== undefined || verified.confidence !== undefined ||
       text(verified.reason) || text(verified.error);
-    if(!has){
-      return '<div class="llm-box is-empty"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
-        '<span class="llm-flag unknown">LLM 审核已暂停（本条未审核）</span></div></div>';
+    if(hasVerified){
+      var flags = [];
+      flags.push(flagHtml("梗性", verified.is_meme === true ? true : verified.is_meme === false ? false : null));
+      flags.push(flagHtml("当下", verified.is_current === true ? true : verified.is_current === false ? false : null));
+      var heat = fixed(verified.heat, 1);
+      if(heat !== null) flags.push('<span class="llm-flag">热度 <span class="num">' + esc(heat) + "</span></span>");
+      var confidence = fixed(verified.confidence, 2);
+      if(confidence !== null) flags.push('<span class="llm-flag">置信 <span class="num">' + esc(confidence) + "</span></span>");
+      var reason = text(verified.reason);
+      var error = text(verified.error);
+      return '<div class="llm-box"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
+        flags.join("") + "</div>" +
+        (reason ? '<p class="llm-reason">' + esc(reason) + "</p>"
+                : '<p class="llm-reason is-empty">报告未提供审核理由</p>') +
+        (error ? '<p class="llm-error">error：' + esc(error) + "</p>" : "") +
+        "</div>";
     }
-    var flags = [];
-    flags.push(flagHtml("梗性", verified.is_meme === true ? true : verified.is_meme === false ? false : null));
-    flags.push(flagHtml("当下", verified.is_current === true ? true : verified.is_current === false ? false : null));
-    var heat = fixed(verified.heat, 1);
-    if(heat !== null) flags.push('<span class="llm-flag">热度 <span class="num">' + esc(heat) + "</span></span>");
-    var confidence = fixed(verified.confidence, 2);
-    if(confidence !== null) flags.push('<span class="llm-flag">置信 <span class="num">' + esc(confidence) + "</span></span>");
 
-    var reason = text(verified.reason);
-    var error = text(verified.error);
-    return '<div class="llm-box"><div class="llm-head"><span class="llm-label">LLM 审核</span>' +
-      flags.join("") + "</div>" +
-      (reason
-        ? '<p class="llm-reason">' + esc(reason) + "</p>"
-        : '<p class="llm-reason is-empty">报告未提供审核理由</p>') +
-      (error ? '<p class="llm-error">error：' + esc(error) + "</p>" : "") +
-      "</div>";
+    var audit = text(meme.audit_state);
+    if(audit){
+      var label = AUDIT_LABEL[audit] || audit;
+      var adj = num(meme.audit_adjustment);
+      var flags2 = ['<span class="llm-flag ' + auditCls(audit) + '">audit_state <b>' + esc(audit) + "</b> · " + esc(label) + "</span>"];
+      if(adj !== null && adj !== 0){
+        flags2.push('<span class="llm-flag">audit_adjustment <span class="num">' + (adj > 0 ? "+" : "") + esc(fixed(adj, 1)) + "</span></span>");
+      }
+      return '<div class="llm-box' + (audit === "none" ? " is-empty" : "") + '">' +
+        '<div class="llm-head"><span class="llm-label">审核</span>' + flags2.join("") + "</div>" +
+        '<p class="llm-reason' + (audit === "none" ? " is-empty" : "") + '">' +
+        (audit === "none" ? "本轮未审核（audit_state=none）；不伪造 LLM 结论，未审核不阻挡池成员。" : "审核结论来自报告 audit_state；无 LLM 理由时不展示理由。") +
+        "</p></div>";
+    }
+
+    return '<div class="llm-box is-empty"><div class="llm-head"><span class="llm-label">审核</span>' +
+      '<span class="llm-flag unknown">报告未提供审核信息</span></div></div>';
   }
 
   function evidenceHtml(meme){
@@ -1242,47 +1327,90 @@
       evidence.length + " 条</div><ol class=\"evidence\">" + items + "</ol></div>";
   }
 
+  function metric(label, value){
+    return '<span>' + esc(label) + ' <b>' + esc(value) + "</b></span>";
+  }
+
   function memeItemHtml(meme, tab, index){
     var m = obj(meme);
-    var rank = int(m.rank);
+    var heatRank = int(m.heat_rank);
+    var listRank = int(m.rank);
+    var displayRank = heatRank !== null ? heatRank : listRank;
+    var rankLabel = heatRank !== null ? "heat rank" : "list";
+    var rankText = displayRank !== null && displayRank > 0 ? String(displayRank) : "—";
+    var rankCls = heatRank !== null && heatRank >= 1 && heatRank <= 3 ? " rank-" + heatRank : "";
     var canonical = text(m.canonical) || text(m.family_key) || "未命名条目";
     var score = num(m.score);
+    var cred = num(m.cred_score);
+    var heat = num(m.heat_score);
     var status = text(m.status);
     var statusCls = status === "hot" || status === "rising" ? status : "other";
     var type = text(m.type);
+    var pool = text(m.pool);
     var publishable = m.publishable === true;
-    var twoX2 = m.evidence_rate_2x2 === true;
+    var twoX2 = m.badge_2x2 === true || m.evidence_rate_2x2 === true;
+    var audit = text(m.audit_state);
+    var explainer = m.explainer_only === true;
+    var metaOnly = m.meta_only === true;
     var metaCount = int(m.meta_count);
     var usageCount = int(m.usage_count);
+    var countTotal = int(m.count_total);
+    var commentCount = int(m.comment_count);
+    var danmakuCount = int(m.danmaku_count);
+    var videoCount = int(m.video_count);
+    var evidenceVideos = int(m.evidence_video_count);
     var meaning = text(m.meaning);
-    var rankCls = rank !== null && rank >= 1 && rank <= 3 ? " rank-" + rank : "";
     var headingId = "meme-" + tab + "-" + index + "-title";
-    var rankText = rank !== null && rank > 0 ? String(rank) : "—";
-    var pct = score === null ? 0 : clamp(score, 0, MAX_SCORE);
-    var scoreText = score === null ? "—" : score.toFixed(2);
 
+    var poolCls = pool === "p2" ? "p2" : pool === "p1" ? "p1" : "other";
+    var poolText = pool === "p2" ? "pool2 · 发布池" : pool === "p1" ? "pool1 · 候选池" : (pool ? "pool=" + pool : "pool 未提供");
+    var poolBadge = '<span class="badge badge-pool ' + poolCls + '" title="汇报池：p2=发布池 pool2；p1=候选池 pool1；out 不展示">' + esc(poolText) + "</span>";
     var pubBadge = publishable
-      ? '<span class="badge badge-pub yes" title="publishable=true：status∈(hot,rising) 且（2×2 证据成立或 LLM 梗性/当下通过）；仅是发布门标记，不等于已发布"><span class="b-dot"></span>publishable</span>'
-      : '<span class="badge badge-pub no" title="publishable=false：未满足发布门（status 非 hot/rising，或 2×2 与 LLM 均未通过）；仅可在模块 shadow 观察"><span class="b-dot"></span>未达发布门</span>';
+      ? '<span class="badge badge-pub yes" title="publishable=true：该条在发布池 pool2；不代表已上线、已发布"><span class="b-dot"></span>publishable</span>'
+      : '<span class="badge badge-pub no" title="publishable=false：不在 pool2（pool1 候选或未发布）；候选池观察用"><span class="b-dot"></span>非发布池</span>';
     var twoBadge = twoX2
-      ? '<span class="badge badge-2x2 yes" title="evidence_rate_2x2=true：评论证据覆盖至少 2 个视频 × 2 个维度">2×2 证据 ✓</span>'
-      : '<span class="badge badge-2x2 no" title="evidence_rate_2x2=false：证据未同时覆盖 2 个视频 × 2 个维度；publishable 可能仍因 LLM 通过而成立">2×2 证据 —</span>';
+      ? '<span class="badge badge-2x2 yes" title="badge_2x2=true：独立使用证据覆盖 2×2；只是证据徽标，不参与发布门">2×2 证据 ✓</span>'
+      : '<span class="badge badge-2x2 no" title="badge_2x2=false：独立使用证据未达 2×2；不影响池成员资格（仅徽标）">2×2 证据 —</span>';
+    var explainerBadge = explainer ? '<span class="badge badge-explainer" title="explainer-only：强元话语/种子确认例外，可无 usage 进 pool2；每轮≤2">explainer-only</span>' : "";
+    var metaOnlyBadge = metaOnly ? '<span class="badge badge-metaonly" title="meta-only：元话语类条目，仅池1观察候选">meta-only</span>' : "";
+    var auditBadge = audit && audit !== "none"
+      ? '<span class="badge badge-audit ' + auditCls(audit) + '" title="audit_state=' + esc(audit) + '">audit: ' + esc(audit) + "</span>"
+      : "";
 
     var head = '<div class="meme-head">' +
-      "<h3 id=\"" + esc(headingId) + "\"><span class=\"sr-only\">报告全量排序第 " + esc(rankText) + " 位，</span>" +
-      esc(canonical) + "</h3>" +
-      '<span class="badge badge-status ' + statusCls + '" title="模块 status=' + esc(status || "未提供") +
-        '">' + esc(status || "status 未提供") + "</span>" +
-      pubBadge + twoBadge +
+      "<h3 id=\"" + esc(headingId) + "\"><span class=\"sr-only\">" +
+      (heatRank !== null ? "热度排名第 " + esc(rankText) + " 位，" : "候选池列表第 " + esc(rankText) + " 位，") +
+      "</span>" + esc(canonical) + "</h3>" +
+      '<span class="badge badge-status ' + statusCls + '" title="family status=' + esc(status || "未提供") + '">' + esc(status || "status 未提供") + "</span>" +
+      poolBadge + pubBadge + twoBadge +
       (type ? '<span class="badge badge-type">' + esc(type) + "</span>" : "") +
-      (tab === "shadow" ? '<span class="badge badge-observe">观察</span>' : "") +
+      explainerBadge + metaOnlyBadge + auditBadge +
       "</div>";
 
-    var metrics = '<p class="meme-metrics">' +
-      '<span>来源视频 <b>' + (metaCount === null ? "—" : metaCount) + "</b></span>" +
-      '<span class="metric-sep" aria-hidden="true">·</span>' +
-      '<span>用法 <b>' + (usageCount === null ? "—" : usageCount) + "</b></span>" +
-      "</p>";
+    var bits = [];
+    if(heat !== null) bits.push('<span class="metric-heat">heat <b>' + esc(fixed(heat, 1)) + "</b> · #" + esc(heatRank === null ? "—" : heatRank) + "</span>");
+    else bits.push('<span class="metric-muted">heat — · 未参与排名</span>');
+    bits.push(metric("cred", cred === null ? "—" : fixed(cred, 1)));
+    bits.push(metric("score", score === null ? "—" : fixed(score, 2)));
+    bits.push(metric("count", countTotal === null ? "—" : countTotal));
+    bits.push(metric("评论", commentCount === null ? "—" : commentCount));
+    bits.push(metric("弹幕", danmakuCount === null ? "—" : danmakuCount));
+    bits.push(metric("视频", videoCount === null ? "—" : videoCount));
+    bits.push(metric("用法", usageCount === null ? "—" : usageCount));
+    bits.push(metric("证据视频", evidenceVideos === null ? "—" : evidenceVideos));
+    bits.push(metric("meta", metaCount === null ? "—" : metaCount));
+    var metrics = '<p class="meme-metrics">' + bits.join('<span class="metric-sep" aria-hidden="true">·</span>') + "</p>";
+
+    var mainScore = heat !== null ? heat : score;
+    var mainLabel = heat !== null ? "heat_score" : "score";
+    var mainPct = mainScore === null ? 0 : clamp(mainScore, 0, MAX_SCORE);
+    var mainText = mainScore === null ? "—" : mainScore.toFixed(heat !== null ? 1 : 2);
+    var subBits = [];
+    if(heatRank !== null) subBits.push("heat #" + heatRank);
+    if(cred !== null) subBits.push("cred " + cred.toFixed(1));
+    if(heat !== null && score !== null) subBits.push("score " + score.toFixed(2));
+    if(heat === null) subBits.push("未参与 heat 排名");
+    var scoreSub = subBits.join(" · ");
 
     var meaningHtml = meaning ? '<p class="meme-meaning">' + esc(meaning) + "</p>" : "";
 
@@ -1291,14 +1419,15 @@
       '<span class="card-glow" aria-hidden="true"></span>' +
       '<div class="rank" aria-hidden="true"><span class="rank-hash">#</span>' +
         '<span class="rank-num">' + esc(rankText) + "</span>" +
-        '<span class="rank-label">rank</span></div>' +
-      '<div class="meme-main">' + head + meaningHtml + metrics + llmHtml(m) + evidenceHtml(m) + "</div>" +
+        '<span class="rank-label">' + esc(rankLabel) + "</span></div>" +
+      '<div class="meme-main">' + head + meaningHtml + metrics + auditHtml(m) + evidenceHtml(m) + "</div>" +
       '<div class="meme-score">' +
-        '<div class="score-value">' + esc(scoreText) + "</div>" +
-        '<div class="score-label">score</div>' +
+        '<div class="score-value">' + esc(mainText) + "</div>" +
+        '<div class="score-label">' + esc(mainLabel) + "</div>" +
+        (scoreSub ? '<div class="score-sub">' + esc(scoreSub) + "</div>" : "") +
         '<div class="score-track" role="img" aria-label="' +
-          esc(score === null ? "score 未提供" : "score " + scoreText + " 满分 100") + '">' +
-          '<span class="score-fill" style="width:' + pct.toFixed(2) + '%"></span>' +
+          esc(mainScore === null ? mainLabel + " 未提供" : mainLabel + " " + mainText + " 满分 100") + '">' +
+          '<span class="score-fill" style="width:' + mainPct.toFixed(2) + '%"></span>' +
         "</div>" +
       "</div>" +
       "</article></li>";
@@ -1325,40 +1454,61 @@
       return;
     }
     var stats = obj(data.stats);
+    var counts = obj(data.counts);
+    var round = obj(data.round);
+    var window = obj(data.window);
     var verify = obj(data.verification);
     var llm = obj(verify.llm);
+
+    var statPairs = [];
     var defineStat = [
+      ["comment_count","窗口评论"], ["danmaku_count","窗口弹幕"],
+      ["families","梗族"], ["observations","观察数"],
       ["videos","视频"], ["comments","评论"], ["danmaku","弹幕"], ["docs","文档/语料"],
       ["current_families","当前梗族"], ["current_2x2","2×2 证据族"],
-      ["observing_families","观察族"], ["discovery_candidates","候选"],
       ["requests_total","采集请求"], ["elapsed_total","耗时（秒）"]
     ];
-    var statPairs = [];
     defineStat.forEach(function(pair){
       var v = num(stats[pair[0]]);
-      if(v !== null){
-        statPairs.push([pair[1], pair[0] === "elapsed_total" ? v.toFixed(1) : String(int(v))]);
-      }
+      if(v !== null) statPairs.push([pair[1], pair[0] === "elapsed_total" ? v.toFixed(1) : String(int(v))]);
     });
+    if(text(stats.heat_model)) statPairs.push(["heat_model", text(stats.heat_model)]);
+    if(text(stats.sample_status)) statPairs.push(["sample_status", text(stats.sample_status)]);
     if(stats.budget_exhausted !== undefined){
-      statPairs.push(["预算耗尽", stats.budget_exhausted === true ? "是（数据可能不完整）" : "否"]);
+      statPairs.push(["budget_exhausted", stats.budget_exhausted === true ? "是（数据可能不完整）" : "否"]);
     }
+    if(stats.db_written !== undefined) statPairs.push(["db_written", stats.db_written === true ? "是" : "否"]);
 
-    var verifyPairs = [
-      ["已审", int(verify.attempted)],
-      ["通过", int(verify.ok)],
-      ["否决", int(verify.rejected)],
-      ["错误", int(verify.errors)]
-    ];
+    var poolPairs = [];
+    ["pool1","pool2","pool1_only","pool1_out","observations"].forEach(function(key){
+      var v = int(counts[key]);
+      if(v !== null) poolPairs.push([key, v]);
+    });
+    var windowMinutes = int(stats.window_minutes);
+    if(windowMinutes === null) windowMinutes = int(window.minutes);
+    if(windowMinutes !== null) poolPairs.push(["window_minutes", windowMinutes]);
+    if(round.id !== null && round.id !== undefined) poolPairs.push(["round.id", int(round.id)]);
+    if(text(round.window_start)) poolPairs.push(["round.window_start", text(round.window_start)]);
+    if(text(round.window_end)) poolPairs.push(["round.window_end", text(round.window_end)]);
+    if(text(data.report_status)) poolPairs.push(["report_status", text(data.report_status)]);
+    poolPairs.push(["degraded", data.degraded === true ? "是（池可能冻结）" : "否"]);
+    if(text(data.schema_version)) poolPairs.push(["schema_version", text(data.schema_version)]);
+
+    var verifyPairs = [];
+    verifyPairs.push(["configured", verify.configured === true ? "是" : verify.configured === false ? "否（LLM 暂停）" : "未提供"]);
+    [["attempted","已审"],["ok","通过"],["rejected","否决"],["errors","错误"],["audited_families","已审梗族"]].forEach(function(pair){
+      var v = int(verify[pair[0]]);
+      if(v !== null) verifyPairs.push([pair[1], v]);
+    });
     var llmCalls = int(llm.calls);
     if(llmCalls !== null) verifyPairs.push(["LLM 调用", llmCalls]);
     var tokens = int(llm.total_tokens);
     if(tokens !== null) verifyPairs.push(["tokens", tokens]);
     if(text(verify.model)) verifyPairs.push(["model", text(verify.model)]);
-    verifyPairs.push(["key 已配置", verify.configured === true ? "是" : verify.configured === false ? "否" : "未提供"]);
 
     var sourcePairs = [
-      ["status", text(data.status) || "未提供"],
+      ["status（新鲜度）", text(data.status) || "未提供"],
+      ["report_status", text(data.report_status) || "未提供"],
       ["generated_at", text(data.generated_at) || "未提供（按文件 mtime 估龄）"],
       ["age_seconds", int(data.age_seconds)],
       ["max_age_seconds", num(data.max_age_seconds)],
@@ -1367,10 +1517,11 @@
     if(entry.fetchedAt) sourcePairs.push(["页面最近读取", fmtDateTime(new Date(entry.fetchedAt).toISOString())]);
 
     body.innerHTML = '<div class="detail-grid">' +
+      '<div class="detail-block"><h3>池 / 窗口 · pool</h3>' +
+        (poolPairs.length ? kvRows(poolPairs) : '<p class="detail-empty">报告未提供池信息</p>') + "</div>" +
       '<div class="detail-block"><h3>采集统计 · stats</h3>' +
         (statPairs.length ? kvRows(statPairs) : '<p class="detail-empty">报告未提供 stats</p>') + "</div>" +
-      '<div class="detail-block"><h3>LLM 审核 · verification</h3>' +
-        kvRows(verifyPairs) + "</div>" +
+      '<div class="detail-block"><h3>审核 · verification</h3>' + kvRows(verifyPairs) + "</div>" +
       '<div class="detail-block"><h3>报告来源</h3>' + kvRows(sourcePairs) + "</div>" +
       "</div>";
   }
@@ -1394,8 +1545,10 @@
   function countLabel(tab){
     var entry = entryOf(tab);
     if(!entry.data) return "–";
-    var count = int(entry.data.count);
-    return count === null ? "–" : String(count);
+    var counts = obj(entry.data.counts);
+    var value = tab === "new" ? int(entry.data.publishable_count) : int(counts.pool1);
+    if(value === null) value = tab === "new" ? int(entry.data.count) : int(entry.data.total_memes);
+    return value === null ? "–" : String(value);
   }
 
   function readTab(){

@@ -619,3 +619,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - `memes=pool2`（heat/rank），`pool1` shadow；2×2 仅徽标；`cred_score` 从 evidence_json 重建。
 - 本地 216 passed/24 skipped；云上 test_report 29 + test_pools 33（回滚）；未接前端/未切流量。
 - 报告：`docs/pm/PHASE-E-REPORT.md`。
+
+
+## 44. Phase E2：前端池化视图（2026-11-22）
+
+- 发布池 pool2 / 候选池 pool1 两 tab；publishable=pool2，2×2 仅徽标；degraded 独立提示。
+- 卡片显示 cred/heat/heat_rank/audit_state/explainer-only；空态/降级保留；Aceternity 视觉不变。
+- 8011 v2 报告验证：桌面/移动无溢出，console/HTTP 0 错；未 commit 前端由 PM 提交。
