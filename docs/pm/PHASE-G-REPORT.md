@@ -7,7 +7,7 @@
 ## 0. 结论摘要
 
 - Phase G 代码与部署文件全部完成；服务器已部署、旧 worker 保留、Admin/备份上线。
-- 新 state worker 以 **systemd timer 每 15 分钟影子运行**：报告写 `var/meme_info_v2_shadow.json`，
+- 新 state worker 以 **systemd timer 白天 08–23 点每 15 分钟影子运行**（夜间暂停，避免与旧 worker 重复请求）：报告写 `var/meme_info_v2_shadow.json`，
   不覆盖生产；DB 正常积累 `round`/`video_metric`。
 - **未切流**：夜间 Phase C 采样量低于 degraded 阈值（250/72、14/25、0/23 vs 阈值 600/300），
   round/report `degraded` → Phase D 按设计冻结新 family → `pool1/pool2=0`。

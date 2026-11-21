@@ -2,8 +2,9 @@
 Description=Run Hot Meme State Worker every 15 minutes
 
 [Timer]
+# 仅白天活跃时段影子运行（08:00–23:45），夜间暂停，避免和旧 worker 重复打 B站；
 # 固定墙钟 15 分钟窗口（:00/:15/:30/:45）；Persistent=false 表示停机错过的轮次不补跑
-OnCalendar=*:0/15
+OnCalendar=*-*-* 08..23:0/15
 AccuracySec=1min
 Persistent=false
 Unit=hotmeme-state-worker.service

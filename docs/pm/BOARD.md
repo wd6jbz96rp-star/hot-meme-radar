@@ -653,3 +653,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 修复切流竞态：cutover 先停 state worker/timer，冻结后二次校验影子报告，再加 drop-in 移除/报告替换；rc=3 安全中止，失败自动恢复旧 worker + 旧报告。
 - 沙盒验证成功/中止/失败回滚；真实 degraded 影子负路径验证不切流、生产报告不变。
 - 当前仍未切流，白天 ok 轮出现后 watcher 自动执行；日志 `var/cutover_watch.log`。
+
+
+## 48. Phase G：影子 timer 改为白天时段（2026-11-22）
+
+- 夜间影子与旧 worker 同时打 B站且采样不足；将 state-worker.timer 改为 `OnCalendar=*-*-* 08..23:0/15`，夜间暂停。
+- 08:00 影子启动；watcher 继续每5分钟检查，ok+非空自动切流。
+- 08:00 后若仍长期 degraded，再评估阈值/冷启动方案。
