@@ -82,7 +82,7 @@ run.py                 启动入口
 .venv/bin/python -m pytest -q
 ```
 
-当前 **87 passed**：模块 49 + adapter 37 + API 1。
+当前 **104 passed, 15 skipped**：原有 87 + 状态层测试；skip 为无本地 Postgres 的集成测试。
 
 ## 已知限制
 

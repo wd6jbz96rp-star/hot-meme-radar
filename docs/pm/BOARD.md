@@ -576,3 +576,12 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 不再调用 DeepSeek；报告无 `verified`，publishable 只按 2×2；UI 显示「LLM 审核已暂停」，不伪造审核理由。
 - 代码保留 `meme_info/verify.py`，后续优化方案给出后可 `MEME_INFO_VERIFY=1` 恢复。
 - 87 tests。
+
+
+## 39. Phase A：Postgres 状态层（2026-11-21）
+
+- 云服务器安装 PostgreSQL 16.15，127.0.0.1:5432；建 hotmeme + 三角色（migrator/worker/admin）；`/etc/hotmeme/env` 600。
+- 新增 `migrations/0001_state.sql`、`0002_pool_flags.sql`、`meme_info/state.py`、`tools/migrate_state.py`、`tests/test_state.py`；schema_version=2。
+- 修正池字段：pool1.meta_only/explainer_only/audit_adjustment/status normal|provisional|out；pool2.explainer_only。
+- 本地 104 passed/15 skipped；云上 test_state 32 passed；未接 worker/app、未切流量。
+- 报告：`docs/pm/PHASE-A-REPORT.md`。

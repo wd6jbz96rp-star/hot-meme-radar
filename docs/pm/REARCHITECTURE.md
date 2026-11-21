@@ -1,6 +1,6 @@
 # 热梗雷达 · 大改版设计文档
 
-> 状态：**设计定稿（待实现）；后续变更仍追加到本文档**  
+> 状态：**设计定稿；Phase A 状态层已实现（未接业务）**  
 > 更新：2026-11-21  
 > 用途：记录已确认的流程、数据模型、算法、改动计划；后续讨论继续追加。  
 > 标记说明：✅ 已确认 ｜ 🟡 建议/待深化 ｜ 🔴 尚未讨论
@@ -172,6 +172,8 @@ score_t = clamp(score_{t-1} + delta, 0, 100)
 
 ## 4. 数据模型（Postgres）
 
+> Phase A 已落地：`schema_version=2`；云上 PostgreSQL 16.15，`127.0.0.1:5432`。详见 `docs/pm/PHASE-A-REPORT.md`。
+
 ### 4.1 `round`
 
 ```sql
@@ -228,13 +230,16 @@ pool1(
   family_key TEXT PRIMARY KEY,
   canonical TEXT NOT NULL,
   aliases_json JSONB DEFAULT '[]',
-  status TEXT NOT NULL DEFAULT 'active',   -- active / out
+  status TEXT NOT NULL DEFAULT 'normal',   -- normal / provisional / out
   score REAL NOT NULL DEFAULT 0,
   count_prev INT DEFAULT 0,
   count_now INT DEFAULT 0,
   zero_streak INT DEFAULT 0,
   audit_state TEXT DEFAULT 'none',
   audit_hash TEXT,
+  audit_adjustment REAL NOT NULL DEFAULT 0,
+  meta_only BOOLEAN NOT NULL DEFAULT false,
+  explainer_only BOOLEAN NOT NULL DEFAULT false,
   first_seen_round BIGINT,
   last_seen_round BIGINT,
   evidence_json JSONB DEFAULT '[]',
@@ -254,7 +259,8 @@ pool2(
   heat_score REAL,
   rank INT,
   promoted_at TIMESTAMPTZ DEFAULT now(),
-  reason TEXT
+  reason TEXT,
+  explainer_only BOOLEAN NOT NULL DEFAULT false
 );
 ```
 
