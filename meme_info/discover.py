@@ -327,8 +327,11 @@ def _finalize_candidate(candidate: Candidate, now: int, knowledge: Knowledge) ->
         candidate.last_seen = max(times)
         candidate.age_days = max(0.0, (now - candidate.first_seen) / 86400.0)
     elif candidate.meta:
-        candidate.first_seen = min(item.pubdate for item in candidate.meta if item.pubdate) or 0
-        candidate.last_seen = max(item.pubdate for item in candidate.meta if item.pubdate) or 0
+        # 元话语视频可能没有 pubdate（如 Phase D 的 WindowTarget 只有 title/zone）：
+        # 空序列用 default=0，避免 min()/max() 抛 ValueError。
+        pubdates = [item.pubdate for item in candidate.meta if item.pubdate]
+        candidate.first_seen = min(pubdates, default=0)
+        candidate.last_seen = max(pubdates, default=0)
         candidate.age_days = max(0.0, (now - candidate.first_seen) / 86400.0) if candidate.first_seen else 999.0
     candidate.comment_7d_count = sum(
         1 for item in unique if item.ctime and now - item.ctime <= 7 * 86400

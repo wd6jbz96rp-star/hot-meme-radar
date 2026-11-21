@@ -602,3 +602,12 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 评论 1000/600，弹幕 600/300；文本去重 per_video；异常窗口 clamp 并标 degraded；30 天证据分离。
 - 本地 146 passed/18 skipped；云上 22 passed（回滚）；未接 worker/未切流量。
 - 报告：`docs/pm/PHASE-C-REPORT.md`。
+
+
+## 42. Phase D：family 状态、比例与池迁移（2026-11-22）
+
+- 新增 `meme_info/pools.py`、`tools/pool_round.py`、`tests/test_pools.py`；修复 discover 空 pubdate min/max bug。
+- 15 分钟窗口计数：comment/danmaku/window_video；30 天 evidence_video 独立字段，不进 count_total。
+- cred_base 五特征；score 0.85/0.15 + ratio + audit_adjustment；0 计数惩罚；P1 40/32、P2 65/55；provisional/explainer-only。
+- 本地 176 passed/20 skipped；云上 test_pools 32 passed（回滚，0 残留）；未接 worker/未切流量。
+- 报告：`docs/pm/PHASE-D-REPORT.md`。

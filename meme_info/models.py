@@ -609,3 +609,162 @@ class WindowSample:
                 )
             )
         return docs
+
+
+# ---------------------------------------------------------------- D 线：family 观察与池状态
+@dataclass
+class FamilyObservation:
+    """单个 family 的本轮观察（Phase D 输入/输出；可 JSON 序列化）。
+
+    计数口径（PM 2026-11-22 复核修正）：
+    - ``comment_count`` / ``danmaku_count``：15 分钟窗口内去重评论 id / 弹幕 dmid 命中数；
+    - ``video_count``：**15 分钟窗口**内命中该 family 的评论/弹幕所在独立 bvid 数；
+    - ``evidence_video_count``：30 天证据里命中的独立 bvid 数（只进 evidence_json/stats，
+      不参与 count_total/比例/池2门槛）；
+    - ``meta_count``：30 天元话语视频数（不参与比例）；
+    - ``count_total = comment_count + danmaku_count + video_count``（比例计数）；
+    - ``usage_count = comment_count + danmaku_count``（池2「有使用」门槛，口径统一）。
+    """
+
+    family_key: str
+    canonical: str
+    norm: str = ""
+    aliases: list[str] = field(default_factory=list)
+    #: 本轮是否出现在活跃语料（窗口/证据/元话语任一命中）或发现结果里
+    present: bool = False
+    discovered: bool = False
+    comment_count: int = 0
+    danmaku_count: int = 0
+    video_count: int = 0
+    #: 30 天证据里命中的独立 bvid 数（展示/证据，不参与比例）
+    evidence_video_count: int = 0
+    meta_count: int = 0
+    count_total: int = 0
+    usage_count: int = 0
+    # ---- cred_base 五特征（0–1）----
+    meta_strength: float = 0.0
+    usage_strength: float = 0.0
+    spread: float = 0.0
+    freshness: float = 0.0
+    prior: float = 0.0
+    cred_base: float = 0.0
+    # ---- 身份/规则输入 ----
+    known: bool = False              # 命中 knowledge 种子
+    human_confirmed: bool = False    # audit_state == human_pass（Phase F 写入）
+    seed_origin: str = ""
+    meta_only: bool = False
+    explainer_eligible: bool = False
+    # ---- 2×2 徽标（只展示，不参与硬门槛）----
+    badge_2x2: bool = False
+    badge_docs: int = 0
+    badge_videos: int = 0
+    # ---- 明细（不进 DB 列）----
+    zones: list[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)
+    meta_kinds: list[str] = field(default_factory=list)
+    meta_bvids: list[str] = field(default_factory=list)
+    #: 独立强元话语视频数（dedicated/compilation 去重 bvid）
+    meta_independent: int = 0
+    dedicated_meta: int = 0
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+    latest_evidence_ts: int = 0
+
+
+@dataclass
+class Pool1Row:
+    """``pool1`` 一行（读写共用；evidence_json 为 dict 包装，见 pools 模块）。"""
+
+    family_key: str
+    canonical: str = ""
+    aliases: list[str] = field(default_factory=list)
+    status: str = "normal"           # normal / provisional / out
+    score: float = 0.0
+    count_prev: int = 0
+    count_now: int = 0
+    zero_streak: int = 0
+    audit_state: str = "none"
+    audit_hash: str = ""
+    audit_adjustment: float = 0.0
+    meta_only: bool = False
+    explainer_only: bool = False
+    first_seen_round: int | None = None
+    last_seen_round: int | None = None
+    evidence_json: dict[str, Any] = field(default_factory=dict)
+    updated_at: str = ""
+    #: 非 DB 字段：本轮观察是否命中 knowledge 种子（只用于 family_alias.source 判定）
+    known: bool = False
+
+
+@dataclass
+class Pool2Row:
+    """``pool2`` 一行（heat_score/rank 由 Phase E 计算，本轮可空）。"""
+
+    family_key: str
+    round_id: int | None = None
+    heat_score: float | None = None
+    rank: int | None = None
+    reason: str = ""
+    explainer_only: bool = False
+
+
+@dataclass
+class FamilyRoundStat:
+    """``family_round_stat`` 一行（每 family 每轮一条，含 count=0）。"""
+
+    round_id: int | None
+    family_key: str
+    comment_count: int = 0
+    danmaku_count: int = 0
+    video_count: int = 0
+    meta_count: int = 0
+    count_total: int = 0
+    ratio: float | None = None
+    score_before: float = 0.0
+    score_after: float = 0.0
+    delta: float = 0.0
+    reason: str = ""
+
+
+@dataclass
+class PoolTransitionRow:
+    """``pool_transition`` 一行（池成员变化审计）。"""
+
+    family_key: str
+    round_id: int | None = None
+    from_pool: str | None = None
+    to_pool: str | None = None
+    reason: str = ""
+    score: float = 0.0
+
+
+@dataclass
+class FamilyAliasRow:
+    """``family_alias`` 一行（alias 唯一；source = seed / manual / auto）。"""
+
+    family_key: str
+    alias: str
+    norm_alias: str
+    source: str = "auto"
+    confidence: float = 0.5
+
+
+@dataclass
+class PoolRoundResult:
+    """Phase D 单轮结果（可 JSON 序列化；纯内存模式也返回完整状态）。"""
+
+    generated_at: str = ""
+    round_id: int | None = None
+    window_start: int = 0
+    window_end: int = 0
+    status: str = "ok"                 # ok / degraded
+    degraded: bool = False
+    observations: list[FamilyObservation] = field(default_factory=list)
+    pool1: list[Pool1Row] = field(default_factory=list)
+    pool2: list[Pool2Row] = field(default_factory=list)
+    stats_rows: list[FamilyRoundStat] = field(default_factory=list)
+    transitions: list[PoolTransitionRow] = field(default_factory=list)
+    aliases: list[FamilyAliasRow] = field(default_factory=list)
+    stats: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return as_jsonable(self)
