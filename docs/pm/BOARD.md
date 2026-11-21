@@ -636,3 +636,12 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 修正 audit_adjustment 一次性语义（Phase D 不再每轮加）。
 - 本地 255 passed/41 skipped；云上 296 passed/0 skipped；未部署/未切流量。
 - 报告：`docs/pm/PHASE-F-REPORT.md`。
+
+
+## 46. Phase G：部署与影子运行（2026-11-22）
+
+- 新增 `tools/state_worker.py`、systemd timer/admin/backup/cutover 脚本；服务器代码部署、迁移 check v2、测试 218 passed。
+- 影子模式运行；公开仍旧 worker 写 v1，v2 影子报告 `var/meme_info_v2_shadow.json`。
+- 夜间 Phase C 采样不足（评论 14–250、弹幕 23–72）→ degraded → pool1/pool2=0；切流会空榜，已回滚旧 worker 并暂停切流。
+- admin/backup timer 已启用；DB round=3/pool=0；本地 278 passed/41 skipped。
+- 待 PM 决策：等白天 ok 轮切流 / 冷启动例外 / 接受空榜切流。报告 `docs/pm/PHASE-G-REPORT.md`。

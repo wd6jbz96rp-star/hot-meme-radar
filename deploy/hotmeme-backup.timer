@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Hot Meme Postgres backup
+
+[Timer]
+# 每日 03:20（服务器本地时区 Asia/Shanghai）；错过的备份补跑一次
+OnCalendar=*-*-* 03:20:00
+AccuracySec=5min
+Persistent=true
+Unit=hotmeme-backup.service
+
+[Install]
+WantedBy=timers.target

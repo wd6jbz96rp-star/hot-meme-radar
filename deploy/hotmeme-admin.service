@@ -1,0 +1,21 @@
+[Unit]
+Description=Hot Meme Admin (review UI, 127.0.0.1:8091 only)
+Documentation=file:///home/ubuntu/hotmeme/deploy/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/hotmeme
+EnvironmentFile=/etc/hotmeme/env
+ExecStart=/home/ubuntu/hotmeme/.venv/bin/python -m admin.app --host 127.0.0.1 --port 8091
+# 未配置 HOTMEME_ADMIN_TOKEN 时 admin.app 直接拒绝启动（exit 2）
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=Hot Meme State Worker (Phase G: B->C->D->E one round)
+Documentation=file:///home/ubuntu/hotmeme/deploy/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/hotmeme
+EnvironmentFile=/etc/hotmeme/env
+Environment=HOTMEME_MEME_INFO_REPORT=/home/ubuntu/hotmeme/var/meme_info_latest.json
+Environment=HOTMEME_STATE_WORKER_LOG=/home/ubuntu/hotmeme/var/state_worker.log
+Environment=HOTMEME_STATE_WORKER_LOCK=/home/ubuntu/hotmeme/var/state_worker.lock
+Environment=MEME_INFO_VERIFY=0
+Environment=HOTMEME_LLM_API_KEY_FILE=/home/ubuntu/.hotmeme_llm_key
+ExecStart=/home/ubuntu/hotmeme/.venv/bin/python -m tools.state_worker --once
+Nice=5
+TimeoutStartSec=900
+Restart=no
+NoNewPrivileges=true
+PrivateTmp=true
