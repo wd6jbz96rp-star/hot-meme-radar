@@ -86,7 +86,7 @@
 - ✅ 在线人数使用 B站公开接口：
   `GET https://api.bilibili.com/x/player/online/total?bvid=...&cid=...`
 - ✅ B站公开接口**没有全局按在线人数排序的视频列表**；只能“先有候选，再逐个查在线人数”。
-- 🟡 新增播放量对“首次见到的视频”无法直接获得；建议首见用 `view/age_hours` 代理，二次见用累计差值。
+- ✅ 新增播放量代理已确认：首见 `view/(age_minutes+60)`，二次见 `(view_now-view_prev)/dt_minutes`；dt<5min 退回首见公式；log1p + robust z；权重 10%。
 - ✅ 候选池 300、45/10 配额、探索 20%、单分区上限 40% 已确认。
 
 ### 3.3 评论/弹幕采样
@@ -368,7 +368,11 @@ online   = /x/player/online/total
 new_view = view_t - view_prev（有基线时）
 new_reply = reply_t - reply_prev（有基线时）
 new_danmaku = danmaku_t - danmaku_prev（有基线时）
-play_proxy = new_view 或 view/age_hours（首见）
+play_proxy：
+  首见：view / (age_minutes + 60)
+  二次见：max(0, view_now - view_prev) / dt_minutes
+  dt < 5min：退回首见公式
+  统一：log1p + robust z
 ```
 
 视频热度：
@@ -380,6 +384,29 @@ hot_video =
 + 0.20 * z(new_danmaku)
 + 0.10 * z(play_proxy)
 ```
+
+新增播放量代理细则（已确认）：
+
+```text
+age_minutes = max((now - pubdate) / 60, 1)
+dt_minutes  = 本次时间 - 上次快照时间
+
+首见：
+  play_rate = view / (age_minutes + 60)
+
+二次见：
+  dt_minutes >= 5 → play_rate = max(0, view_now - view_prev) / dt_minutes
+  dt_minutes < 5  → play_rate = view / (age_minutes + 60)
+
+play_proxy = log1p(play_rate)
+```
+
+边界：
+
+- `pubdate` 缺失：`view / 1440` 兜底；
+- `view` 缺失/负数：`play_proxy = null`，按中位数处理；
+- `view` 下降：按 0 处理；
+- 基线保留在 `video_metric` 7 天内；超时重新按首见。
 
 选片：
 
@@ -585,7 +612,6 @@ P2_in=65, P2_out=55
 - 🔴 可信度打分公式、池1阈值、初始分
 - 🔴 池2阈值与审核通过条件
 - 🔴 LLM/人工审核加减分幅度
-- 🟡 新增播放量首见代理 vs 一轮基线
 - 🟡 元话语-only 是否进池1
 - 🟡 人工审核入口/权限/队列
 - 🟡 Postgres 部署位置（服务器本机 / 云数据库）
@@ -613,6 +639,7 @@ P2_in=65, P2_out=55
 | 2026-11-21 | 候选归并 | 池子单位是 family；每轮补 0 行 | ✅ |
 | 2026-11-21 | B 线参数 | 候选池 300（240 常规 + 60 探索）；45/10；探索 20%；单分区 ≤40% | ✅ |
 | 2026-11-21 | 固定样本 | 新评论 1000 / 新弹幕 2000；低于 60% 标 degraded | ✅ |
+| 2026-11-21 | 新增播放量 | 首见年龄归一化 + 二次见基线差值；dt<5min 退回首见；log1p/z；权重 10% | ✅ |
 
 ---
 
@@ -623,4 +650,5 @@ P2_in=65, P2_out=55
 ### 待追加
 
 - 2026-11-21：第 1 项 B 线采集参数已确认（候选池 300、45/10、探索 20%、单分区 40%、评论 1000/弹幕 2000、60% degraded）。
-- 下一项：新增播放量首见代理 vs 一轮基线。
+- 2026-11-21：第 2 项新增播放量代理已确认（首见年龄归一化 + 二次见基线差值，log1p/z，权重 10%）。
+- 下一项：元话语-only 是否进池1。
