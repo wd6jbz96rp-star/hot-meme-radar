@@ -885,3 +885,27 @@ def test_existing_explainer_in_pool2_is_kept() -> None:
     result = _apply([observation], prev1=prev1, prev2=prev2)
     assert [row.family_key for row in result.pool2] == ["种子梗"]
     assert not any(t.from_pool == "pool2" for t in result.transitions)
+
+
+# ================================================================ 10. evidence_json.cred_base（Phase E PM 复核）
+def test_evidence_json_persists_cred_base_new_update_and_frozen() -> None:
+    """Phase D 每轮写 evidence_json 时带上 cred_base，报告 v2 从 DB 重建 cred_score。"""
+    first = _apply([_obs("新梗", comment=3, cred=71.25)])
+    assert first.pool1[0].evidence_json["cred_base"] == 71.25
+
+    # 更新轮：用本轮 observation 的新 cred_base 覆盖旧值
+    prev1, prev2 = pool_state_from_result(first)
+    second = _apply(
+        [_obs("新梗", comment=4, cred=66.5)], prev1=prev1, prev2=prev2, round_id=3
+    )
+    assert second.pool1[0].evidence_json["cred_base"] == 66.5
+
+    # degraded 冻结轮：分数/池成员冻结，但证据字段（含 cred_base）仍更新
+    third = _apply(
+        [_obs("新梗", comment=0, cred=63.75)],
+        prev1=pool_state_from_result(second)[0],
+        round_id=4,
+        degraded=True,
+    )
+    assert third.pool1[0].score == second.pool1[0].score
+    assert third.pool1[0].evidence_json["cred_base"] == 63.75

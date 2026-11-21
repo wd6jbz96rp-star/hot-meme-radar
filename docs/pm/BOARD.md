@@ -611,3 +611,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - cred_base 五特征；score 0.85/0.15 + ratio + audit_adjustment；0 计数惩罚；P1 40/32、P2 65/55；provisional/explainer-only。
 - 本地 176 passed/20 skipped；云上 test_pools 32 passed（回滚，0 残留）；未接 worker/未切流量。
 - 报告：`docs/pm/PHASE-D-REPORT.md`。
+
+
+## 43. Phase E：报告 v2 与 adapter（2026-11-22）
+
+- 新增 `meme_info/report.py`、`tools/build_report.py`、`tests/test_report.py`；adapter 支持 v2 pool1/pool2，v1 兼容。
+- `memes=pool2`（heat/rank），`pool1` shadow；2×2 仅徽标；`cred_score` 从 evidence_json 重建。
+- 本地 216 passed/24 skipped；云上 test_report 29 + test_pools 33（回滚）；未接前端/未切流量。
+- 报告：`docs/pm/PHASE-E-REPORT.md`。

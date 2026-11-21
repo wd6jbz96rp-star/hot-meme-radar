@@ -393,3 +393,312 @@ def test_shadow_tool_atomic_write(tmp_path):
     assert json.loads(target.read_text(encoding="utf-8"))["schema_version"] == "meme-info/v1"
     leftovers = [p.name for p in target.parent.iterdir() if p.name.endswith(".tmp")]
     assert leftovers == []
+
+
+# ---------------------------------------------------------------- v2 契约（Phase E）
+def make_entry_v2(rank: int = 1, *, key: str | None = None, canonical: str | None = None,
+                  pool: str = "p2", publishable: bool = True, status: str = "normal",
+                  score: float = 70.0, heat: float = 50.0, badge_2x2: bool = True,
+                  cred: float | None = 66.5) -> dict:
+    canonical = canonical or f"梗{rank}"
+    pool_rank = rank if pool == "p2" else None
+    return {
+        "family_key": key or f"family_{rank}",
+        "canonical": canonical,
+        "aliases": [canonical, f"{canonical}别名"],
+        "status": status,
+        "pool": pool,
+        "publishable": publishable,
+        "score": score,
+        "cred_score": cred,
+        "heat_score": heat if pool == "p2" else None,
+        "rank": pool_rank,
+        "heat_components": {"comment": 10.0, "danmaku": 20.0, "video": 5.0,
+                            "score": 15.0} if pool == "p2" else None,
+        "count_total": 40,
+        "comment_count": 10,
+        "danmaku_count": 20,
+        "video_count": 3,
+        "usage_count": 30,
+        "meta_count": 2,
+        "explainer_only": False,
+        "meta_only": False,
+        "audit_state": "none",
+        "audit_adjustment": 0.0,
+        "badge_2x2": badge_2x2,
+        "evidence_video_count": 3,
+        # 报告里前 5 条；adapter 只透传前 2 条且截断
+        "evidence": [
+            {"quote": "引" * 300, "ctime": 1790000000 + i, "like": i, "bvid": f"BV{i}",
+             "kind": "comment", "video_title": "标题"}
+            for i in range(5)
+        ],
+        "first_seen_round": 1,
+        "last_seen_round": 2,
+        "reason": "p2:in" if pool == "p2" else "",
+    }
+
+
+def make_report_v2(*, generated_at: str | None = None,
+                   report_status: str = "ok",
+                   pool2: list[dict] | None = None,
+                   pool1_only: list[dict] | None = None) -> dict:
+    pool2_entries = pool2 if pool2 is not None else [
+        make_entry_v2(1, canonical="吃了不烧心", heat=66.25, score=78.5),
+        make_entry_v2(2, canonical="扎啤", heat=40.0, score=70.0, badge_2x2=False),
+    ]
+    p1_entries = pool1_only if pool1_only is not None else [
+        make_entry_v2(9, key="family_p1", canonical="观察中", pool="p1",
+                      publishable=False, status="provisional", score=35.0,
+                      heat=None, cred=30.0),
+    ]
+    shadow = pool2_entries + p1_entries
+    return {
+        "schema_version": "meme-info/v2",
+        "generated_at": _iso() if generated_at is None else generated_at,
+        "status": report_status,
+        "round": {"id": 29, "window_start": _iso(time.time() - 900),
+                  "window_end": _iso()},
+        "window": {"minutes": 15},
+        "counts": {
+            "pool1": len(shadow),
+            "pool2": len(pool2_entries),
+            "pool1_only": len(p1_entries),
+            "pool1_out": 1,
+            "observations": 4,
+        },
+        "stats": {
+            "comment_count": 900,
+            "danmaku_count": 500,
+            "families": 20,
+            "degraded": report_status == "degraded",
+            "heat_model": "phase-e/window-heat-v1",
+            "window_minutes": 15,
+            "pool1": len(shadow),
+            "pool2": len(pool2_entries),
+            "round": 29,
+        },
+        "verification": {
+            "configured": False,
+            "calls": 0,
+            "attempted": 0,
+            "ok": 0,
+            "rejected": 0,
+            "errors": 0,
+            "llm": {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                    "total_tokens": 0},
+            "model": "",
+        },
+        "memes": list(pool2_entries),
+        "pool1": shadow,
+        "pool2": pool2_entries,
+    }
+
+
+def test_v2_ok_contract(report_file):
+    _write(report_file, make_report_v2())
+    data = meme_info_adapter.load_report()
+    assert data["status"] == "ok"                  # 新鲜度状态机不变
+    assert data["schema_version"] == "meme-info/v2"
+    assert data["report_status"] == "ok"
+    assert data["degraded"] is False
+    assert data["round"] == {
+        "id": 29,
+        "window_start": data["round"]["window_start"],
+        "window_end": data["round"]["window_end"],
+    }
+    assert data["round"]["window_start"] and data["round"]["window_end"]
+    assert data["window"] == {"minutes": 15}
+    assert data["counts"]["pool1"] == 3 and data["counts"]["pool2"] == 2
+    # only=all 默认返回 pool1 全量（shadow：含 pool2 成员）
+    assert data["total_memes"] == 3
+    assert data["publishable_count"] == 2
+    assert data["count"] == 3
+    assert data["age_seconds"] >= 0
+    first = data["memes"][0]
+    assert first["rank"] == 1 and first["heat_rank"] == 1
+    assert first["family_key"] == "family_1"
+    assert first["canonical"] == "吃了不烧心"
+    assert first["pool"] == "p2" and first["publishable"] is True
+    assert first["score"] == 78.5 and first["cred_score"] == 66.5
+    assert first["heat_score"] == 66.25
+    assert first["status"] == "normal"
+    assert first["evidence_rate_2x2"] is True      # 2×2 只做徽标
+    assert first["badge_2x2"] is True
+    assert first["meta_count"] == 2 and first["usage_count"] == 30
+    assert first["count_total"] == 40
+    assert first["comment_count"] == 10 and first["danmaku_count"] == 20
+    assert first["video_count"] == 3
+    assert first["explainer_only"] is False and first["meta_only"] is False
+    assert first["audit_state"] == "none" and first["audit_adjustment"] == 0.0
+    assert first["evidence_video_count"] == 3
+    assert first["first_seen_round"] == 1 and first["last_seen_round"] == 2
+    assert first["verified"] is None               # 不伪造 LLM 结论
+    assert first["type"] == "" and first["meaning"] == ""
+    # evidence 只透传前 2 条且截断
+    assert len(first["evidence"]) == 2
+    assert set(first["evidence"][0]) == {"quote", "ctime", "like", "bvid"}
+    assert len(first["evidence"][0]["quote"]) <= 120
+    # stats / verification 精简
+    assert data["stats"]["families"] == 20
+    assert data["stats"]["comment_count"] == 900
+    assert data["stats"]["heat_model"] == "phase-e/window-heat-v1"
+    assert data["verification"]["configured"] is False
+    assert "candidates" not in data
+    assert len(json.dumps(data, ensure_ascii=False)) < 20_000
+
+
+def test_v2_only_filters(report_file):
+    _write(report_file, make_report_v2())
+    publishable = meme_info_adapter.load_report(only="publishable")
+    assert publishable["count"] == 2
+    assert [m["family_key"] for m in publishable["memes"]] == ["family_1", "family_2"]
+    assert all(m["publishable"] is True and m["pool"] == "p2" for m in publishable["memes"])
+    # 全量口径不受 only 影响：总数看 pool1，可发布数看 pool2
+    assert publishable["total_memes"] == 3
+    assert publishable["publishable_count"] == 2
+
+    shadow = meme_info_adapter.load_report(only="all")
+    assert shadow["count"] == 3
+    assert [m["pool"] for m in shadow["memes"]] == ["p2", "p2", "p1"]
+    p1_entry = shadow["memes"][-1]
+    assert p1_entry["family_key"] == "family_p1"
+    assert p1_entry["publishable"] is False
+    assert p1_entry["status"] == "provisional"
+    assert p1_entry["heat_score"] is None and p1_entry["heat_rank"] is None
+    # 池1候选的 rank 退回列表序号（前端编号连续），heat_rank 明确为空
+    assert p1_entry["rank"] == 3
+
+
+def test_v2_limit_clamp_and_rank(report_file):
+    _write(report_file, make_report_v2())
+    one = meme_info_adapter.load_report(limit=1)
+    assert one["count"] == 1 and one["total_memes"] == 3
+    assert meme_info_adapter.load_report(limit=0)["count"] == 1
+    assert meme_info_adapter.load_report(limit=999)["count"] == 3
+    assert meme_info_adapter.load_report(limit="bad")["count"] == 3
+    with pytest.raises(ValueError):
+        meme_info_adapter.load_report(only="bogus")
+
+
+def test_v2_degraded_flag(report_file):
+    _write(report_file, make_report_v2(report_status="degraded"))
+    data = meme_info_adapter.load_report()
+    assert data["status"] == "ok"                  # 新鲜度状态机保持
+    assert data["report_status"] == "degraded"
+    assert data["degraded"] is True
+    # 保留 pool2、不改发布结论：adapter 只标记，不删条目
+    assert data["count"] == 3
+    assert data["publishable_count"] == 2
+    assert data["stats"]["degraded"] is True
+
+
+def test_v2_stale_and_degraded_together(report_file):
+    old = _iso(time.time() - 2 * 3600)
+    _write(report_file, make_report_v2(generated_at=old, report_status="degraded"))
+    data = meme_info_adapter.load_report()
+    assert data["status"] == "stale"
+    assert data["degraded"] is True and data["report_status"] == "degraded"
+
+
+def test_v2_missing_blank_contract(report_file):
+    data = meme_info_adapter.load_report()
+    assert data["status"] == "missing"
+    assert data["schema_version"] == ""
+    assert data["report_status"] is None
+    assert data["degraded"] is False
+    assert data["round"] == {"id": None, "window_start": None, "window_end": None}
+    assert data["counts"] == {} and data["window"] == {}
+    assert data["count"] == 0 and data["memes"] == []
+
+
+@pytest.mark.parametrize(
+    "payload,needle",
+    [
+        ({**make_report_v2(), "pool1": "nope"}, "pool1"),
+        ({**make_report_v2(), "pool2": {}}, "pool2"),
+        ({**make_report_v2(),
+          "pool2": [{"canonical": "x", "score": 1, "status": "normal"}]}, "family_key"),
+        ({**make_report_v2(),
+          "pool1": [{"family_key": "k", "canonical": "x", "score": "bad",
+                     "status": "normal"}]}, "score"),
+        ({**make_report_v2(), "memes": []}, ""),          # 空 memes 合法（空榜）
+    ],
+)
+def test_v2_validation(report_file, payload, needle):
+    _write(report_file, payload)
+    data = meme_info_adapter.load_report()
+    if not needle:
+        assert data["status"] == "ok"
+        assert data["count"] == 3                      # only=all 走 pool1
+        return
+    assert data["status"] == "invalid"
+    assert needle in data["error"]
+    assert data["memes"] == []
+
+
+def test_v2_verification_top_level(report_file):
+    payload = make_report_v2()
+    payload["verification"] = {
+        "configured": True,
+        "calls": 3,
+        "attempted": 5,
+        "ok": 4,
+        "rejected": 1,
+        "errors": 0,
+        "audited_families": 2,
+        "llm": {"calls": 3, "prompt_tokens": 100, "completion_tokens": 20,
+                "total_tokens": 120},
+        "model": "deepseek-chat",
+    }
+    _write(report_file, payload)
+    verification = meme_info_adapter.load_report()["verification"]
+    assert verification["configured"] is True
+    assert verification["calls"] == 3
+    assert verification["attempted"] == 5
+    assert verification["ok"] == 4
+    assert verification["rejected"] == 1
+    assert verification["audited_families"] == 2
+    assert verification["model"] == "deepseek-chat"
+    assert verification["llm"]["total_tokens"] == 120
+
+
+def test_api_meme_info_v2_pool_views(client, report_file):
+    _write(report_file, make_report_v2())
+    all_body = client.get("/api/meme-info", params={"only": "all", "limit": 10})
+    assert all_body.status_code == 200
+    assert all_body.json()["count"] == 3
+    assert all_body.json()["total_memes"] == 3
+
+    pub_body = client.get("/api/meme-info", params={"only": "publishable", "limit": 8})
+    assert pub_body.status_code == 200
+    body = pub_body.json()
+    assert body["count"] == 2
+    assert body["publishable_count"] == 2
+    assert all(m["publishable"] is True for m in body["memes"])
+
+    bad = client.get("/api/meme-info", params={"only": "bogus"})
+    assert bad.status_code == 400
+
+
+def test_v2_cache_uses_mtime(report_file):
+    _write(report_file, make_report_v2())
+    calls = []
+
+    def counting_read_text(self, *args, **kwargs):
+        calls.append(self)
+        return Path.read_text(self, *args, **kwargs)
+
+    original = Path.read_text
+
+    def wrapped(self, *args, **kwargs):
+        calls.append(self)
+        return original(self, *args, **kwargs)
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(Path, "read_text", wrapped):
+        first = meme_info_adapter.load_report()
+        second = meme_info_adapter.load_report()
+    assert len(calls) == 1
+    assert first["generated_at"] == second["generated_at"]

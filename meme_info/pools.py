@@ -930,6 +930,8 @@ def _initial_decision(
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
         "evidence_video_count": int(observation.evidence_video_count),
+        # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
+        "cred_base": _round3(observation.cred_base),
         "updated_round": round_id,
     }
     row = Pool1Row(
@@ -1067,6 +1069,8 @@ def _update_decision(
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
         "evidence_video_count": int(observation.evidence_video_count),
+        # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
+        "cred_base": _round3(observation.cred_base),
         "updated_round": round_id,
     }
     last_seen = prev.last_seen_round
@@ -1152,6 +1156,8 @@ def _frozen_decision(
         "badge_docs": observation.badge_docs,
         "badge_videos": observation.badge_videos,
         "evidence_video_count": int(observation.evidence_video_count),
+        # Phase E（PM 复核）：cred_base 落 evidence_json，供报告 v2 从 DB 重建 cred_score
+        "cred_base": _round3(observation.cred_base),
         "updated_round": round_id,
     }
     row = Pool1Row(
