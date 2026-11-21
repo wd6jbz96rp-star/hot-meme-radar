@@ -1,6 +1,6 @@
 # 热梗雷达 · 大改版设计文档
 
-> 状态：**设计进行中（living doc）**  
+> 状态：**设计定稿（待实现）；后续变更仍追加到本文档**  
 > 更新：2026-11-21  
 > 用途：记录已确认的流程、数据模型、算法、改动计划；后续讨论继续追加。  
 > 标记说明：✅ 已确认 ｜ 🟡 建议/待深化 ｜ 🔴 尚未讨论
@@ -144,10 +144,19 @@ score_t = clamp(score_{t-1} + delta, 0, 100)
 - ✅ 使用 **Postgres**，不用 SQLite。
 - ✅ 2 张池子表：`pool1`、`pool2`。
 - ✅ 支撑表：`round`、`video_metric`、`audit_event`。
-- 🟡 建议再加：`family_round_stat`、`pool_transition`、`family_alias`。
+- ✅ 再加：`family_round_stat`、`pool_transition`、`family_alias`。
 - ✅ `video_metric` 保留 **7 天**。
-- 🟡 其他表保留期：`round` 90 天、`family_round_stat` 30 天、`audit_event` 90 天、`pool_transition` 90 天。
+- ✅ 其他表保留期：`round` 90 天、`family_round_stat` 30 天、`audit_event` 90 天、`pool_transition` 90 天。
 - ✅ app 仍只读 JSON 报告，不直接读 Postgres。
+
+### 3.7.1 部署位置与连接
+
+- ✅ Postgres 安装在同一台云服务器，不开公网 5432。
+- ✅ 监听 `127.0.0.1:5432`；worker/admin 本机连接。
+- ✅ 数据库 `hotmeme`；角色 `hotmeme_worker`、`hotmeme_admin`、`hotmeme_migrator`，不用超级用户。
+- ✅ 连接串放 `/etc/hotmeme/env`（600），systemd 用 `EnvironmentFile`。
+- ✅ 每日 `pg_dump -Fc`，保留 7 天；切流前额外备份。
+- ✅ Admin 页面第一版走 SSH 隧道 `ssh -L 8091:127.0.0.1:8091`，不直接暴露公网；有域名/HTTPS 后再加 Nginx Basic Auth + IP 白名单。
 
 ### 3.8 审核
 
@@ -728,7 +737,7 @@ pool1.audit_adjustment = 最新一次决定性审核的分数变化
 
 ### Phase G：部署与切换
 
-- 云服务器 Postgres（本机或 RDS）
+- 云服务器本地 Postgres（127.0.0.1:5432），角色/连接串/备份
 - systemd timer 15 分钟
 - 影子运行对比
 - 切流、回滚方案
@@ -760,7 +769,7 @@ pool1.audit_adjustment = 最新一次决定性审核的分数变化
 
 ## 10. 待确认 / 待讨论
 
-- 🟡 Postgres 部署位置（服务器本机 / 云数据库）
+- 无（7 项设计决策已定稿）；实现过程中的新问题继续追加。
 
 ---
 
@@ -793,6 +802,7 @@ pool1.audit_adjustment = 最新一次决定性审核的分数变化
 | 2026-11-21 | 审核模式 | 模式 B：否决+加分，不是硬门槛 | ✅ |
 | 2026-11-21 | 审核加减分 | LLM +8/-15/0；人工 +15/-25；最新替换不累加 | ✅ |
 | 2026-11-21 | 人工审核入口 | 独立 Admin 页面 + 鉴权/白名单，写 Postgres；公开 app 保持只读 | ✅ |
+| 2026-11-21 | Postgres 部署 | 同服务器本地，127.0.0.1:5432；worker/admin 分角色；7 天 pg_dump；Admin 先走 SSH 隧道 | ✅ |
 
 ---
 
@@ -808,4 +818,5 @@ pool1.audit_adjustment = 最新一次决定性审核的分数变化
 - 2026-11-21：第 4 项可信度打分已确认（五特征、初始上限 80、0.85/0.15 平滑、P1 40/32）。
 - 2026-11-21：第 5 项已确认——2×2 只做展示徽标；P2 65/55；普通条目 usage>0；审核模式 B（否决+加分）。
 - 2026-11-21：第 6 项已确认——LLM +8/-15/0、人工 +15/-25、最新替换不累加；人工审核用独立 Admin 页面。
-- 下一项：第 7 项 Postgres 部署位置与连接方式。
+- 2026-11-21：第 7 项已确认——同服务器本地 Postgres，127.0.0.1；worker/admin 分角色；7 天 pg_dump；Admin 先走 SSH 隧道。
+- 设计阶段完成，下一阶段：Phase A（建 Postgres 状态层与迁移脚本）。
