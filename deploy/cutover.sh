@@ -104,16 +104,16 @@ PY
 # 停 state worker：先 disable timer，再 stop service 并等待退出；超时 SIGKILL。
 # 返回 0 = 已确认停止；1 = 停不下来。
 stop_state_worker() {
-  "$SYSTEMCTL" disable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 || return 1
-  if "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT"; then
-    "$SYSTEMCTL" stop "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
+  $SYSTEMCTL disable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 || return 1
+  if $SYSTEMCTL is-active --quiet "$STATE_SERVICE_UNIT"; then
+    $SYSTEMCTL stop "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
     for _ in $(seq 1 60); do
-      "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT" || return 0
+      $SYSTEMCTL is-active --quiet "$STATE_SERVICE_UNIT" || return 0
       sleep 1
     done
-    "$SYSTEMCTL" kill --signal=SIGKILL "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
+    $SYSTEMCTL kill --signal=SIGKILL "$STATE_SERVICE_UNIT" >/dev/null 2>&1 || true
     sleep 1
-    "$SYSTEMCTL" is-active --quiet "$STATE_SERVICE_UNIT" && return 1
+    $SYSTEMCTL is-active --quiet "$STATE_SERVICE_UNIT" && return 1
   fi
   return 0
 }
@@ -121,9 +121,9 @@ stop_state_worker() {
 # 安全中止：生产报告未改动；恢复旧 worker + shadow timer（drop-in 仍在）后 exit 3。
 safe_abort() {
   log "ABORT: $*（生产报告未改动；恢复旧 worker + shadow timer，继续等待下一轮）"
-  "$SYSTEMCTL" enable --now "$WORKER_UNIT" >/dev/null 2>&1 \
+  $SYSTEMCTL enable --now "$WORKER_UNIT" >/dev/null 2>&1 \
     || log "WARN: 恢复 $WORKER_UNIT 失败（请手工 systemctl enable --now $WORKER_UNIT）"
-  "$SYSTEMCTL" enable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 \
+  $SYSTEMCTL enable --now "$STATE_TIMER_UNIT" >/dev/null 2>&1 \
     || log "WARN: 恢复 $STATE_TIMER_UNIT 失败（shadow 停止，需人工检查）"
   exit 3
 }
@@ -145,8 +145,8 @@ fi
 
 # ---------------------------------------------------------------- 2) 停旧 worker
 log "== 2/7 停旧 worker（unit 保留，可回滚）=="
-"$SYSTEMCTL" disable --now "$WORKER_UNIT" || fail "停旧 worker 失败"
-"$SYSTEMCTL" is-active --quiet "$WORKER_UNIT" && fail "旧 worker 未停止" || true
+$SYSTEMCTL disable --now "$WORKER_UNIT" || fail "停旧 worker 失败"
+$SYSTEMCTL is-active --quiet "$WORKER_UNIT" && fail "旧 worker 未停止" || true
 log "旧 worker 已停（disabled，unit/脚本保留）"
 
 # ---------------------------------------------------------------- 3) 停新 state worker（防竞态）
@@ -165,7 +165,7 @@ fi
 # ---------------------------------------------------------------- 4) 删除影子 drop-in
 log "== 4/7 移除影子 drop-in（新 worker 恢复写生产报告路径）=="
 rm -f "$DROPIN_FILE" 2>/dev/null || sudo rm -f "$DROPIN_FILE"
-"$SYSTEMCTL" daemon-reload || fail "daemon-reload 失败"
+$SYSTEMCTL daemon-reload || fail "daemon-reload 失败"
 log "drop-in 已移除：$DROPIN_FILE"
 
 # ---------------------------------------------------------------- 5) 原子替换生产报告
@@ -189,9 +189,9 @@ PY
 
 # ---------------------------------------------------------------- 6) 启用 timer + 触发一轮
 log "== 6/7 启用新 timer 并手工触发一轮（写生产 v2）=="
-"$SYSTEMCTL" enable --now "$STATE_TIMER_UNIT" || fail "启用 $STATE_TIMER_UNIT 失败"
-"$SYSTEMCTL" start "$STATE_SERVICE_UNIT" || log "WARN: 手工触发轮失败，见 journalctl -u $STATE_SERVICE_UNIT"
-log "new timer: $("$SYSTEMCTL" list-timers "$STATE_TIMER_UNIT" --no-pager 2>/dev/null | sed -n '2p' | sed 's/  */ /g')"
+$SYSTEMCTL enable --now "$STATE_TIMER_UNIT" || fail "启用 $STATE_TIMER_UNIT 失败"
+$SYSTEMCTL start "$STATE_SERVICE_UNIT" || log "WARN: 手工触发轮失败，见 journalctl -u $STATE_SERVICE_UNIT"
+log "new timer: $($SYSTEMCTL list-timers "$STATE_TIMER_UNIT" --no-pager 2>/dev/null | sed -n '2p' | sed 's/  */ /g')"
 
 # ---------------------------------------------------------------- 7) 复核
 log "== 7/7 复核 =="
