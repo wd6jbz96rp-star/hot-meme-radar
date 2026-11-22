@@ -60,11 +60,14 @@ STATE_TIMER_UNIT="${HOTMEME_STATE_TIMER_UNIT:-hotmeme-state-worker.timer}"
 STATE_SERVICE_UNIT="${HOTMEME_STATE_SERVICE_UNIT:-hotmeme-state-worker.service}"
 
 CHECK_ONLY=0
+# PM 临时决策：允许 pool2 为空时切流（方案 C），默认仍要求 pool2 非空。
+ALLOW_EMPTY_POOL2="${HOTMEME_ALLOW_EMPTY_POOL2:-0}"
 case "${1:-}" in
   --check-only) CHECK_ONLY=1 ;;
-  -h|--help) sed -n '2,50p' "$0"; exit 0 ;;
+  --allow-empty-pool2) ALLOW_EMPTY_POOL2=1 ;;
+  -h|--help) sed -n '2,55p' "$0"; exit 0 ;;
   "") ;;
-  *) echo "未知参数：$1（支持 --check-only）" >&2; exit 2 ;;
+  *) echo "未知参数：$1（支持 --check-only / --allow-empty-pool2）" >&2; exit 2 ;;
 esac
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"; }
@@ -73,7 +76,7 @@ fail() { log "FAIL: $*"; exit 1; }
 # 影子报告校验（v2 + ok + pool1/pool2 非空）；成功打印一行摘要，失败 stderr 原因
 validate_shadow_report() {
   "$PY" - "$SHADOW_REPORT" <<'PY'
-import json, sys
+import json, os, sys
 report = json.load(open(sys.argv[1], encoding="utf-8"))
 schema = str(report.get("schema_version") or "")
 status = str(report.get("status") or "")
@@ -88,7 +91,10 @@ if status != "ok":
 if not pool1:
     problems.append("pool1 为空（Phase D 冻结/无 family）")
 if not pool2:
-    problems.append("pool2 为空（新梗榜将为空，不切流）")
+    if os.environ.get("HOTMEME_ALLOW_EMPTY_POOL2") == "1":
+        print("WARN: pool2 为空，按 HOTMEME_ALLOW_EMPTY_POOL2=1 允许切流（发布池将为空）", file=sys.stderr)
+    else:
+        problems.append("pool2 为空（新梗榜将为空，不切流）")
 if problems:
     print("FAIL: " + "; ".join(problems), file=sys.stderr)
     sys.exit(1)
