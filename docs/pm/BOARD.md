@@ -690,3 +690,10 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - `BiliSource.comments` 增加 main→legacy fallback、sticky 路由、游标隔离、stats 记录；window stats 透出。
 - 本地 291 passed/42 skipped；线上 3/3 视频 comments>0 但 15分钟窗口仍 0，pool2=0，切流继续阻塞。
 - 需 PM/用户决定：B站登录 cookie、换评论源，或评论降级模式。
+
+
+## 53. B站登录 cookie 与 Phase C 单通道降级（2026-11-22 10:55）
+
+- 配置 BILI_SESSDATA/BILI_JCT/BILI_DEDEUSERID 到 /etc/hotmeme/env（600）；评论 main 恢复，单视频 20 条。
+- Phase C degraded 改为「评论/弹幕都不足才降级」；单通道不足标 partial_sample，不冻结 Phase D。
+- 本地 296 passed/42 skipped；云上 test_window 32 passed；提交/部署后手跑一轮验证并等待 watcher 切流。

@@ -6,8 +6,11 @@
   只保留 ``ctime ∈ [window_start, window_end]``；弹幕解析 ``ctime`` + ``dmid``，
   只保留窗口内、按 ``dmid`` 去重、长度 2–40。
 - 固定目标条数：评论 1000 / 弹幕 **600**（PM 复核：B站 XML 封顶，15 分钟弹幕量
-  远低于 2000，按真实数据下调）；低于 60%（评论 600）/ 50%（弹幕 300）标
-  ``degraded``。超过时按每视频配额 + 轮转（round-robin）截断，固定总量、无随机偏置。
+  远低于 2000，按真实数据下调）；评论 <600 / 弹幕 <300 视为该通道不足。
+  **degraded 判定改为「至少一个通道足够」**：只有评论、弹幕同时不足才 degraded；
+  单通道不足仍 ``status=ok``，但记 ``stats.partial_sample=true`` +
+  ``partial_reason``（不冻结 Phase D 比例）；窗口异常 clamp / 无目标 / 预算耗尽等
+  结构性问题仍 degraded。超过目标时按每视频配额 + 轮转截断，固定总量、无随机偏置。
 - 评论文本去重默认 **per_video**（同一视频内归一化文本去重；跨视频同文本不算重复，
   避免误伤扩散计数）；``global`` 保留为可选口径。
 - 30 天证据：评论 ``mode=3`` 热评 + ``mode=2`` 时间序（每视频 ≤40），弹幕按
@@ -913,21 +916,41 @@ def _determine_status(
     budget_exhausted: bool,
     window_clamped: bool = False,
     no_targets: bool = False,
-) -> tuple[str, str]:
-    reasons: list[str] = []
+) -> tuple[str, str, str]:
+    """判定本轮状态（PM 复核：至少一个通道足够即 ok，单通道不足记 partial_sample）。
+
+    返回 ``(status, degraded_reason, partial_reason)``：
+
+    - 结构性问题（无目标 / window_clamped / 预算耗尽）→ degraded，优先级最高；
+    - 评论、弹幕**同时**不足 → degraded；
+    - 仅一个通道不足 → ok + ``partial_reason``（stats.partial_sample=true，不冻结 Phase D）；
+    - 两个通道都足够 → ok。
+    """
+    structural: list[str] = []
     if no_targets or (comment_target_count == 0 and danmaku_target_count == 0):
-        reasons.append("no targets")
+        structural.append("no targets")
     if window_clamped:
-        reasons.append("window_clamped")
-    if comment_count < plan.comment_min:
-        reasons.append(f"comments={comment_count}<{plan.comment_min}")
-    if danmaku_count < plan.danmaku_min:
-        reasons.append(f"danmaku={danmaku_count}<{plan.danmaku_min}")
+        structural.append("window_clamped")
     if budget_exhausted:
-        reasons.append("request budget exhausted")
-    if reasons:
-        return "degraded", ";".join(reasons)
-    return "ok", ""
+        structural.append("request budget exhausted")
+
+    channel_reasons: list[str] = []
+    if comment_count < plan.comment_min:
+        channel_reasons.append(f"comments={comment_count}<{plan.comment_min}")
+    if danmaku_count < plan.danmaku_min:
+        channel_reasons.append(f"danmaku={danmaku_count}<{plan.danmaku_min}")
+
+    partial_reason = ""
+    if structural:
+        # 结构性问题始终 degraded；单通道不足仍记 partial，便于观测
+        if len(channel_reasons) == 1:
+            partial_reason = channel_reasons[0]
+        return "degraded", ";".join(structural + channel_reasons), partial_reason
+    if len(channel_reasons) == 2:
+        return "degraded", ";".join(channel_reasons), ""
+    if len(channel_reasons) == 1:
+        return "ok", "", channel_reasons[0]
+    return "ok", "", ""
 
 
 def run_window_sample(
@@ -1085,6 +1108,8 @@ def run_window_sample(
         if stats.get("window_clamped"):
             no_target_reasons.append("window_clamped")
         stats["degraded_reason"] = ";".join(no_target_reasons)
+        stats["partial_sample"] = False
+        stats["partial_reason"] = ""
         sample.status = "degraded"
         sample.stats = _finish_stats(stats, sample, started, wall_started)
         if use_db and url and sample.round_id is not None:
@@ -1176,7 +1201,7 @@ def run_window_sample(
     if source_stats:
         stats["source"] = source_stats
 
-    status, reason = _determine_status(
+    status, reason, partial_reason = _determine_status(
         plan,
         len(comments),
         len(danmaku),
@@ -1188,6 +1213,8 @@ def run_window_sample(
     )
     sample.status = status
     stats["degraded_reason"] = reason
+    stats["partial_sample"] = bool(partial_reason)
+    stats["partial_reason"] = partial_reason
     stats["profile"] = {
         "comment_goal": plan.comment_goal,
         "comment_min": plan.comment_min,

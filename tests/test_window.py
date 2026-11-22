@@ -416,6 +416,8 @@ def test_insufficient_samples_mark_degraded() -> None:
     assert sample.status == "degraded"
     assert "comments=10<600" in sample.stats["degraded_reason"]
     assert "danmaku=10<300" in sample.stats["degraded_reason"]
+    assert sample.stats["partial_sample"] is False
+    assert sample.stats["partial_reason"] == ""
     assert sample.stats["db_written"] is False
 
 
@@ -427,6 +429,123 @@ def test_no_targets_marks_degraded_without_error() -> None:
     assert sample.status == "degraded"
     assert sample.stats["degraded_reason"] == "no targets"
     assert sample.round_id is None
+
+
+def _sufficient_comments(bvid: str, count: int = 700) -> list[Comment]:
+    return [_comment(bvid, i, NOW - i, f"充足评论{i}") for i in range(1, count + 1)]
+
+
+def _sufficient_danmaku_xml(count: int = 400) -> str:
+    return _danmaku_xml(
+        [(NOW - (i % 800) - 1, str(5000 + i), float(i % 100), f"弹幕{i:04d}") for i in range(1, count + 1)]
+    )
+
+
+def test_partial_sample_when_only_danmaku_insufficient() -> None:
+    """评论充足 + 弹幕少 → status=ok + partial_sample（不冻结 Phase D）。"""
+    bvid, cid = "BVP1", 11
+    fake = FakeSource(
+        comment_store={(bvid, 2): _sufficient_comments(bvid)},
+        danmaku_store={
+            cid: _danmaku_xml([(NOW - i, str(2000 + i), 1.0, f"弹幕{i}") for i in range(1, 11)])
+        },
+    )
+    sample = run_window_sample(
+        fake,
+        WindowSamplePlan(comment_max_pages=40, evidence=False),
+        now=NOW,
+        comment_targets=[_target(bvid)],
+        danmaku_targets=[_target(bvid, cid=cid)],
+        use_db=False,
+    )
+    assert len(sample.comments) >= 600
+    assert len(sample.danmaku) == 10
+    assert sample.status == "ok"
+    assert sample.stats["partial_sample"] is True
+    assert "danmaku=10<300" in sample.stats["partial_reason"]
+    assert sample.stats["degraded_reason"] == ""
+
+
+def test_partial_sample_when_only_comments_insufficient() -> None:
+    """弹幕充足 + 评论少 → status=ok + partial_sample。"""
+    bvid, cid = "BVP2", 12
+    fake = FakeSource(
+        comment_store={
+            (bvid, 2): [_comment(bvid, i, NOW - i, f"少量评论{i}") for i in range(1, 11)]
+        },
+        danmaku_store={cid: _sufficient_danmaku_xml(400)},
+    )
+    sample = run_window_sample(
+        fake,
+        WindowSamplePlan(evidence=False),
+        now=NOW,
+        comment_targets=[_target(bvid)],
+        danmaku_targets=[_target(bvid, cid=cid)],
+        use_db=False,
+    )
+    assert len(sample.comments) == 10
+    assert len(sample.danmaku) >= 300
+    assert sample.status == "ok"
+    assert sample.stats["partial_sample"] is True
+    assert "comments=10<600" in sample.stats["partial_reason"]
+    assert sample.stats["degraded_reason"] == ""
+
+
+def test_both_channels_sufficient_status_ok() -> None:
+    bvid, cid = "BVP3", 13
+    fake = FakeSource(
+        comment_store={(bvid, 2): _sufficient_comments(bvid)},
+        danmaku_store={cid: _sufficient_danmaku_xml(400)},
+    )
+    sample = run_window_sample(
+        fake,
+        WindowSamplePlan(comment_max_pages=40, evidence=False),
+        now=NOW,
+        comment_targets=[_target(bvid)],
+        danmaku_targets=[_target(bvid, cid=cid)],
+        use_db=False,
+    )
+    assert sample.status == "ok"
+    assert sample.stats["partial_sample"] is False
+    assert sample.stats["partial_reason"] == ""
+    assert sample.stats["degraded_reason"] == ""
+
+
+def test_window_clamped_priority_over_sufficient_channels() -> None:
+    """window_clamped 优先级最高：两个通道都够也必须 degraded。"""
+    bvid, cid = "BVP4", 14
+    fake = FakeSource(
+        comment_store={
+            (bvid, 2): [
+                _comment(bvid, i, NOW - (i % 800) - 1, f"窗口内评论{i}")
+                for i in range(1, 701)
+            ]
+        },
+        danmaku_store={cid: _sufficient_danmaku_xml(400)},
+    )
+    result = VideoRouteResult(
+        started_at=NOW - 3 * 3600,
+        window_start=NOW - 3 * 3600,
+        window_end=NOW,
+        selected_comment=[],
+        selected_danmaku=[],
+        metrics=[],
+    )
+    sample = run_window_sample(
+        fake,
+        WindowSamplePlan(comment_max_pages=40, evidence=False),
+        now=NOW + 1,
+        comment_targets=[_target(bvid)],
+        danmaku_targets=[_target(bvid, cid=cid)],
+        video_route=result,
+        use_db=False,
+    )
+    assert len(sample.comments) >= 600
+    assert len(sample.danmaku) >= 300
+    assert sample.status == "degraded"
+    assert "window_clamped" in sample.stats["degraded_reason"]
+    assert sample.stats["window_clamped"] is True
+    assert sample.stats["partial_sample"] is False
 
 
 def test_request_budget_exhaustion_marks_degraded() -> None:
