@@ -82,7 +82,7 @@ run.py                 启动入口
 .venv/bin/python -m pytest -q
 ```
 
-当前 **296 passed, 42 skipped**：原有 87 + Phase A–G 测试；skip 为无本地 Postgres 的集成测试。
+当前 **297 passed, 42 skipped**：原有 87 + Phase A–G 测试；skip 为无本地 Postgres 的集成测试。
 
 ## 已知限制
 

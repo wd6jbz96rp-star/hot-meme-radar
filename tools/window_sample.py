@@ -57,6 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--window-minutes", type=int, default=None,
                         help="覆盖窗口长度（缺省用 round 窗口；无 round 时 15 分钟）")
     parser.add_argument("--no-evidence", action="store_true", help="不采 30 天证据")
+    parser.add_argument("--comment-min", type=int, default=None,
+                        help="评论 degraded 下限覆盖（默认 50，临时阈值）")
+    parser.add_argument("--danmaku-min", type=int, default=None,
+                        help="弹幕 degraded 下限覆盖（默认 30，临时阈值）")
     parser.add_argument(
         "--text-dedupe-scope",
         choices=("per_video", "global"),
@@ -98,6 +102,10 @@ def _build_plan(args: argparse.Namespace) -> WindowSamplePlan:
         kwargs["window_minutes"] = int(args.window_minutes)
     if args.max_requests is not None:
         kwargs["max_requests"] = int(args.max_requests)
+    if args.comment_min is not None:
+        kwargs["comment_min"] = max(0, int(args.comment_min))
+    if args.danmaku_min is not None:
+        kwargs["danmaku_min"] = max(0, int(args.danmaku_min))
     if args.limit is not None:
         kwargs["comment_targets"] = max(1, int(args.limit))
         kwargs["danmaku_targets"] = max(1, int(args.limit))
@@ -156,6 +164,8 @@ def _format_summary(sample: WindowSample) -> str:
             f"30 天证据: 评论 {len(sample.evidence_comments)} / 弹幕"
             f" {len(sample.evidence_danmaku)}（不参与比例）"
         )
+    if stats.get("partial_sample"):
+        lines.append(f"partial_sample: {stats.get('partial_reason')}（不冻结 Phase D）")
     lines.extend(
         [
             f"请求: {stats.get('http_requests', '-')}  耗时: {stats.get('elapsed_seconds')}s",

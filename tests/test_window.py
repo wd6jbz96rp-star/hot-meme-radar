@@ -390,7 +390,7 @@ def test_danmaku_goal_truncation() -> None:
     )
     assert len(sample2.danmaku) == 600
     assert sample2.stats["profile"]["danmaku_goal"] == 600
-    assert sample2.stats["profile"]["danmaku_min"] == 300
+    assert sample2.stats["profile"]["danmaku_min"] == 30
 
 
 def test_insufficient_samples_mark_degraded() -> None:
@@ -414,8 +414,8 @@ def test_insufficient_samples_mark_degraded() -> None:
         use_db=False,
     )
     assert sample.status == "degraded"
-    assert "comments=10<600" in sample.stats["degraded_reason"]
-    assert "danmaku=10<300" in sample.stats["degraded_reason"]
+    assert "comments=10<50" in sample.stats["degraded_reason"]
+    assert "danmaku=10<30" in sample.stats["degraded_reason"]
     assert sample.stats["partial_sample"] is False
     assert sample.stats["partial_reason"] == ""
     assert sample.stats["db_written"] is False
@@ -462,7 +462,7 @@ def test_partial_sample_when_only_danmaku_insufficient() -> None:
     assert len(sample.danmaku) == 10
     assert sample.status == "ok"
     assert sample.stats["partial_sample"] is True
-    assert "danmaku=10<300" in sample.stats["partial_reason"]
+    assert "danmaku=10<30" in sample.stats["partial_reason"]
     assert sample.stats["degraded_reason"] == ""
 
 
@@ -487,7 +487,7 @@ def test_partial_sample_when_only_comments_insufficient() -> None:
     assert len(sample.danmaku) >= 300
     assert sample.status == "ok"
     assert sample.stats["partial_sample"] is True
-    assert "comments=10<600" in sample.stats["partial_reason"]
+    assert "comments=10<50" in sample.stats["partial_reason"]
     assert sample.stats["degraded_reason"] == ""
 
 
@@ -573,6 +573,12 @@ def test_request_budget_exhaustion_marks_degraded() -> None:
 
 
 def test_quota_helpers() -> None:
+    # 方案 A 临时阈值：只降 degraded 下限，目标条数不变
+    default_plan = WindowSamplePlan()
+    assert default_plan.comment_goal == 1000
+    assert default_plan.danmaku_goal == 600
+    assert default_plan.comment_min == 50
+    assert default_plan.danmaku_min == 30
     assert per_video_cap(1000, 45) == 23
     assert per_video_cap(1000, 3) == 334
     assert per_video_cap(0, 0) == 0
@@ -1119,6 +1125,42 @@ def test_cli_no_db_with_targets_json(tmp_path: Path) -> None:
     assert json.loads(output.read_text(encoding="utf-8"))["window_start"] == WINDOW_START
 
 
+def test_cli_threshold_overrides(tmp_path: Path) -> None:
+    """--comment-min/--danmaku-min 覆盖生效：阈值降到 0 时小样本也为 ok。"""
+    files = _write_cli_fixtures(tmp_path)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tools.window_sample",
+            "--no-db",
+            "--offline",
+            "--fixture-dir",
+            str(files["fixture_dir"]),
+            "--targets-json",
+            str(files["targets"]),
+            "--now",
+            str(NOW),
+            "--comment-min",
+            "0",
+            "--danmaku-min",
+            "0",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["status"] == "ok"
+    assert payload["stats"]["partial_sample"] is False
+    assert payload["stats"]["profile"]["comment_min"] == 0
+    assert payload["stats"]["profile"]["danmaku_min"] == 0
+    assert payload["stats"]["profile"]["temporary_min_thresholds"] is True
+
+
 def test_cli_no_db_without_targets_is_degraded_not_error(tmp_path: Path) -> None:
     completed = subprocess.run(
         [
@@ -1226,7 +1268,7 @@ def test_persist_sample_round_update_rollback() -> None:
             ).fetchone()
             assert row[0] == 3 and row[1] == 1
             assert row[2] == "degraded", "样本低于 60% 必须标 degraded"
-            assert "comments=3<600" in (row[3] or "")
+            assert "comments=3<50" in (row[3] or "")
             stats = row[4]
             if isinstance(stats, (str, bytes, bytearray)):
                 stats = json.loads(stats)

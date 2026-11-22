@@ -697,3 +697,9 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 配置 BILI_SESSDATA/BILI_JCT/BILI_DEDEUSERID 到 /etc/hotmeme/env（600）；评论 main 恢复，单视频 20 条。
 - Phase C degraded 改为「评论/弹幕都不足才降级」；单通道不足标 partial_sample，不冻结 Phase D。
 - 本地 296 passed/42 skipped；云上 test_window 32 passed；提交/部署后手跑一轮验证并等待 watcher 切流。
+
+
+## 54. Phase C 临时阈值（方案 A，2026-11-22 11:10）
+
+- 评论/弹幕 degraded 下限临时降为 50/30（目标 1000/600 不变）；单通道策略保持；`profile.temporary_min_thresholds=true`。
+- 本地 297 passed/42 skipped；云上 test_window 33 passed；待部署后手跑，验证 ok+pool2 并切流。

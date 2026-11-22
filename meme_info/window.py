@@ -5,12 +5,14 @@
 - 15 分钟计数：评论只用 ``mode=2`` 时间序，从最新往前翻到 ``window_start``，
   只保留 ``ctime ∈ [window_start, window_end]``；弹幕解析 ``ctime`` + ``dmid``，
   只保留窗口内、按 ``dmid`` 去重、长度 2–40。
-- 固定目标条数：评论 1000 / 弹幕 **600**（PM 复核：B站 XML 封顶，15 分钟弹幕量
-  远低于 2000，按真实数据下调）；评论 <600 / 弹幕 <300 视为该通道不足。
-  **degraded 判定改为「至少一个通道足够」**：只有评论、弹幕同时不足才 degraded；
+- 固定目标条数：评论 1000 / 弹幕 **600**（目标不变，超过时按每视频配额 +
+  轮转截断，固定总量、无随机偏置）。
+- **临时 degraded 下限（PM 确认方案 A，观察数据后回调）**：评论 ``comment_min=50``
+  （原 600）、弹幕 ``danmaku_min=30``（原 300）；只降下限，目标条数不变。
+- **degraded 判定「至少一个通道足够」**：只有评论、弹幕同时低于下限才 degraded；
   单通道不足仍 ``status=ok``，但记 ``stats.partial_sample=true`` +
   ``partial_reason``（不冻结 Phase D 比例）；窗口异常 clamp / 无目标 / 预算耗尽等
-  结构性问题仍 degraded。超过目标时按每视频配额 + 轮转截断，固定总量、无随机偏置。
+  结构性问题仍 degraded。
 - 评论文本去重默认 **per_video**（同一视频内归一化文本去重；跨视频同文本不算重复，
   避免误伤扩散计数）；``global`` 保留为可选口径。
 - 30 天证据：评论 ``mode=3`` 热评 + ``mode=2`` 时间序（每视频 ≤40），弹幕按
@@ -44,8 +46,8 @@ COMMENT_TARGETS = 45
 DANMAKU_TARGETS = 10
 COMMENT_GOAL = 1000
 DANMAKU_GOAL = 600
-COMMENT_MIN = 600
-DANMAKU_MIN = 300
+COMMENT_MIN = 50
+DANMAKU_MIN = 30
 EVIDENCE_DAYS = 30
 EVIDENCE_COMMENT_PER_VIDEO = 40
 EVIDENCE_DANMAKU_PER_VIDEO = 200
@@ -70,8 +72,9 @@ class WindowSamplePlan:
     danmaku_targets: int = DANMAKU_TARGETS
     comment_goal: int = COMMENT_GOAL
     danmaku_goal: int = DANMAKU_GOAL
+    #: 临时下限：评论 50（原 600；只降 degraded 下限，目标 1000 不变；观察后回调）
     comment_min: int = COMMENT_MIN
-    #: 弹幕目标 600 / 下限 300（真实 XML 封顶后的实测口径，PM 复核调整）
+    #: 临时下限：弹幕 30（原 300；目标 600 不变；观察后回调）
     danmaku_min: int = DANMAKU_MIN
     #: 15 分钟评论单视频最多翻页数（防慢视频把预算吃光）
     comment_max_pages: int = DEFAULT_COMMENT_MAX_PAGES
@@ -1220,6 +1223,8 @@ def run_window_sample(
         "comment_min": plan.comment_min,
         "danmaku_goal": plan.danmaku_goal,
         "danmaku_min": plan.danmaku_min,
+        #: 方案 A：临时降低下限（观察后回调），目标条数不变
+        "temporary_min_thresholds": True,
         "comment_share": round(len(comments) / max(1, plan.comment_goal), 4),
         "danmaku_share": round(len(danmaku) / max(1, plan.danmaku_goal), 4),
     }
