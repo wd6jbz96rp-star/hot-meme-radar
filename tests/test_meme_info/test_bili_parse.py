@@ -83,7 +83,7 @@ def test_bootstrap_reads_wbi_keys_offline():
     assert "w_rid=" in query and "wts=" in query
 
 
-def test_auth_cookies_from_env(monkeypatch, fixture_dir):
+def test_auth_cookies_from_env(monkeypatch):
     from meme_info.bili import BiliSource
     from meme_info.http import HttpClient
 
@@ -91,7 +91,7 @@ def test_auth_cookies_from_env(monkeypatch, fixture_dir):
     monkeypatch.setenv("BILI_JCT", "test-jct")
     monkeypatch.setenv("BILI_DEDEUSERID", "12345")
     source = BiliSource(
-        http=HttpClient(max_rps=1000), offline=True, fixture_dir=fixture_dir
+        http=HttpClient(max_rps=1000), offline=True, fixture_dir=FIXTURES
     )
     source.bootstrap()
     assert source.http.cookie_value("SESSDATA") == "%2Ctest-sess"
