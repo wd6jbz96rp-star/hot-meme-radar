@@ -261,3 +261,15 @@ deploy/cutover.sh                # 通过后切流
 - 白天仍 comments=0–14：B站 `/x/v2/reply/main` 对云服务器 IP 返回 412；legacy fallback 只能拿每视频约 3 条旧评论，45 视频 <135，远低于 600。
 - 影子仍 degraded、pool2=0，watcher 继续 wait；生产 v1 正常。
 - 解除阻塞需要：B站登录态 cookie（SESSDATA）或更换评论源/评论降级策略。
+
+## 8. 正式切流 v2（2026-11-22 11:26，方案 C）
+
+- 用户选择方案 C：允许 pool2 为空时切 v2；`cutover.sh --allow-empty-pool2 / HOTMEME_ALLOW_EMPTY_POOL2=1`。
+- 前置：影子 v2 `status=ok`、pool1=12、pool2=0；本机 API 与公网 200。
+- 执行：停旧 worker → 停 state worker/timer → 移除 shadow drop-in → 影子报告原子替换生产 → 启 state timer + 触发一轮 → 复核。
+- 结果：
+  - 生产 `var/meme_info_latest.json` = `meme-info/v2`、`status=ok`、pool1=12、pool2=0
+  - `/api/meme-info?only=publishable` → 0；`only=all` → 12
+  - 公网 200；旧 `hotmeme-worker` disabled（unit 保留回滚）
+  - watcher 检测生产 v2/ok 后自动停用；state worker timer 保持每 15 分钟
+- 说明：按方案 C，发布池暂时为空；候选池有 12 条，后续轮次/审核可逐步填充 pool2。

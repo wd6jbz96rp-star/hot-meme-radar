@@ -703,3 +703,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 
 - 评论/弹幕 degraded 下限临时降为 50/30（目标 1000/600 不变）；单通道策略保持；`profile.temporary_min_thresholds=true`。
 - 本地 297 passed/42 skipped；云上 test_window 33 passed；待部署后手跑，验证 ok+pool2 并切流。
+
+
+## 55. v2 正式切流（方案 C，2026-11-22 11:26）
+
+- cutover.sh 增加 `--allow-empty-pool2`/`HOTMEME_ALLOW_EMPTY_POOL2=1`；修复 `sudo systemctl` 命令展开 bug。
+- 生产切换为 v2 ok：pool1=12、pool2=0；only=publishable=0、only=all=12；公网 200。
+- 旧 worker disabled 保留回滚；state timer active；cutover-watch 自停用。
+- 按用户选择 C，发布池暂时为空，候选池有内容；后续轮次填充。
