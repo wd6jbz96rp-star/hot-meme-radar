@@ -230,6 +230,75 @@ def parse_danmaku_xml(xml: str, *, bvid: str, zone: str = "",
     return result
 
 
+def parse_legacy_comment_page(
+    payload: dict,
+    *,
+    bvid: str,
+    aid: int = 0,
+    zone: str = "",
+    video_title: str = "",
+    mode: int = 3,
+    page_size: int = 20,
+    page_number: int = 1,
+) -> tuple[list[Comment], int, bool]:
+    """解析旧版 ``/x/v2/reply``（``data.replies``）为 ``Comment``。
+
+    ``/x/v2/reply/main`` 在部分 IP 上返回 412（云服务器实测），旧接口可用。
+    旧接口参数：``type=1&oid=aid&pn=页码&ps=页大小&sort=2(mode2)/0(mode3)``。
+
+    返回 ``(comments, next_cursor, is_end)``：``next_cursor = page_number + 1``，
+    末页判定 = 空 replies / 本页少于 ``ps`` / ``page.num * ps >= page.count``。
+    旧接口不保证严格时间倒序：这里按 ctime 倒序重排单页，调用方仍需按 ctime
+    过滤窗口（不伪造顺序，页边界行为在报告中说明）。
+    """
+    data = payload.get("data") or {}
+    page = data.get("page") or {}
+    replies = data.get("replies")
+    items: list[dict] = []
+    if isinstance(replies, list):
+        items = [item for item in replies if isinstance(item, dict)]
+    comments: list[Comment] = []
+    seen: set[int] = set()
+    for item in items:
+        if item.get("invisible") or item.get("state") not in (None, 0):
+            continue
+        rpid = safe_int(item.get("rpid"), 0)
+        if rpid and rpid in seen:
+            continue
+        content = item.get("content") or {}
+        if not isinstance(content, dict):
+            content = {}
+        text = str(content.get("message") or "").strip()
+        if not text:
+            continue
+        if rpid:
+            seen.add(rpid)
+        comments.append(
+            Comment(
+                id=f"{bvid}:{rpid}" if rpid else f"{bvid}:c:{hashlib.sha1(text.encode()).hexdigest()[:12]}",
+                bvid=bvid,
+                text=text,
+                ctime=safe_int(item.get("ctime"), 0),
+                like=safe_int(item.get("like"), 0),
+                zone=zone,
+                video_title=video_title,
+                mode=mode,
+                aid=aid,
+            )
+        )
+    # 单页内按时间倒序（旧接口 sort 语义可能不是严格时间序，见模块说明）
+    comments.sort(key=lambda item: (item.ctime, item.id), reverse=True)
+    page_num = safe_int(page.get("num"), page_number) or page_number
+    page_size_actual = safe_int(page.get("size"), page_size) or page_size
+    total = safe_int(page.get("count"), 0)
+    if not total:
+        total = safe_int(page.get("acount"), 0)
+    is_end = not items or len(items) < page_size
+    if not is_end and total and page_num * page_size_actual >= total:
+        is_end = True
+    return comments, page_number + 1, is_end
+
+
 _ONLINE_NUMBER_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(万|w|W)?")
 
 
@@ -354,6 +423,15 @@ class BiliSource:
         self.errors: list[dict] = []
         self.search_failures: Counter[str] = Counter()
         self.comment_failures: Counter[str] = Counter()
+        #: 评论接口路由（bvid -> main / legacy）；main 412 后同视频固定走旧接口
+        self.comment_routes: dict[str, str] = {}
+        #: 评论接口调用计数（main / reply_legacy），与 http.endpoint_counts 互补
+        self.comment_endpoint_counts: Counter[str] = Counter()
+        #: 降级到旧接口的次数（按视频首次切换计）
+        self.comment_fallbacks: Counter[str] = Counter()
+        #: main 连续失败次数 / 是否全局禁用 main（云服务器 IP 412 时省请求）
+        self.comment_main_fail_streak = 0
+        self.comment_main_disabled = False
 
     # ---------------------------------------------------------------- 基础
     def _record(self, source: str, reason: str) -> None:
@@ -633,6 +711,66 @@ class BiliSource:
             return safe_int(pages[0].get("cid"), 0) or None
         return None
 
+    # ---------------------------------------------------------------- 评论
+    def _ensure_comment_cookies(self) -> None:
+        """旧接口需要 buvid3/buvid4；缺失时重新 bootstrap/spi 补一次。"""
+        if not self.http.cookie_value("buvid3") or not self.http.cookie_value("buvid4"):
+            self._bootstrapped = False
+            self.bootstrap()
+
+    def _fetch_main_comments(
+        self,
+        aid: int,
+        *,
+        bvid: str,
+        mode: int,
+        cursor: int,
+        page_size: int,
+    ) -> dict:
+        """``/x/v2/reply/main``：带 buvid3 只回 3 条，请求期间摘掉 buvid3。"""
+        query = urllib.parse.urlencode(
+            {"type": 1, "oid": aid, "mode": mode, "next": cursor, "ps": page_size}
+        )
+        with self.http.without_cookie("buvid3"):
+            return self.http.get_json(
+                f"{API}/x/v2/reply/main?{query}",
+                referer="https://www.bilibili.com/",
+                cache_ttl=600,
+                retries=0,  # 失败立即降级旧接口，避免 412 重试拖垮预算
+            )
+
+    def _fetch_legacy_comments(
+        self,
+        aid: int,
+        *,
+        bvid: str,
+        mode: int,
+        cursor: int,
+        page_size: int,
+    ) -> tuple[dict, int]:
+        """旧版 ``/x/v2/reply``；不摘 buvid3（实测缺 buvid3 会 412）。
+
+        返回 ``(payload, page_number)``。不同路由的 cursor 语义分开处理：
+        - 已在 legacy 路由：``cursor`` 即下一页页码，直接用作 ``pn``；
+        - 从 main 中途降级：main 的 ``cursor`` 是偏移量，换算 ``pn = cursor//ps+1``。
+        """
+        if self.comment_routes.get(bvid) == "legacy":
+            page_number = max(1, int(cursor) or 1)
+        else:
+            page_number = 1 if int(cursor) <= 0 else int(cursor) // max(1, page_size) + 1
+        self._ensure_comment_cookies()
+        sort = 2 if mode == 2 else 0
+        query = urllib.parse.urlencode(
+            {"type": 1, "oid": aid, "pn": page_number, "ps": page_size, "sort": sort}
+        )
+        payload = self.http.get_json(
+            f"{API}/x/v2/reply?{query}",
+            referer="https://www.bilibili.com/",
+            cache_ttl=600,
+            retries=1,
+        )
+        return payload, page_number
+
     def comments(
         self,
         aid: int,
@@ -645,9 +783,11 @@ class BiliSource:
         video_title: str = "",
         include_top: bool = True,
     ) -> tuple[list[Comment], int, bool]:
-        """拉一页评论；带 buvid3 只回 3 条，所以请求期间摘掉它。
+        """拉一页评论：优先 ``/x/v2/reply/main``，失败（412/非 JSON/code!=0）降级旧接口。
 
         ``include_top=False`` 用于 mode=2 时间序翻页：不带置顶评论。
+        降级会记录 ``comment_fallbacks``、``comment_endpoint_counts`` 与 errors
+        （``comments:<bvid>`` / ``main:...->reply_legacy``），不静默。
         """
         if not aid:
             return [], 0, True
@@ -655,36 +795,82 @@ class BiliSource:
             name = "reply_main.json" if mode == 3 else "reply_main_mode2.json"
             text = self._fixture(name) or self._fixture("reply_main.json")
             payload = json.loads(text) if text else {}
-        else:
-            query = urllib.parse.urlencode(
-                {"type": 1, "oid": aid, "mode": mode, "next": cursor, "ps": page_size}
+            comments, next_cursor, is_end = parse_comment_page(
+                payload,
+                bvid=bvid,
+                aid=aid,
+                zone=zone,
+                video_title=video_title,
+                mode=mode,
+                include_top=include_top,
             )
-            with self.http.without_cookie("buvid3"):
-                try:
-                    payload = self.http.get_json(
-                        f"{API}/x/v2/reply/main?{query}",
-                        referer="https://www.bilibili.com/",
-                        cache_ttl=600,
+            return comments, next_cursor, is_end
+
+        main_reason = ""
+        if self.comment_routes.get(bvid) == "legacy":
+            pass  # 该视频已确定走旧接口，后续页不再尝试 main
+        elif self.comment_main_disabled:
+            main_reason = "main_disabled"
+        else:
+            try:
+                payload = self._fetch_main_comments(
+                    aid, bvid=bvid, mode=mode, cursor=cursor, page_size=page_size
+                )
+                if payload.get("code") in (0, None):
+                    self.comment_routes[bvid] = "main"
+                    self.comment_endpoint_counts["main"] += 1
+                    self.comment_main_fail_streak = 0
+                    return parse_comment_page(
+                        payload,
+                        bvid=bvid,
+                        aid=aid,
+                        zone=zone,
+                        video_title=video_title,
+                        mode=mode,
+                        include_top=include_top,
                     )
-                except HttpError as exc:
-                    self.comment_failures[f"http:{exc.status}"] += 1
-                    self._record(f"comments:{bvid}", f"http:{exc.status}")
-                    return [], 0, True
-        if payload.get("code") not in (0, None):
-            code = payload.get("code")
-            self.comment_failures[f"code:{code}"] += 1
-            self._record(f"comments:{bvid}", f"code:{code}")
+                main_reason = f"code:{payload.get('code')}"
+                self.comment_failures[f"main:code:{payload.get('code')}"] += 1
+            except HttpError as exc:
+                main_reason = f"http:{exc.status or exc.kind}"
+                self.comment_failures[f"main:{main_reason}"] += 1
+        if main_reason:
+            self._record(f"comments:{bvid}", f"main:{main_reason}")
+            if main_reason != "main_disabled":
+                self.comment_main_fail_streak += 1
+                if self.comment_main_fail_streak >= 3:
+                    self.comment_main_disabled = True
+
+        # ---- legacy fallback ----
+        try:
+            legacy_payload, page_number = self._fetch_legacy_comments(
+                aid, bvid=bvid, mode=mode, cursor=cursor, page_size=page_size
+            )
+        except HttpError as exc:
+            reason = f"http:{exc.status or exc.kind}"
+            self.comment_failures[f"reply_legacy:{reason}"] += 1
+            self._record(f"comments:{bvid}", f"reply_legacy:{reason}")
             return [], 0, True
-        comments, next_cursor, is_end = parse_comment_page(
-            payload,
+        self.comment_endpoint_counts["reply_legacy"] += 1
+        if legacy_payload.get("code") not in (0, None):
+            code = legacy_payload.get("code")
+            self.comment_failures[f"reply_legacy:code:{code}"] += 1
+            self._record(f"comments:{bvid}", f"reply_legacy:code:{code}")
+            return [], 0, True
+        if self.comment_routes.get(bvid) != "legacy":
+            self.comment_routes[bvid] = "legacy"
+            self.comment_fallbacks["reply_legacy"] += 1
+            self._record(f"comments:{bvid}", f"fallback:main:{main_reason}->reply_legacy")
+        return parse_legacy_comment_page(
+            legacy_payload,
             bvid=bvid,
             aid=aid,
             zone=zone,
             video_title=video_title,
             mode=mode,
-            include_top=include_top,
+            page_size=page_size,
+            page_number=page_number,
         )
-        return comments, next_cursor, is_end
 
     def danmaku(self, cid: int) -> str:
         if not cid:
@@ -704,5 +890,9 @@ class BiliSource:
             **self.http.stats(),
             "search_failures": dict(self.search_failures),
             "comment_failures": dict(self.comment_failures),
+            "comment_endpoints": dict(self.comment_endpoint_counts),
+            "comment_fallbacks": dict(self.comment_fallbacks),
+            "comment_routes": dict(self.comment_routes),
+            "comment_main_disabled": bool(self.comment_main_disabled),
             "errors": list(self.errors[-30:]),
         }

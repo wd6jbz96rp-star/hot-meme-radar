@@ -182,6 +182,34 @@ class _Budget:
         return max(0, _request_count(self.source) - self.start)
 
 
+def _source_stats_summary(source: Any) -> dict[str, Any]:
+    """把 BiliSource.stats() 里与评论接口路由/降级相关的字段带进样本 stats。"""
+    func = getattr(source, "stats", None)
+    if not callable(func):
+        return {}
+    try:
+        payload = func() or {}
+    except Exception:  # noqa: BLE001 - 统计失败不影响采样结果
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    summary: dict[str, Any] = {
+        "endpoint_counts": payload.get("endpoint_counts") or {},
+        "comment_endpoints": payload.get("comment_endpoints") or {},
+        "comment_fallbacks": payload.get("comment_fallbacks") or {},
+        "comment_failures": payload.get("comment_failures") or {},
+        "comment_main_disabled": bool(payload.get("comment_main_disabled")),
+        "errors": len(payload.get("errors") or []),
+    }
+    if payload.get("comment_routes"):
+        routes = dict(payload["comment_routes"])
+        summary["comment_route_counts"] = {
+            "main": sum(1 for value in routes.values() if value == "main"),
+            "legacy": sum(1 for value in routes.values() if value == "legacy"),
+        }
+    return summary
+
+
 def _record_error(errors: list[dict[str, Any]], stage: str, bvid: str, exc: Any) -> None:
     errors.append(
         {
@@ -1144,6 +1172,9 @@ def run_window_sample(
     sample.evidence_danmaku = evidence_danmaku
     stats["budget_exhausted"] = budget.exhausted
     stats["http_requests"] = budget.used
+    source_stats = _source_stats_summary(source)
+    if source_stats:
+        stats["source"] = source_stats
 
     status, reason = _determine_status(
         plan,

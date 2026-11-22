@@ -38,3 +38,10 @@
 - 评论 mode=2 单视频最多 10 页；超热视频可能 pages_exhausted。
 - 异常窗口 clamp 后仍标 degraded，Phase D 应冻结比例。
 - 未接 worker；Phase G 单写者/调度保证。
+
+## 5. 线上评论 412 与 legacy fallback（2026-11-22 10:00）
+
+- 云服务器 IP 访问 `/x/v2/reply/main` 返回 **HTTP 412 / 非 JSON**；白天不恢复，导致 comments 长期 0–14。
+- 实测旧接口 `/x/v2/reply` 可用：main 412 时 fallback 到 legacy，3/3 热门视频可拿到评论；但 legacy 每视频仅约 3 条旧/热评论、分页返回空，45 视频最多 ~135 条，仍低于 600 下限。
+- 已实现 fallback（`meme_info/bili.py`）：main 412/code!=0 → legacy；sticky 路由、游标隔离、失败不静默、window stats 带 `comment_endpoints/comment_fallbacks`。
+- 结论：fallback 提高鲁棒性，但**不能解除切流阻塞**；需要登录态 cookie 或评论源/降级策略。

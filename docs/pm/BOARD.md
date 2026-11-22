@@ -682,3 +682,11 @@ P2 摘要：`limit` 钳位未文档化、history 不存在 key 返回 200 空数
 - 发现 `非凡之爱` 被元话语通道带入 provisional；补 REVIEW_STOPWORDS（非凡之爱/最怕BLG夺冠之人/腋毛攻击）并修复归一化匹配 BLG 大写；清理影子 DB 后 pool1=7。
 - 提交 b2401f7（冷启动）、e902120（负例）、bda2586（归一化）。
 - 夜间 pool2 仍 0，切流继续等白天 ok 轮。
+
+
+## 52. 评论 412 与 legacy fallback（2026-11-22 10:00）
+
+- 云服务器 IP 访问 `/x/v2/reply/main` 返回 412；旧 `/x/v2/reply` 可用但每视频仅约 3 条旧评论、分页失效。
+- `BiliSource.comments` 增加 main→legacy fallback、sticky 路由、游标隔离、stats 记录；window stats 透出。
+- 本地 291 passed/42 skipped；线上 3/3 视频 comments>0 但 15分钟窗口仍 0，pool2=0，切流继续阻塞。
+- 需 PM/用户决定：B站登录 cookie、换评论源，或评论降级模式。

@@ -254,3 +254,10 @@ deploy/cutover.sh                # 通过后切流
   - 修复 stopword 归一化匹配（BLG 大写漏拦）；
   - 清理影子 DB 中这些负例的 pool/stat/alias/transition 行；pool1 8→7，pool2 仍 0。
 - 结论：第一轮可以跑通、能建立 pool1；但夜间样本不足以产生 pool2，仍不能切流。
+
+
+## 7. 2026-11-22 10:00 阻塞更新
+
+- 白天仍 comments=0–14：B站 `/x/v2/reply/main` 对云服务器 IP 返回 412；legacy fallback 只能拿每视频约 3 条旧评论，45 视频 <135，远低于 600。
+- 影子仍 degraded、pool2=0，watcher 继续 wait；生产 v1 正常。
+- 解除阻塞需要：B站登录态 cookie（SESSDATA）或更换评论源/评论降级策略。

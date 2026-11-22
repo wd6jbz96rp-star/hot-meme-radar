@@ -11,11 +11,13 @@ import os
 import subprocess
 import sys
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
-from meme_info.bili import parse_comment_page, parse_danmaku_xml
+from meme_info.bili import BiliSource, parse_comment_page, parse_danmaku_xml, parse_legacy_comment_page
+from meme_info.http import HttpError
 from meme_info.models import Comment, Video, VideoMetric, VideoRouteResult, WindowTarget
 from meme_info.text import normalize_surface
 from meme_info.window import (
@@ -689,6 +691,206 @@ def test_parse_comment_page_include_top_toggle() -> None:
     real = json.loads((FIXTURES / "reply_main.json").read_text(encoding="utf-8"))
     merged, _, _ = parse_comment_page(real, bvid="BVX")
     assert len({item.id for item in merged}) == len(merged)
+
+
+# ================================================================ 评论 legacy fallback
+def _legacy_payload(replies=None, *, num=1, size=20, count=None) -> dict:
+    replies = list(replies or [])
+    total = count if count is not None else len(replies) + 100
+    return {
+        "code": 0,
+        "data": {
+            "page": {"num": num, "size": size, "count": total, "acount": total},
+            "replies": replies,
+        },
+    }
+
+
+def _legacy_reply(rpid: int, ctime: int, text: str, like: int = 0) -> dict:
+    return {"rpid": rpid, "like": like, "ctime": ctime, "content": {"message": text}}
+
+
+class _FakeHttp:
+    """模拟 HttpClient：main 失败/legacy 成功，记录请求 URL。"""
+
+    def __init__(self, *, main_payload=None, main_error=None, legacy_payload=None, legacy_error=None):
+        self.main_payload = main_payload
+        self.main_error = main_error
+        self.legacy_payload = legacy_payload
+        self.legacy_error = legacy_error
+        self.calls: list[str] = []
+        self.requests = 0
+        self.cache_hits = 0
+        self.endpoint_counts: Counter[str] = Counter()
+        self.errors: list[dict] = []
+        self.without_cookie_calls: list[str] = []
+
+    def cookie_value(self, name: str) -> str:
+        return "fake-buvid3"
+
+    @contextmanager
+    def without_cookie(self, name: str):
+        self.without_cookie_calls.append(name)
+        yield
+
+    def get_json(self, url: str, **kwargs):
+        self.requests += 1
+        self.calls.append(url)
+        if "/x/v2/reply/main" in url:
+            if self.main_error is not None:
+                raise self.main_error
+            return self.main_payload or {}
+        if "/x/v2/reply" in url:
+            if self.legacy_error is not None:
+                raise self.legacy_error
+            return self.legacy_payload or {}
+        return {}
+
+    def stats(self) -> dict:
+        return {
+            "requests": self.requests,
+            "endpoint_counts": dict(self.endpoint_counts),
+            "errors": list(self.errors),
+        }
+
+
+def test_parse_legacy_comment_page_fields_and_end() -> None:
+    payload = _legacy_payload(
+        [
+            _legacy_reply(101, NOW - 10, "legacy 评论一", like=5),
+            _legacy_reply(102, NOW - 20, "legacy 评论二"),
+            _legacy_reply(103, NOW - 30, "legacy 评论三"),
+        ]
+    )
+    comments, next_cursor, is_end = parse_legacy_comment_page(
+        payload, bvid="BVLEG", aid=1, mode=2, page_size=20, page_number=1
+    )
+    assert [item.id for item in comments] == ["BVLEG:101", "BVLEG:102", "BVLEG:103"]
+    assert [item.text for item in comments] == ["legacy 评论一", "legacy 评论二", "legacy 评论三"]
+    assert comments[0].ctime == NOW - 10 and comments[0].like == 5 and comments[0].mode == 2
+    assert next_cursor == 2 and is_end is True, "本页 3 条 < ps=20，视为末页"
+
+    # 满页且未到末页：继续翻
+    full = _legacy_payload(
+        [_legacy_reply(i, NOW - i, f"评论{i}") for i in range(1, 21)],
+        num=1,
+        size=20,
+        count=100,
+    )
+    _, next_cursor, is_end = parse_legacy_comment_page(full, bvid="BVLEG", page_size=20, page_number=1)
+    assert next_cursor == 2 and is_end is False
+    # 末页：num*size >= count
+    last = _legacy_payload(
+        [_legacy_reply(i, NOW - i, f"评论{i}") for i in range(1, 21)],
+        num=5,
+        size=20,
+        count=100,
+    )
+    assert parse_legacy_comment_page(last, bvid="BVLEG", page_size=20, page_number=5)[2] is True
+    # 空页
+    empty_comments, next_cursor, is_end = parse_legacy_comment_page(
+        _legacy_payload([], num=2), bvid="BVLEG", page_size=20, page_number=2
+    )
+    assert empty_comments == [] and next_cursor == 3 and is_end is True
+
+
+def test_comments_main_success_does_not_fallback() -> None:
+    fixture = json.loads((FIXTURES / "reply_main_mode2.json").read_text(encoding="utf-8"))
+    fake = _FakeHttp(main_payload=fixture)
+    source = BiliSource(http=fake, offline=False)
+    comments, next_cursor, _ = source.comments(123, bvid="BVMAIN", mode=2, cursor=0)
+    assert comments and next_cursor > 0
+    assert fake.without_cookie_calls == ["buvid3"], "main 仍按原策略摘 buvid3"
+    assert len(fake.calls) == 1
+    assert source.comment_endpoint_counts["main"] == 1
+    assert not source.comment_fallbacks
+
+
+def test_comments_412_falls_back_to_legacy_and_sticks() -> None:
+    legacy = _legacy_payload(
+        [
+            _legacy_reply(201, NOW - 10, "fallback 评论一"),
+            _legacy_reply(202, NOW - 20, "fallback 评论二"),
+            _legacy_reply(203, NOW - 30, "fallback 评论三"),
+        ]
+    )
+    fake = _FakeHttp(main_error=HttpError("HTTP 412", 412, "http"), legacy_payload=legacy)
+    source = BiliSource(http=fake, offline=False)
+    comments, next_cursor, is_end = source.comments(
+        123, bvid="BVLEG", mode=2, cursor=0
+    )
+    assert [item.text for item in comments] == ["fallback 评论一", "fallback 评论二", "fallback 评论三"]
+    assert next_cursor == 2 and is_end is True
+    assert source.comment_endpoint_counts["reply_legacy"] == 1
+    assert source.comment_fallbacks["reply_legacy"] == 1
+    assert source.comment_routes["BVLEG"] == "legacy"
+    assert any("reply_legacy" in item.get("reason", "") for item in source.errors)
+    assert all("pn=1" in url for url in fake.calls if "/x/v2/reply?" in url)
+
+    # 同视频后续请求固定走 legacy，不再尝试 main；cursor 用作下一页 pn
+    main_calls = len([url for url in fake.calls if "/reply/main" in url])
+    comments2, next_cursor2, _ = source.comments(123, bvid="BVLEG", mode=2, cursor=next_cursor)
+    assert len(comments2) == 3 and next_cursor2 == 3
+    assert len([url for url in fake.calls if "/reply/main" in url]) == main_calls
+    assert any("pn=2" in url for url in fake.calls if "/x/v2/reply?" in url)
+    assert source.comment_fallbacks["reply_legacy"] == 1, "同一视频只计一次降级"
+
+
+def test_comments_falls_back_on_main_code_error_and_legacy_errors() -> None:
+    # main 返回 code!=0 → 降级 legacy；legacy 空页 → is_end
+    fake = _FakeHttp(main_payload={"code": -352}, legacy_payload=_legacy_payload([]))
+    source = BiliSource(http=fake, offline=False)
+    comments, next_cursor, is_end = source.comments(123, bvid="BVLEG2", mode=3)
+    assert comments == [] and is_end is True and next_cursor == 2
+    assert source.comment_endpoint_counts["reply_legacy"] == 1
+    assert any("main:code:-352" in item.get("reason", "") for item in source.errors)
+
+    # legacy 返回 code!=0 → 记录错误、不静默
+    fake2 = _FakeHttp(
+        main_error=HttpError("HTTP 412", 412, "http"),
+        legacy_payload={"code": -404, "message": "什么都没有"},
+    )
+    source2 = BiliSource(http=fake2, offline=False)
+    assert source2.comments(123, bvid="BVLEG3", mode=2) == ([], 0, True)
+    assert any("reply_legacy:code:-404" in item.get("reason", "") for item in source2.errors)
+    assert source2.comment_failures["reply_legacy:code:-404"] == 1
+
+
+def test_comments_legacy_http_error_returns_empty() -> None:
+    fake = _FakeHttp(
+        main_error=HttpError("HTTP 412", 412, "http"),
+        legacy_error=HttpError("HTTP 412", 412, "http"),
+    )
+    source = BiliSource(http=fake, offline=False)
+    assert source.comments(123, bvid="BVLEG4", mode=2) == ([], 0, True)
+    assert source.comment_failures["reply_legacy:http:412"] == 1
+    assert any("reply_legacy" in item.get("reason", "") for item in source.errors)
+
+
+def test_window_sample_uses_legacy_comment_fallback() -> None:
+    legacy = _legacy_payload(
+        [
+            _legacy_reply(301, NOW - 30, "窗口内 legacy 评论一"),
+            _legacy_reply(302, NOW - 60, "窗口内 legacy 评论二"),
+            _legacy_reply(303, NOW - 90, "窗口内 legacy 评论三"),
+        ]
+    )
+    fake = _FakeHttp(main_error=HttpError("HTTP 412", 412, "http"), legacy_payload=legacy)
+    source = BiliSource(http=fake, offline=False)
+    sample = run_window_sample(
+        source,
+        WindowSamplePlan(evidence=False),
+        now=NOW,
+        comment_targets=[_target("BVLEG5", aid=456)],
+        danmaku_targets=[],
+        use_db=False,
+    )
+    assert len(sample.comments) == 3
+    assert all(item.text.startswith("窗口内 legacy") for item in sample.comments)
+    source_stats = sample.stats["source"]
+    assert source_stats["comment_endpoints"]["reply_legacy"] == 1
+    assert source_stats["comment_fallbacks"]["reply_legacy"] == 1
+    assert any("reply_legacy" in item.get("reason", "") for item in source.errors)
 
 
 # ================================================================ CLI（--no-db）
