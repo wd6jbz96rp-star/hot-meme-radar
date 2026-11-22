@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import html as html_lib
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -481,8 +482,24 @@ class BiliSource:
             self.http.set_cookie("buvid3", str(data["b_3"]))
         if data.get("b_4"):
             self.http.set_cookie("buvid4", str(data["b_4"]))
+        self._apply_auth_cookies()
         self._wbi_keys = parse_wbi_keys(nav)
         self._bootstrapped = True
+
+    def _apply_auth_cookies(self) -> None:
+        """从环境变量注入 B 站登录态 cookie（仅读公开评论，不提交/打印）。
+
+        云服务器 IP 访问 /x/v2/reply/main 会被 412 风控；带登录态 cookie
+        后可恢复评论。默认不配置，保持匿名行为。
+        """
+        for name, env in (
+            ("SESSDATA", "BILI_SESSDATA"),
+            ("bili_jct", "BILI_JCT"),
+            ("DedeUserID", "BILI_DEDEUSERID"),
+        ):
+            value = os.environ.get(env, "").strip()
+            if value:
+                self.http.set_cookie(name, value)
 
     def _mixin_key(self) -> str:
         if not self._wbi_keys:

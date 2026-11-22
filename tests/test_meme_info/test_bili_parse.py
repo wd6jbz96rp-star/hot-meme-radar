@@ -81,3 +81,19 @@ def test_bootstrap_reads_wbi_keys_offline():
     assert source._wbi_keys is not None
     query = source.sign({"search_type": "video", "keyword": "热梗", "page": 1})
     assert "w_rid=" in query and "wts=" in query
+
+
+def test_auth_cookies_from_env(monkeypatch, fixture_dir):
+    from meme_info.bili import BiliSource
+    from meme_info.http import HttpClient
+
+    monkeypatch.setenv("BILI_SESSDATA", "%2Ctest-sess")
+    monkeypatch.setenv("BILI_JCT", "test-jct")
+    monkeypatch.setenv("BILI_DEDEUSERID", "12345")
+    source = BiliSource(
+        http=HttpClient(max_rps=1000), offline=True, fixture_dir=fixture_dir
+    )
+    source.bootstrap()
+    assert source.http.cookie_value("SESSDATA") == "%2Ctest-sess"
+    assert source.http.cookie_value("bili_jct") == "test-jct"
+    assert source.http.cookie_value("DedeUserID") == "12345"
